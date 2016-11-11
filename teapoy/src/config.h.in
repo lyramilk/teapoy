@@ -1,0 +1,4 @@
+﻿#ifndef _teapoy_config_h_
+#define _teapoy_config_h_
+	${CMAKE_CONFIG_MACROS}
+#endif

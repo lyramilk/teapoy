@@ -1,0 +1,408 @@
+#include <libmilk/json.h>
+#include <libmilk/scriptengine.h>
+#include <libmilk/log.h>
+#include <libmilk/multilanguage.h>
+#include <libmilk/ansi_3_64.h>
+
+#include <unistd.h>
+#include <signal.h>
+#include <iostream>
+#include <fstream>
+#include <dlfcn.h>
+
+#include <unistd.h>
+#include <pwd.h>
+#include <sys/wait.h>
+#include <string.h>
+
+#include <stdio.h>
+#include <stdlib.h>
+
+#include <libintl.h>
+
+#include <algorithm>
+
+#include "script.h"
+
+class teapoy_log_base;
+
+bool ondaemon = false;
+teapoy_log_base* logger = nullptr;
+lyramilk::script::engine* eng_main = nullptr;
+lyramilk::data::string logfile;
+lyramilk::data::string launcher_script;
+lyramilk::data::string dictfile;
+lyramilk::data::string dictfile_missing;
+
+std::map<lyramilk::data::string,bool> logswitch;
+
+lyramilk::data::string get_env(const char* env,lyramilk::data::string def)
+{
+	lyramilk::data::string strenv;
+	const char* cstr = getenv(env);
+	if(cstr){
+		strenv = cstr;
+	}else{
+		strenv = def;
+	}
+	return strenv;
+}
+
+class lang_dict:public lyramilk::data::multilanguage::dict
+{
+	lyramilk::data::multilanguage::dict* old;
+	std::fstream fdict;
+  public:
+	lang_dict()
+	{
+		old = lyramilk::kdict.tie(this);
+	}
+
+	virtual ~lang_dict()
+	{
+		lyramilk::kdict.tie(old);
+	}
+
+
+	bool open(lyramilk::data::string filepath){
+		fdict.open(filepath.c_str(),std::fstream::in|std::fstream::out|std::fstream::binary);
+		if(!fdict){
+			lyramilk::klog(lyramilk::log::warning,"kuwo.teapoy.dict.open") << D("打开词典文件失败") << std::endl;
+			return false;
+		}
+		return true;
+	}
+
+	virtual void notify(lyramilk::data::string str)
+	{
+		/*
+		lyramilk::data::var::map m;
+
+		lyramilk::data::var v;
+		lyramilk::data::json j;
+		if(j.open(udictfile)){
+			try{
+				lyramilk::data::var v = j.path("/dict");
+				m = v.as<lyramilk::data::var::map>();
+			}catch(lyramilk::data::var::type_invalid& e){
+				j.clear();
+			}
+		}
+
+		lyramilk::data::var &v = j.path("/dict");
+		v.type(lyramilk::data::var::t_map);
+		v.at(str) = str;
+		j.save(udictfile);
+		*/
+	}
+};
+
+class teapoy_log_base:public lyramilk::log::logb
+{
+	lyramilk::log::logb* old;
+  public:
+	const bool *enable_log_debug;
+	const bool *enable_log_trace;
+	const bool *enable_log_warning;
+	const bool *enable_log_error;
+
+	teapoy_log_base()
+	{
+		old = lyramilk::klog.rebase(this);
+		enable_log_debug = &logswitch["debug"];
+		enable_log_trace = &logswitch["trace"];
+		enable_log_warning = &logswitch["warning"];
+		enable_log_error = &logswitch["error"];
+	}
+
+	virtual ~teapoy_log_base()
+	{
+		lyramilk::klog.rebase(old);
+	}
+
+	virtual bool ok()
+	{
+		return true;
+	}
+};
+
+class teapoy_log_stdio:public teapoy_log_base
+{
+  public:
+	void log(time_t ti,lyramilk::log::type ty,lyramilk::data::string usr,lyramilk::data::string app,lyramilk::data::string module,lyramilk::data::string str)
+	{
+		switch(ty){
+		  case lyramilk::log::debug:
+			if(!*enable_log_debug)return;
+			std::cout << lyramilk::ansi_3_64::cyan << strtime(ti) << " [" << module << "] " << str << lyramilk::ansi_3_64::reset;
+			break;
+		  case lyramilk::log::trace:
+			if(!*enable_log_trace)return;
+			std::clog << lyramilk::ansi_3_64::white << strtime(ti) << " [" << module << "] " << str << lyramilk::ansi_3_64::reset;
+			break;
+		  case lyramilk::log::warning:
+			if(!*enable_log_warning)return;
+			std::clog << lyramilk::ansi_3_64::yellow << strtime(ti) << " [" << module << "] " << str << lyramilk::ansi_3_64::reset;
+			break;
+		  case lyramilk::log::error:
+			if(!*enable_log_error)return;
+			std::cerr << lyramilk::ansi_3_64::red << strtime(ti) << " [" << module << "] " << str << lyramilk::ansi_3_64::reset;
+			break;
+		  default:
+			std::cout << lyramilk::ansi_3_64::reset;
+		}
+	}
+};
+
+class teapoy_log_logfile:public teapoy_log_base
+{
+	std::ofstream lfs;
+	pid_t pid;
+  public:
+	teapoy_log_logfile(lyramilk::data::string logfilepath)
+	{
+		lfs.open(logfilepath.c_str(),std::ofstream::app);
+		pid = getpid();
+	}
+	virtual ~teapoy_log_logfile()
+	{
+	}
+
+	virtual bool ok()
+	{
+		return lfs.good();
+	}
+
+	void log(time_t ti,lyramilk::log::type ty,lyramilk::data::string usr,lyramilk::data::string app,lyramilk::data::string module,lyramilk::data::string str)
+	{
+		switch(ty){
+		  case lyramilk::log::debug:
+			if(!*enable_log_debug)return;
+			lfs << pid << " " << strtime(ti) << " [" << module << "] " << str;
+			break;
+		  case lyramilk::log::trace:
+			if(!*enable_log_trace)return;
+			lfs << pid << " " << strtime(ti) << " [" << module << "] " << str;
+			break;
+		  case lyramilk::log::warning:
+			if(!*enable_log_warning)return;
+			lfs << pid << " " << strtime(ti) << " [" << module << "] " << str;
+			break;
+		  case lyramilk::log::error:
+			if(!*enable_log_error)return;
+			lfs << pid << " " << strtime(ti) << " [" << module << "] " << str;
+			break;
+		  default:
+			lfs << pid << " " << strtime(ti) << " [" << module << "] " << str;
+		}
+		lfs.flush();
+	}
+};
+
+class teapoy_loader
+{
+	lyramilk::log::logss log;
+	std::vector<lyramilk::script::engine*> libs;
+  public:
+	static void* ctr(lyramilk::data::var::array)
+	{
+		return new teapoy_loader();
+	}
+	static void dtr(void* p)
+	{
+		delete (teapoy_loader*)p;
+	}
+
+	teapoy_loader():log(lyramilk::klog,"teapoy.loader")
+	{
+	}
+
+	void init_log()
+	{
+		if(logger == nullptr){
+			teapoy_log_base* logbase = new teapoy_log_stdio();
+			if(logbase && logbase->ok()){
+				if(logger)delete logger;
+				logger = logbase;
+				lyramilk::klog(lyramilk::log::debug,"kuwo.teapoy.log") << D("切换日志成功") << std::endl;
+			}else{
+				lyramilk::klog(lyramilk::log::error,"kuwo.teapoy.log") << D("切换日志失败") << std::endl;
+			}
+		}
+	}
+
+	virtual ~teapoy_loader()
+	{
+		std::vector<lyramilk::script::engine*>::iterator it = libs.begin();
+		for(;it!=libs.end();++it){
+			lyramilk::script::engine*& eng = *it;
+			lyramilk::script::engine::destoryinstance(eng->name(),eng);
+		}
+	}
+
+	lyramilk::data::var load(lyramilk::data::var::array args,lyramilk::data::var::map env)
+	{
+		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
+
+		lyramilk::data::string filename = args[0];
+
+		lyramilk::data::var::array parameter(1);
+		parameter[0].assign("engine",eng_main);
+
+		lyramilk::script::engine* eng_tmp = lyramilk::script::engine::createinstance(filename);
+		if(!eng_tmp){
+			log(lyramilk::log::error) << D("加载%s失败",filename.c_str()) << std::endl;
+			return false;
+		}
+
+		eng_tmp->load_file(filename);
+		int ret = eng_tmp->call("onload",parameter);
+		libs.push_back(eng_tmp);
+		return 0 == ret;
+	}
+
+	lyramilk::data::var enable_log(lyramilk::data::var::array args,lyramilk::data::var::map env)
+	{
+		if(logger == nullptr) init_log();
+		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
+		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_bool);
+		lyramilk::data::string logtype = args[0];
+		bool isenable = args[1];
+		std::map<lyramilk::data::string,bool>::iterator it = logswitch.find(logtype);
+		logswitch[logtype] = isenable;
+		if(isenable){
+			log(__FUNCTION__) << D("允许日志<%s>",logtype.c_str()) << std::endl;
+		}else{
+			log(__FUNCTION__) << D("禁止日志<%s>",logtype.c_str()) << std::endl;
+		}
+		return true;
+	}
+
+	lyramilk::data::var set_log_file(lyramilk::data::var::array args,lyramilk::data::var::map env)
+	{
+		if(!logfile.empty()){
+			return false;
+		}
+		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
+		logfile = args[0].str();
+
+		teapoy_log_base* logbase = new teapoy_log_logfile(logfile);
+		if(logbase && logbase->ok()){
+			if(logger)delete logger;
+			logger = logbase;
+			log(lyramilk::log::debug,__FUNCTION__) << D("切换日志成功") << std::endl;
+		}else{
+			log(lyramilk::log::error,__FUNCTION__) << D("切换日志失败:%s",logfile.c_str()) << std::endl;
+		}
+		return true;
+	}
+};
+
+void useage(lyramilk::data::string selfname)
+{
+	std::cout << gettext("useage:") << selfname << " [-s] <file> -[dtul?] ..." << std::endl;
+	std::cout << "\t-s <file>\t" << gettext("start by script <file>") << std::endl;
+	std::cout << "\t-d       \t" << gettext("start as daemon") << std::endl;
+	std::cout << "\t-t <file>\t" << gettext("translate string by <file>") << std::endl;
+	std::cout << "\t-u <file>\t" << gettext("which string can't be translate record to <file>") << std::endl;
+	std::cout << "\t-l <file>\t" << gettext("record log to <file>") << std::endl;
+}
+
+lyramilk::data::string get_engine_type(lyramilk::data::string filename)
+{
+	std::size_t pos = filename.find_last_of('.');
+	if(pos == filename.npos){
+		return "";
+	}
+
+	lyramilk::data::string scripttypename = filename.substr(pos + 1);
+	std::transform(scripttypename.begin(),scripttypename.end(),scripttypename.begin(),tolower);
+	if(scripttypename == "so") return "elf";
+	return scripttypename;
+}
+
+int main(int argc,char* argv[])
+{
+	bool isdaemon = false;
+	{
+		lyramilk::data::string selfname = argv[0];
+		int oc;
+		while((oc = getopt(argc, argv, "s:dt:u:l:?")) != -1){
+			switch(oc)
+			{
+			  case 's':
+				launcher_script = optarg;
+				break;
+			  case 'd':
+				isdaemon = true;
+				break;
+			  case 't':
+				dictfile = optarg;
+				break;
+			  case 'u':
+				dictfile_missing = optarg;
+				break;
+			  case 'l':
+				logfile = optarg;
+				break;
+			  case '?':
+			  default:
+				useage(selfname);
+				return 0;
+			}
+		}
+	}
+
+	for(int argi = optind;argi < argc;++argi){
+		launcher_script = argv[argi];
+	}
+	if(isdaemon){
+		::daemon(1,0);
+		int pid = 0;
+		do{
+			pid = fork();
+			if(pid == 0){
+				break;
+			}
+		}while(waitpid(pid,NULL,0));
+	}
+
+	if(!dictfile.empty()){
+		if(!lyramilk::kdict.load(dictfile)){
+			lyramilk::klog(lyramilk::log::error,"teapoy.loader") << "load dictionary " << dictfile << " failed." << std::endl;
+		}else{
+			lyramilk::klog(lyramilk::log::debug,"teapoy.loader") << "load dictionary " << dictfile << " success." << std::endl;
+		}
+	}
+
+	lyramilk::log::logss log(lyramilk::klog,"teapoy.loader");
+	ondaemon = getppid() == 1;
+	signal(SIGPIPE, SIG_IGN);
+
+	// 确定启动脚本的类型
+	lyramilk::data::string launcher_script_type = get_engine_type(launcher_script);
+	if(launcher_script_type.empty()){
+		log(lyramilk::log::error) << D("无法确定启动脚本的类型。") << std::endl;
+		return -1;
+	}
+
+	log << D("启动脚本%s(类型为：%s)",launcher_script.c_str(),launcher_script_type.c_str()) << std::endl;
+	eng_main = lyramilk::script::engine::createinstance(launcher_script_type);
+	if(!eng_main){
+		log(lyramilk::log::error) << D("获取启动脚本失败") << std::endl;
+		return -1;
+	}
+
+	{
+		lyramilk::script::engine::functional_map fn;
+		fn["load"] = lyramilk::script::engine::functional<teapoy_loader,&teapoy_loader::load>;
+		fn["enable_log"] = lyramilk::script::engine::functional<teapoy_loader,&teapoy_loader::enable_log>;
+		fn["set_log_file"] = lyramilk::script::engine::functional<teapoy_loader,&teapoy_loader::set_log_file>;
+		eng_main->define("teapoy",fn,teapoy_loader::ctr,teapoy_loader::dtr);
+	}
+
+	lyramilk::teapoy::script2native::instance()->fill(eng_main);
+	eng_main->load_file(launcher_script);
+	log << "执行完毕。" << std::endl;
+	return 0;
+}
