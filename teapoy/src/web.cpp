@@ -6,6 +6,9 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <string.h>
+#include <libmilk/log.h>
+#include <libmilk/multilanguage.h>
+#include <libmilk/testing.h>
 
 namespace lyramilk{ namespace teapoy { namespace web {
 
@@ -65,20 +68,37 @@ namespace lyramilk{ namespace teapoy { namespace web {
 
 	aiohttpsession::aiohttpsession()
 	{
-		
 	}
 
 	aiohttpsession::~aiohttpsession()
 	{
 	}
 
+	bool aiohttpsession::oninit(std::ostream& os)
+	{
+		lyramilk::netio::netaddress addr_dest = dest();
+		lyramilk::netio::netaddress addr_source = source();
+
+		req.source = addr_source.ip_str();
+		req.source_port = addr_dest.port;
+
+		req.dest = addr_dest.ip_str();
+		req.dest_port = addr_dest.port;
+		return true;
+	}
+
 	bool aiohttpsession::onrequest(const char* cache,int size,std::ostream& os)
 	{
-//COUT.write(cache,size) << std::endl;
 		int remain = 0;
 		if(!req.parse(cache,size,&remain)){
 			return true;
 		}
+		/*
+		lyramilk::data::string k = D("%s ",req.url.c_str());
+		lyramilk::debug::nsecdiff td;
+		lyramilk::debug::clocktester _d(td,lyramilk::klog(lyramilk::log::debug),k);
+*/
+
 		if(req.bad()){
 			os <<	"HTTP/1.1 400 Bad Request\r\n"
 					"Server: " SERVER_VER "\r\n"
@@ -86,18 +106,6 @@ namespace lyramilk{ namespace teapoy { namespace web {
 			return false;
 		}
 		req.parse_cookies();
-
-/*
-os <<	"HTTP/1.1 401 Authorization Required\r\n"
-		"Server: " SERVER "\r\n"
-		"WWW-Authenticate: Digest username=\"Alice\", realm=\"Contacts Realm via Digest Authentication\",nonce=\"MTQwMTk3OTkwMDkxMzo3MjdjNDM2NTYzMTU2NTA2NWEzOWU2NzBlNzhmMjkwOA==\", uri=\"/secret\", cnonce=\"MTQwMTk3\", nc=00000001, qop=\"auth\",response=\"fd5798940c32e51c128ecf88472151af\"\r\n"
-		"\r\n";
-COUT <<	"HTTP/1.1 401 Authorization Required\r\n"
-		"Server: " SERVER "\r\n"
-		"\r\n";
-return false;
-*/
-
 
 		// 动态调用
 		methodinvoker* invoder = methodinvokers::instance()->get(req.method);
@@ -138,8 +146,8 @@ return false;
 
 					lyramilk::data::var vconnection = req.get("Connection");
 					lyramilk::data::var strconnection;
-					if(vconnection.type_compat(lyramilk::data::var::t_str)){
-						strconnection = lyramilk::teapoy::lowercase(strconnection);
+					if(vconnection.type_like(lyramilk::data::var::t_str)){
+						strconnection = lyramilk::teapoy::lowercase(vconnection.str());
 					}
 					if(strconnection == "keep-alive"){
 						req.reset();
@@ -154,7 +162,6 @@ return false;
 				return false;
 			}
 		}
-
 		//静态处理
 		if(req.ver.major == 1 && req.ver.minor < 1){
 			invoder->call(&req,os);
@@ -162,7 +169,7 @@ return false;
 		}else if(invoder->call(&req,os)){
 			lyramilk::data::var vconnection = req.get("Connection");
 			lyramilk::data::var strconnection;
-			if(vconnection.type_compat(lyramilk::data::var::t_str)){
+			if(vconnection.type_like(lyramilk::data::var::t_str)){
 				strconnection = lyramilk::teapoy::lowercase(vconnection);
 			}
 			if(strconnection == "keep-alive"){
@@ -259,7 +266,6 @@ return false;
 				}
 			}
 
-
 			std::ifstream ifs;
 			ifs.open(rawfile.c_str(),std::ifstream::binary|std::ifstream::in);
 			if(!ifs.is_open()){
@@ -354,11 +360,19 @@ return false;
 
 			}
 
+			lyramilk::data::string mimetype = mime::getmimetype_byname(rawfile);
+			if(mimetype.empty()){
+				mimetype = mime::getmimetype_byfile(rawfile);
+			}
+
 			lyramilk::data::stringstream ss;
 			if(is_range){
 				ss <<	"HTTP/1.1 206 Partial Content\r\n";
 			}else{
 				ss <<	"HTTP/1.1 200 OK\r\n";
+			}
+			if(!mimetype.empty()){
+				ss <<	"Content-Type: " << mimetype << "\r\n";
 			}
 
 			ss <<		"Server: " SERVER_VER "\r\n";

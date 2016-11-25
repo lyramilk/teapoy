@@ -7,153 +7,57 @@
 #include "stringutil.h"
 #include "processer_master.h"
 #include "http.h"
+#include "web.h"
 
 
 namespace lyramilk{ namespace teapoy{ namespace native
 {
-	class SessionMgr
-	{
-		struct timedmap
-		{
-			lyramilk::data::var::map m;
-			time_t tm;
-			timedmap()
-			{
-				tm = time(0);
-			}
-		};
-		time_t st;
-		std::map<lyramilk::data::string,timedmap> k;
-	  public:
-		SessionMgr()
-		{
-			st = time(0);
-		}
-		virtual ~SessionMgr()
-		{}
-		lyramilk::data::var& get(const lyramilk::data::string& id,const lyramilk::data::string& key)
-		{
-			gc();
-			timedmap& t = k[id];
-			t.tm = time(0);
-			return t.m[key];
-		}
-
-		void gc()
-		{
-			time_t now = time(0);
-			if(st < now){
-				//每60秒触发一次gc。
-				st = now + 10;
-				//会话时间为600秒。
-				time_t q = now - 600;
-				for(std::map<lyramilk::data::string,timedmap>::iterator it = k.begin();it!=k.end();++it){
-					if(it->second.tm < q){
-						k.erase(it);
-					}
-				}
-			}
-		}
-
-		void set(const lyramilk::data::string& id,const lyramilk::data::string& key,const lyramilk::data::var& value)
-		{
-			gc();
-			timedmap& t = k[id];
-			t.tm = time(0);
-			t.m[key] = value;
-		}
-
-		static lyramilk::data::string makeid()
-		{
-			union{
-				int i[4];
-				char c[1];
-			}u;
-			u.i[0] = rand();
-			u.i[1] = rand();
-			u.i[2] = rand();
-			u.i[3] = rand();
-			int size = sizeof(u);
-			lyramilk::data::string str;
-			str.reserve(size);
-			for(int i=0;i<size;++i){
-				unsigned char c = u.c[i];
-				unsigned char q = c % 36;
-				if(q <10){
-					str.push_back(q + '0');
-				}else{
-					str.push_back(q - 10 + 'A');
-				}
-			}
-			return str;
-		}
-
-
-		lyramilk::data::string newid()
-		{
-			srand(time(0));
-			std::map<lyramilk::data::string,lyramilk::data::var::map>::iterator it;
-			while(true){
-				lyramilk::data::string id = makeid();
-				if(k.find(id) == k.end()){
-					return id;
-				}
-			}
-		}
-
-		static SessionMgr* instance()
-		{
-			static SessionMgr _mm;
-			return &_mm;
-		}
-	};
-
 	class httpsession
 	{
 		lyramilk::log::logss log;
-		lyramilk::data::string id;
+		web::processer_args* proc_args;
 	  public:
 		static void* ctr(lyramilk::data::var::array args)
 		{
-			return new httpsession(args[0]);
+			return new httpsession((web::processer_args*)args[0].userdata("__http_processer_args"));
 		}
 		static void dtr(void* p)
 		{
 			delete (httpsession*)p;
 		}
 
-		httpsession(lyramilk::data::string id):log(lyramilk::klog,"teapoy.native.HttpSession")
+		httpsession(web::processer_args* proc_args):log(lyramilk::klog,"teapoy.native.HttpSession")
 		{
-			this->id = id;
+			this->proc_args = proc_args;
 		}
 
 		virtual ~httpsession()
 		{
 		}
 
-		lyramilk::data::var setAttribute(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var setAttribute(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			if(args.size() < 2) return false;
 			lyramilk::data::string key = args[0];
 			lyramilk::data::var value = args[1];
-			SessionMgr::instance()->set(id,key,value);
+			proc_args->set(key,value);
 			return true;
 		}
 
-		lyramilk::data::var getAttribute(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var getAttribute(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			lyramilk::data::string key = args[0];
-			return SessionMgr::instance()->get(id,key);
+			return proc_args->get(key);
 		}
 
-		lyramilk::data::var todo(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var todo(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			TODO();
 		}
 
-		static int define(lyramilk::script::engine* p)
+		static int define(bool permanent,lyramilk::script::engine* p)
 		{
 			lyramilk::script::engine::functional_map fn;
 			fn["get"] = lyramilk::script::engine::functional<httpsession,&httpsession::getAttribute>;
@@ -162,12 +66,10 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			fn["setMaxInactiveInterval"] = lyramilk::script::engine::functional<httpsession,&httpsession::todo>;
 			fn["getId"] = lyramilk::script::engine::functional<httpsession,&httpsession::todo>;
 			fn["getCreationTime"] = lyramilk::script::engine::functional<httpsession,&httpsession::todo>;
-			p->define("HttpSession",fn,httpsession::ctr,httpsession::dtr);
+			p->define(permanent,"HttpSession",fn,httpsession::ctr,httpsession::dtr);
 			return 1;
 		}
 	};
-
-
 
 
 	class httpresponse
@@ -235,7 +137,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			proc_args->os.flush();
 		}
 
-		lyramilk::data::var setHeader(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var setHeader(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_str);
@@ -245,19 +147,19 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			return true;
 		}
 
-		lyramilk::data::var sendError(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var sendError(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_uint32);
 			response_code = args[0];
 			return true;
 		}
 
-		lyramilk::data::var sendRedirect(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var sendRedirect(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			TODO();
 		}
 
-		lyramilk::data::var write(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var write(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			if(args[0].type() == lyramilk::data::var::t_bin){
@@ -270,16 +172,16 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			return true;
 		}
 
-		lyramilk::data::var addCookie(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var addCookie(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_map);
 			/*	name=value;domain,path,expire,secure,httponly	*/
 			//proc_args->req->cookies.push_back(args[0]["name"],args[0]);
-			proc_args->req->cookies[args[0]["name"]] = args[0];
+			proc_args->req->cookies[args.at(0).at("name")] = args.at(0);
 			return true;
 		}
 
-		static int define(lyramilk::script::engine* p)
+		static int define(bool permanent,lyramilk::script::engine* p)
 		{
 			lyramilk::script::engine::functional_map fn;
 			fn["setHeader"] = lyramilk::script::engine::functional<httpresponse,&httpresponse::setHeader>;
@@ -287,7 +189,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			fn["sendRedirect"] = lyramilk::script::engine::functional<httpresponse,&httpresponse::sendRedirect>;
 			fn["write"] = lyramilk::script::engine::functional<httpresponse,&httpresponse::write>;
 			fn["addCookie"] = lyramilk::script::engine::functional<httpresponse,&httpresponse::addCookie>;
-			p->define("HttpResponse",fn,httpresponse::ctr,httpresponse::dtr);
+			p->define(permanent,"HttpResponse",fn,httpresponse::ctr,httpresponse::dtr);
 			return 1;
 		}
 	};
@@ -296,6 +198,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 	{
 		lyramilk::log::logss log;
 		web::processer_args* proc_args;
+		lyramilk::data::var sessionobj;
 		/*
 		lyramilk::data::var::map header;
 		lyramilk::data::var::map request_args;
@@ -321,19 +224,19 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		{
 		}
 
-		lyramilk::data::var getHeader(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var getHeader(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			lyramilk::data::string field = args[0];
 			return this->proc_args->req->get(field);
 		}
 
-		lyramilk::data::var getHeaders(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var getHeaders(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			return this->proc_args->req->header;
 		}
 
-		lyramilk::data::var getParameter(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var getParameter(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			lyramilk::data::string urlkey = args[0];
@@ -348,7 +251,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			return lyramilk::data::var::nil;
 		}
 
-		lyramilk::data::var getParameterRaw(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var getParameterRaw(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			lyramilk::data::string urlkey = args[0];
@@ -360,52 +263,70 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			return lyramilk::data::var::nil;
 		}
 
-		lyramilk::data::var getParameterValues(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var getParameterValues(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			return this->proc_args->req->parameter;
 		}
 
-		lyramilk::data::var getRequestURL(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var getRequestURL(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
-			return lyramilk::data::codes::instance()->decode(proc_args->req->url,"urlcomponent");
+			return lyramilk::data::codes::instance()->decode("urlcomponent",proc_args->req->url);
 		}
 
-		lyramilk::data::var getRealPath(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var getRealPath(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			return proc_args->real;
 		}
 
-		lyramilk::data::var getSession(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var getSession(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
+			/*
 			if(proc_args->session.type() == lyramilk::data::var::t_user) return proc_args->session;
 			lyramilk::data::var::map::iterator it = proc_args->req->cookies.find("TeapoyId");
-			lyramilk::data::string id;
+
 
 			if(it!=proc_args->req->cookies.end()){
 				if(it->second.type() == lyramilk::data::var::t_map){
-					id = it->second.at("value").str();
+					proc_args->sid = it->second.at("value").str();
 				}
 				if(it->second.type_compat(lyramilk::data::var::t_str)){
-					id = it->second.str();
+					proc_args->sid = it->second.str();
 				}
 			}
-			if(id.empty()){
-				id = SessionMgr::instance()->newid();
+			if(proc_args->sid.empty()){
+				proc_args->sid = lyramilk::teapoy::web::sessions::instance()->newid();
 				lyramilk::data::var v;
 				v.type(lyramilk::data::var::t_map);
-				v["value"] = id;
+				v["value"] = proc_args->sid;
 
 				proc_args->req->cookies["TeapoyId"] = v;
 			}
 
 			lyramilk::data::var::array ar;
-			ar.push_back(id);
-			lyramilk::script::engine* e = (lyramilk::script::engine*)env[lyramilk::script::engine::s_env_engine()].userdata(lyramilk::script::engine::s_user_engineptr());
+			ar.push_back(proc_args->sid);
+			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_user_engineptr());
 			proc_args->session = e->createobject("HttpSession",ar);
-			return proc_args->session;
+
+
+			return proc_args->session;*/
+
+
+			if(sessionobj.type() == lyramilk::data::var::t_user){
+				return sessionobj;
+			}
+
+			lyramilk::data::string sid = proc_args->getsid();
+			if(sid.empty()) return lyramilk::data::var::nil;
+
+			lyramilk::data::var::array ar;
+			lyramilk::data::var v("__http_processer_args",proc_args);
+			ar.push_back(v);
+			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_user_engineptr());
+			sessionobj = e->createobject("HttpSession",ar);
+			return sessionobj;
 		}
 
-		static int define(lyramilk::script::engine* p)
+		static int define(bool permanent,lyramilk::script::engine* p)
 		{
 			lyramilk::script::engine::functional_map fn;
 			fn["getHeader"] = lyramilk::script::engine::functional<httprequest,&httprequest::getHeader>;
@@ -416,17 +337,17 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			fn["getRequestURL"] = lyramilk::script::engine::functional<httprequest,&httprequest::getRequestURL>;
 			fn["getRealPath"] = lyramilk::script::engine::functional<httprequest,&httprequest::getRealPath>;
 			fn["getSession"] = lyramilk::script::engine::functional<httprequest,&httprequest::getSession>;
-			p->define("HttpRequest",fn,httprequest::ctr,httprequest::dtr);
+			p->define(permanent,"HttpRequest",fn,httprequest::ctr,httprequest::dtr);
 			return 1;
 		}
 	};
 
-	static int define(lyramilk::script::engine* p)
+	static int define(bool permanent,lyramilk::script::engine* p)
 	{
 		int i = 0;
-		i+= httprequest::define(p);
-		i+= httpresponse::define(p);
-		i+= httpsession::define(p);
+		i+= httprequest::define(permanent,p);
+		i+= httpresponse::define(permanent,p);
+		i+= httpsession::define(permanent,p);
 		return i;
 	}
 

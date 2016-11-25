@@ -5,39 +5,39 @@
 
 namespace lyramilk{ namespace teapoy{ namespace native
 {
-	static lyramilk::log::logss log(lyramilk::klog,"teapoy.g");
+	static lyramilk::log::logss log(lyramilk::klog,"teapoy.native");
 
-	lyramilk::data::var test(lyramilk::data::var::array args,lyramilk::data::var::map env)
+	lyramilk::data::var test(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 	{
 		return true;
 	}
 
-	lyramilk::data::var echo(lyramilk::data::var::array args,lyramilk::data::var::map env)
+	lyramilk::data::var echo(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 	{
-		for(lyramilk::data::var::array::iterator it = args.begin();it!=args.end();++it){
+		for(lyramilk::data::var::array::const_iterator it = args.begin();it!=args.end();++it){
 			std::cout << it->str();
 		}
 		std::cout << std::endl;
 		return true;
 	}
 
-	lyramilk::data::var trace(lyramilk::data::var::array args,lyramilk::data::var::map env)
+	lyramilk::data::var trace(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 	{
-		lyramilk::script::engine* e = (lyramilk::script::engine*)env[lyramilk::script::engine::s_env_engine()].userdata(lyramilk::script::engine::s_user_engineptr());
+		lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_user_engineptr());
 		lyramilk::data::string mod = "s=" + e->filename();
 
 		lyramilk::klog(lyramilk::log::trace,mod);
-		for(lyramilk::data::var::array::iterator it = args.begin();it!=args.end();++it){
+		for(lyramilk::data::var::array::const_iterator it = args.begin();it!=args.end();++it){
 			lyramilk::klog << it->str();
 		}
 		lyramilk::klog << std::endl;
 		return true;
 	}
 
-	lyramilk::data::var slog(lyramilk::data::var::array args,lyramilk::data::var::map env)
+	lyramilk::data::var slog(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
-		lyramilk::script::engine* e = (lyramilk::script::engine*)env[lyramilk::script::engine::s_env_engine()].userdata(lyramilk::script::engine::s_user_engineptr());
+		lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_user_engineptr());
 		lyramilk::data::string mod = "s=" + e->filename();
 		lyramilk::data::string logtype = args[0];
 
@@ -54,7 +54,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		}
 
 
-		lyramilk::data::var::array::iterator it = args.begin();
+		lyramilk::data::var::array::const_iterator it = args.begin();
 		if(it!=args.end()){
 			++it;
 			for(;it!=args.end();++it){
@@ -65,14 +65,14 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		return true;
 	}
 
-	static int define(lyramilk::script::engine* p)
+	static int define(bool permanent,lyramilk::script::engine* p)
 	{
 		int i = 0;
 		{
-			p->define("test",test);++i;
-			p->define("trace",trace);++i;
-			p->define("echo",echo);++i;
-			p->define("log",slog);++i;
+			p->define(permanent,"test",test);++i;
+			p->define(permanent,"trace",trace);++i;
+			p->define(permanent,"echo",echo);++i;
+			p->define(permanent,"log",slog);++i;
 		}
 		return i;
 	}

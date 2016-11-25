@@ -22,11 +22,18 @@ namespace lyramilk{ namespace teapoy {namespace http{
 		lyramilk::data::string root;
 		lyramilk::data::var::map parameter;
 		lyramilk::data::var::map cookies;
+
 		struct
 		{
 			int major;
 			int minor;
 		}ver;
+
+		lyramilk::data::string source;
+		lyramilk::data::string dest;
+		lyramilk::data::uint16 source_port;
+		lyramilk::data::uint16 dest_port;
+		lyramilk::data::string nonce;	//这个值用于http摘要认证，在reset的时候不清空。	
 
 		request();
 		virtual ~request();

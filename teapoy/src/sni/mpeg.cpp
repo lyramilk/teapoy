@@ -67,24 +67,24 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			}
 		}
 
-		lyramilk::data::var todo(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var todo(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			TODO();
 		}
 
-		lyramilk::data::var scan(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var scan(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
-			lyramilk::script::engine* e = (lyramilk::script::engine*)env[lyramilk::script::engine::s_env_engine()].userdata(lyramilk::script::engine::s_user_engineptr());
+			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_user_engineptr());
 			lyramilk::data::var::array ar;
 			ar.push_back(lyramilk::data::var("Mpeg",this));
 			return e->createobject("Mpeg.Keyframe",ar);
 		}
 
-		static int define(lyramilk::script::engine* p)
+		static int define(bool permanent,lyramilk::script::engine* p)
 		{
 			lyramilk::script::engine::functional_map fn;
 			fn["scan"] = lyramilk::script::engine::functional<Mpeg,&Mpeg::scan>;
-			p->define("Mpeg",fn,Mpeg::ctr,Mpeg::dtr);
+			p->define(permanent,"Mpeg",fn,Mpeg::ctr,Mpeg::dtr);
 			return 1;
 		}
 	};
@@ -214,7 +214,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			sws = sws_getContext(pcodec->width, pcodec->height, pcodec->pix_fmt,sws_width, sws_height, AV_PIX_FMT_RGB24, SWS_BICUBIC, NULL, NULL, NULL);
 		}
 
-		lyramilk::data::var ok(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var ok(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			if(!isinit){
 				init();
@@ -223,7 +223,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return isok;
 		}
 
-		lyramilk::data::var save_jpeg(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var save_jpeg(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			lyramilk::data::string jpegdir = args[0].str().c_str();
@@ -292,7 +292,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return filename;
 		}
 
-		lyramilk::data::var next(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var next(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			if(!isinit) init();
 			isok = false;
@@ -327,29 +327,29 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 		}
 
 
-		lyramilk::data::var time(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var time(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			return timestamp;
 		}
 
-		static int define(lyramilk::script::engine* p)
+		static int define(bool permanent,lyramilk::script::engine* p)
 		{
 			lyramilk::script::engine::functional_map fn;
 			fn["ok"] = lyramilk::script::engine::functional<Mpeg_KeyFrame,&Mpeg_KeyFrame::ok>;
 			fn["saveJpeg"] = lyramilk::script::engine::functional<Mpeg_KeyFrame,&Mpeg_KeyFrame::save_jpeg>;
 			fn["time"] = lyramilk::script::engine::functional<Mpeg_KeyFrame,&Mpeg_KeyFrame::time>;
 			fn["next"] = lyramilk::script::engine::functional<Mpeg_KeyFrame,&Mpeg_KeyFrame::next>;
-			p->define("Mpeg.Keyframe",fn,Mpeg_KeyFrame::ctr,Mpeg_KeyFrame::dtr);
+			p->define(permanent,"Mpeg.Keyframe",fn,Mpeg_KeyFrame::ctr,Mpeg_KeyFrame::dtr);
 			return 1;
 		}
 	};
 
 
-	static int define(lyramilk::script::engine* p)
+	static int define(bool permanent,lyramilk::script::engine* p)
 	{
 		int i = 0;
-		i+= Mpeg::define(p);
-		i+= Mpeg_KeyFrame::define(p);
+		i+= Mpeg::define(permanent,p);
+		i+= Mpeg_KeyFrame::define(permanent,p);
 		return i;
 	}
 

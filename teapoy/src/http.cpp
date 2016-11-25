@@ -83,7 +83,7 @@ namespace lyramilk{ namespace teapoy {namespace http{
 		}
 
 		//解析请求正文中的参数
-		if(vmimetype.type_compat(lyramilk::data::var::t_str)){
+		if(vmimetype.type_like(lyramilk::data::var::t_str)){
 			lyramilk::data::string str = vmimetype;
 			lyramilk::data::string charset;
 			if(body_length > 0 && str.find("www-form-urlencoded") != str.npos){
@@ -100,7 +100,7 @@ namespace lyramilk{ namespace teapoy {namespace http{
 
 				lyramilk::data::string paramurl((const char*)offset_body,body_length);
 				if(charset.find_first_not_of("UuTtFf-8") != charset.npos){
-					paramurl = lyramilk::data::codes::instance()->decode(paramurl,charset);
+					paramurl = lyramilk::data::codes::instance()->decode(charset,paramurl);
 				}
 				if(!urlparams.empty()){
 					urlparams.push_back('&');

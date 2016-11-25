@@ -16,7 +16,6 @@ namespace lyramilk{ namespace teapoy{ namespace native
 	{
 		lyramilk::log::logss log;
 		lyramilk::data::string root;
-		lyramilk::data::string cacheroot;
 
 		web::processer_master proc_master;
 	  public:
@@ -37,7 +36,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		~httpserver()
 		{}
 
-		lyramilk::data::var open(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var open(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_uint16);
 
@@ -54,26 +53,37 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			return lyramilk::netio::aiolistener::open(args[0]);
 		}
 
-		lyramilk::data::var bind_url(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var bind_url(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_array);
-			lyramilk::data::var::array& ar = args[0];
-			lyramilk::data::var::array::iterator it = ar.begin();
+			const lyramilk::data::var::array& ar = args[0];
+			lyramilk::data::var::array::const_iterator it = ar.begin();
 			for(;it!=ar.end();++it){
 				lyramilk::data::string type = it->at("type");
 				lyramilk::data::string pattern = it->at("pattern");
 				lyramilk::data::string module = it->at("module");
-				proc_master.mapping(type,pattern,module);
+				lyramilk::data::var auth = it->at("auth");
+				if(auth.type() == lyramilk::data::var::t_map){
+					proc_master.mapping(type,pattern,module,auth["type"],auth["module"]);
+				}else{
+					proc_master.mapping(type,pattern,module);
+				}
 			}
 			return true;
 		}
 
-		lyramilk::data::var set_root(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var preload(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
-			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_str);
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_array);
+			proc_master.preload(args[0],args[1]);
+			return true;
+		}
+
+		lyramilk::data::var set_root(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		{
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			lyramilk::data::string str = args[0].str();
-			lyramilk::data::string str_cache = args[1].str();
 
 			lyramilk::data::string rawdir;
 			std::size_t pos_end = str.find_last_not_of("/");
@@ -81,10 +91,6 @@ namespace lyramilk{ namespace teapoy{ namespace native
 
 			rawdir = root;
 			rawdir.push_back('/');
-
-			lyramilk::data::string rawdir_cache;
-			std::size_t pos_cache_end = str_cache.find_last_not_of("/");
-			cacheroot = str_cache.substr(0,pos_cache_end + 1);
 
 			rawdir = root;
 			rawdir.push_back('/');
@@ -96,6 +102,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			}
 
 			if(S_ISDIR(st.st_mode) || S_ISLNK(st.st_mode)){
+				log(lyramilk::log::trace,__FUNCTION__) << D("设置网站根目录：%s",str.c_str()) << std::endl;
 				return true;
 			}
 
@@ -103,7 +110,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			return false;
 		}
 
-		lyramilk::data::var set_index(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var set_defaultpage(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_array);
 			env::set_config("web.index",args[0]);
@@ -118,14 +125,15 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			return ss;
 		}
 		
-		static int define(lyramilk::script::engine* p)
+		static int define(bool permanent,lyramilk::script::engine* p)
 		{
 			lyramilk::script::engine::functional_map fn;
 			fn["open"] = lyramilk::script::engine::functional<httpserver,&httpserver::open>;
 			fn["bind_url"] = lyramilk::script::engine::functional<httpserver,&httpserver::bind_url>;
+			fn["preload"] = lyramilk::script::engine::functional<httpserver,&httpserver::preload>;
 			fn["set_root"] = lyramilk::script::engine::functional<httpserver,&httpserver::set_root>;
-			fn["set_index"] = lyramilk::script::engine::functional<httpserver,&httpserver::set_index>;
-			p->define("httpserver",fn,httpserver::ctr,httpserver::dtr);
+			fn["set_defaultpage"] = lyramilk::script::engine::functional<httpserver,&httpserver::set_defaultpage>;
+			p->define(permanent,"httpserver",fn,httpserver::ctr,httpserver::dtr);
 			return 1;
 		}
 

@@ -47,6 +47,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 		virtual bool process(lyramilk::teapoy::http::request* req,std::ostream& os,bool* ret);
 	};
 
+
 	class methodinvokers:public lyramilk::util::multiton_factory<methodinvoker>
 	{
 	  public:
@@ -62,6 +63,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 		aiohttpsession();
 		virtual ~aiohttpsession();
 
+		virtual bool oninit(std::ostream& os);
 		virtual bool onrequest(const char* cache,int size,std::ostream& os);
 	};
 }}}

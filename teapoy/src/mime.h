@@ -60,6 +60,10 @@ namespace lyramilk{ namespace teapoy {
 		mime& selectpart(int index);
 		const char* getpartptr();
 		lyramilk::data::int64 getpartlength();
+
+		static lyramilk::data::string getmimetype_byname(lyramilk::data::string filename);
+		static lyramilk::data::string getmimetype_bydata(lyramilk::data::string filedata);
+		static lyramilk::data::string getmimetype_byfile(lyramilk::data::string filepathname);
 	};
 
 }}

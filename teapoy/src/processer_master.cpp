@@ -1,5 +1,6 @@
 #include "processer_master.h"
 #include "script.h"
+#include "stringutil.h"
 #include <libmilk/log.h>
 #include <libmilk/multilanguage.h>
 #include <libmilk/testing.h>
@@ -10,12 +11,174 @@
 #include <fstream>
 #include <utime.h>
 #include <libmilk/codes.h>
+#include <stdlib.h>
+#include <iomanip>
 
 namespace lyramilk{ namespace teapoy { namespace web {
+
+	/********** sessions ***********/
+
+	class sessions
+	{
+		struct timedmap
+		{
+			lyramilk::data::var::map m;
+			time_t tm;
+			timedmap();
+		};
+		time_t st;
+		std::map<lyramilk::data::string,timedmap> k;
+	  public:
+		sessions();
+		virtual ~sessions();
+		lyramilk::data::var& get(const lyramilk::data::string& sid,const lyramilk::data::string& key);
+		void gc();
+		void set(const lyramilk::data::string& sid,const lyramilk::data::string& key,const lyramilk::data::var& value);
+		lyramilk::data::string newid();
+
+		static sessions* instance();
+	};
+
+	sessions::timedmap::timedmap()
+	{
+		tm = time(0);
+	}
+
+	sessions::sessions()
+	{
+		st = time(0);
+	}
+
+	sessions::~sessions()
+	{}
+
+	lyramilk::data::var& sessions::get(const lyramilk::data::string& sid,const lyramilk::data::string& key)
+	{
+		gc();
+		timedmap& t = k[sid];
+		t.tm = time(0);
+		return t.m[key];
+	}
+
+	void sessions::gc()
+	{
+		time_t now = time(0);
+		if(st < now){
+			//每60秒触发一次gc。
+			st = now + 10;
+			//会话时间为600秒。
+			time_t q = now - 600;
+			for(std::map<lyramilk::data::string,timedmap>::iterator it = k.begin();it!=k.end();++it){
+				if(it->second.tm < q){
+					k.erase(it);
+				}
+			}
+		}
+	}
+
+	void sessions::set(const lyramilk::data::string& sid,const lyramilk::data::string& key,const lyramilk::data::var& value)
+	{
+		gc();
+		timedmap& t = k[sid];
+		t.tm = time(0);
+		t.m[key] = value;
+	}
+
+	static lyramilk::data::string makeid()
+	{
+		union{
+			int i[4];
+			char c[1];
+		}u;
+		u.i[0] = rand();
+		u.i[1] = rand();
+		u.i[2] = rand();
+		u.i[3] = rand();
+		int size = sizeof(u);
+		lyramilk::data::string str;
+		str.reserve(size);
+		for(int i=0;i<size;++i){
+			unsigned char c = u.c[i];
+			unsigned char q = c % 36;
+			if(q <10){
+				str.push_back(q + '0');
+			}else{
+				str.push_back(q - 10 + 'A');
+			}
+		}
+		return str;
+	}
+
+	lyramilk::data::string sessions::newid()
+	{
+		srand(time(0));
+		std::map<lyramilk::data::string,lyramilk::data::var::map>::iterator it;
+		while(true){
+			lyramilk::data::string id = makeid();
+			if(k.find(id) == k.end()){
+				return id;
+			}
+		}
+	}
+
+	sessions* sessions::instance()
+	{
+		static sessions _mm;
+		return &_mm;
+	}
+	
+	
+	/********** processer_args ***********/
+	processer_args::processer_args(lyramilk::data::string proc_file,methodinvoker* invoker,lyramilk::teapoy::http::request* req,std::ostream& argos):os(argos)
+	{
+		this->real = proc_file;
+		this->invoker = invoker;
+		this->req = req;
+	}
+
+	processer_args::~processer_args()
+	{
+	}
+
+	const lyramilk::data::string& processer_args::getsid()
+	{
+		if(!sid.empty()) return sid;
+
+		lyramilk::data::var::map::iterator it = req->cookies.find("TeapoyId");
+
+		if(it!=req->cookies.end()){
+			if(it->second.type() == lyramilk::data::var::t_map){
+				sid = it->second.at("value").str();
+			}
+			if(it->second.type_like(lyramilk::data::var::t_str)){
+				sid = it->second.str();
+			}
+		}
+		if(sid.empty()){
+			sid = lyramilk::teapoy::web::sessions::instance()->newid();
+			lyramilk::data::var v;
+			v.type(lyramilk::data::var::t_map);
+			v["value"] = sid;
+			req->cookies["TeapoyId"] = v;
+		}
+		return sid;
+	}
+
+	lyramilk::data::var& processer_args::get(const lyramilk::data::string& key)
+	{
+		return lyramilk::teapoy::web::sessions::instance()->get(req->dest + getsid(),key);
+	}
+
+	void processer_args::set(const lyramilk::data::string& key,const lyramilk::data::var& value)
+	{
+		lyramilk::teapoy::web::sessions::instance()->set(req->dest + getsid(),key,value);
+	}
+
 	/********** processer ***********/
 	processer::processer()
 	{
 		regex = nullptr;
+		pauthobj = nullptr;
 	}
 
 	processer::~processer()
@@ -31,6 +194,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 			regex = pcre_compile(pattern.c_str(),0,&error,&erroffset,nullptr);
 		}
 		if(regex){
+			regexstr = pattern;
 			lyramilk::data::var::array ar;
 			lyramilk::data::string ret;
 			int sz = proc_file_pattern.size();
@@ -60,6 +224,88 @@ namespace lyramilk{ namespace teapoy { namespace web {
 			}
 		}
 		return true;
+	}
+
+	bool processer::set_auth(lyramilk::data::string authfiletype,lyramilk::data::string authfile)
+	{
+		pauthobj = lyramilk::script::engine::createinstance(authfiletype);
+		if(pauthobj){
+			if(pauthobj->load_file(true,authfile)){
+				lyramilk::teapoy::script2native::instance()->fill(true,pauthobj);
+				return true;
+			}
+			lyramilk::script::engine::destoryinstance(authfiletype,pauthobj);
+		}
+		return false;
+	}
+
+	bool processer::preload(const lyramilk::teapoy::strings& loads)
+	{
+		return false;
+	}
+
+	bool processer::auth_check(methodinvoker* invoker,lyramilk::teapoy::http::request* req,std::ostream& os,bool* ret)
+	{
+		if(pauthobj == nullptr) return true;
+
+
+		processer_args args("",invoker,req,os);
+		lyramilk::data::var v = args.get("http.digest.user");
+		if(v.type() == lyramilk::data::var::t_str){
+			return true;
+		}
+
+		lyramilk::data::var::array ar;
+		lyramilk::data::string authorization_str = req->get("authorization");
+		lyramilk::teapoy::strings strs = lyramilk::teapoy::split(authorization_str,",");
+		lyramilk::data::var::map logininfo;
+		lyramilk::teapoy::strings::iterator it = strs.begin();
+		for(;it!=strs.end();++it){
+			lyramilk::teapoy::strings pairs = lyramilk::teapoy::split(*it,"=");
+			if(pairs.size() == 2){
+				logininfo[lyramilk::teapoy::trim(pairs[0]," \"'")] = lyramilk::teapoy::trim(pairs[1]," \"'");
+			}
+		}
+
+		logininfo["method"] = req->method;
+		//不使用客户端传过来的nonce，因为这个值有可能是伪造的。
+		logininfo["nonce"] = req->nonce;
+		ar.push_back(logininfo);
+		lyramilk::data::var vret = pauthobj->call("auth",ar);
+		if(vret == true){
+			args.set("http.digest.user",logininfo["Digest username"]);
+			return true;
+		}
+		if(vret.type() != lyramilk::data::var::t_map){
+			os <<	"HTTP/1.1 500 Internal Server Error\r\n"
+					"Server: " SERVER_VER "\r\n"
+					"\r\n";
+			if(ret)*ret = false;
+			return false;
+		}
+		lyramilk::data::string digest = vret["digest"];
+		lyramilk::data::string realm = vret["realm"];
+		lyramilk::data::string algorithm = vret["algorithm"];
+		req->nonce = vret["nonce"].str();
+		lyramilk::data::uint64 nc;
+
+		if(logininfo["nc"].type_like(lyramilk::data::var::t_str)){
+			nc = logininfo["nc"];
+			++nc;
+		}else{
+			nc = 0;
+		}
+
+		lyramilk::data::stringstream ss;
+		ss <<	"HTTP/1.1 401 Authorization Required\r\n"
+				"Connection: Keep-alive\r\n"
+				"Server: " SERVER_VER "\r\n"
+				"Content-Length: 0\r\n"
+				"WWW-Authenticate: Digest username=\"" << digest << "\",realm=\"" << realm << "\",nonce=\"" << req->nonce << "\", algorithm=\"" << algorithm << "\",qop=\"auth\"\r\n"
+				"\r\n";
+		os << ss.str();
+		if(ret)*ret = true;
+		return false;
 	}
 
 	bool processer::test(methodinvoker* invoker,lyramilk::teapoy::http::request* req,std::ostream& os,bool* ret)
@@ -93,8 +339,14 @@ namespace lyramilk{ namespace teapoy { namespace web {
 					}
 				}
 				if(ret){
+					if(!auth_check(invoker,req,os,ret)){
+						return true;
+					}
 					*ret = invoke(real,invoker,req,os);
 				}else{
+					if(!auth_check(invoker,req,os,ret)){
+						return true;
+					}
 					invoke(real,invoker,req,os);
 				}
 				return true;
@@ -104,7 +356,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 				for(lyramilk::data::var::array::iterator it = ar.begin();it!=ar.end();++it){
 					if(it->type() == lyramilk::data::var::t_str){
 						real.append(it->str());
-					}else if(it->type_compat(lyramilk::data::var::t_int32)){
+					}else if(it->type_like(lyramilk::data::var::t_int32)){
 						int qi = *it;
 						int bof = ov[(qi<<1)];
 						int eof = ov[(qi<<1)|1];
@@ -133,260 +385,20 @@ namespace lyramilk{ namespace teapoy { namespace web {
 					}
 				}
 				if(ret){
+					if(!auth_check(invoker,req,os,ret)){
+						return true;
+					}
 					*ret = invoke(real,invoker,req,os);
 				}else{
+					if(!auth_check(invoker,req,os,ret)){
+						return true;
+					}
 					invoke(real,invoker,req,os);
 				}
 				return true;
 			}
 		}
 		return false;
-	}
-
-	/********** engine_master_js ***********/
-
-	class engine_master_js:public lyramilk::script::engines
-	{
-	  public:
-		engine_master_js()
-		{
-		}
-
-		virtual ~engine_master_js()
-		{
-		}
-
-		static engine_master_js* instance()
-		{
-			static engine_master_js _mm;
-			return &_mm;
-		}
-
-		virtual lyramilk::script::engine* underflow()
-		{
-			lyramilk::script::engine* eng_tmp = lyramilk::script::engine::createinstance("js");
-			if(!eng_tmp){
-				lyramilk::klog(lyramilk::log::error,"teapoy.web.engine_master_js.underflow") << D("创建引擎对象失败(%s)","js") << std::endl;
-				return nullptr;
-			}
-
-			lyramilk::teapoy::script2native::instance()->fill(eng_tmp);
-			return eng_tmp;
-		}
-
-		virtual void onfire(lyramilk::script::engine* o)
-		{
-			o->reset();
-		}
-
-		virtual void onremove(lyramilk::script::engine* o)
-		{
-			lyramilk::script::engine::destoryinstance("js",o);
-		}
-	};
-
-
-	/********** processer_js ***********/
-	processer* processer_js::ctr(void* args)
-	{
-		return new processer_js;
-	}
-
-	void processer_js::dtr(processer* ptr)
-	{
-		delete ptr;
-	}
-
-	processer_js::processer_js()
-	{}
-
-	processer_js::~processer_js()
-	{}
-	
-	bool processer_js::invoke(lyramilk::data::string proc_file,methodinvoker* invoker,lyramilk::teapoy::http::request* req,std::ostream& os)
-	{
-		//debug
-		lyramilk::data::string k = D("%s -> %s ",req->url.c_str(),proc_file.c_str());
-		lyramilk::debug::nsecdiff td;
-		lyramilk::debug::clocktester _d(td,lyramilk::klog(lyramilk::log::debug),k);
-
-		engine_master_js::ptr p = engine_master_js::instance()->get();
-
-		if(!p->load_file(proc_file)){
-			COUT << "加载文件" << proc_file << "失败" << std::endl;
-		}
-
-
-		processer_args args = {
-			req:req,
-			os:os,
-			invoker:invoker,
-			real:proc_file,
-		};
-
-		lyramilk::data::var::array ar;
-		{
-			lyramilk::data::var var_processer_args("__http_processer_args",&args);
-
-			lyramilk::data::var::array args;
-			args.push_back(var_processer_args);
-
-			ar.push_back(p->createobject("HttpRequest",args));
-			ar.push_back(p->createobject("HttpResponse",args));
-
-		}
-		return p->call("onrequest",ar);
-	}
-	
-	bool processer_js::test(methodinvoker* invoker,lyramilk::teapoy::http::request* req,std::ostream& os,bool* ret)
-	{
-		return processer::test(invoker,req,os,ret);
-	}
-
-	/********** processer_jsx ***********/
-	processer* processer_jsx::ctr(void* args)
-	{
-		return new processer_jsx;
-	}
-
-	void processer_jsx::dtr(processer* ptr)
-	{
-		delete ptr;
-	}
-
-	processer_jsx::processer_jsx()
-	{}
-
-	processer_jsx::~processer_jsx()
-	{}
-
-	bool processer_jsx::exec_jsx(lyramilk::data::string proc_file,methodinvoker* invoker,lyramilk::teapoy::http::request* req,std::ostream& os)
-	{
-		//debug
-		lyramilk::data::string k = D("%s -> %s ",req->url.c_str(),proc_file.c_str());
-		lyramilk::debug::nsecdiff td;
-		lyramilk::debug::clocktester _d(td,lyramilk::klog(lyramilk::log::debug),k);
-
-
-
-		lyramilk::data::string jsx_jsfile = proc_file + ".js";
-		struct stat statbuf[2];
-		if(-1==stat (proc_file.c_str(), &statbuf[0])){
-			if(errno == ENOENT){
-				return false;
-			}
-			if(errno == EACCES){
-				os <<	"HTTP/1.1 403 Forbidden\r\n"
-						"Server: " SERVER_VER "\r\n"
-						"\r\n";
-				return true;
-			}
-			if(errno == ENAMETOOLONG){
-				os <<	"HTTP/1.1 400 Bad Request\r\n"
-						"Server: " SERVER_VER "\r\n"
-						"\r\n";
-				return true;
-			}
-			os <<	"HTTP/1.1 500 Internal Server Error\r\n"
-					"Server: " SERVER_VER "\r\n"
-					"\r\n";
-			return false;
-		}
-		stat (jsx_jsfile.c_str(), &statbuf[1]);
-
-		if(statbuf[0].st_mtime != statbuf[1].st_mtime){
-			COUT << "时间不同" << std::endl;
-
-			lyramilk::data::string jsxcache;
-			std::ifstream ifs;
-			ifs.open(proc_file.c_str(),std::ifstream::binary);
-			char buff[4096];
-			while(ifs){
-				ifs.read(buff,4096);
-				jsxcache.append(buff,ifs.gcount());
-			}
-			ifs.close();
-
-			std::size_t pos_begin = 0;
-			std::ofstream ofs;
-			ofs.open(jsx_jsfile.c_str(),std::ofstream::binary);
-			ofs << "function onrequest(request,response){\n";
-
-			while(true){
-				std::size_t pos_flag1 = jsxcache.find("<%",pos_begin);
-				if(pos_flag1 == jsxcache.npos){
-					//写入 html 代码
-					ofs << "response.write(unescape(\"" << lyramilk::data::codes::instance()->encode(jsxcache.substr(pos_begin),"js") << "\"));\n";
-					break;
-				}
-
-				std::size_t pos_flag2 = jsxcache.find("%>",pos_flag1);
-				if(pos_flag2 == jsxcache.npos){
-					break;
-				}
-
-				//写入 html 代码
-				if(pos_flag1 != pos_begin){
-					ofs << "response.write(unescape(\"" << lyramilk::data::codes::instance()->encode(jsxcache.substr(pos_begin,pos_flag1 - pos_begin),"js") << "\"));\n";
-				}
-				//写入 js 代码
-				lyramilk::data::string tmp = jsxcache.substr(pos_flag1 + 2,pos_flag2 - pos_flag1 - 2);
-				if(!tmp.empty()){
-					if(tmp[0] == '='){
-						ofs << "response.write(" << tmp.substr(1) << ")" << "\n";
-					}else{
-						ofs << tmp << "\n";
-					}
-				}
-
-				pos_begin = pos_flag2 + 2;
-			}
-
-			ofs << "return true;\n}\n";
-			ofs.close();
-			//更新 jsx的js 文件的时间戳。
-			struct utimbuf tv;
-			tv.actime = statbuf[0].st_ctime;
-			tv.modtime = statbuf[0].st_mtime;
-			utime(jsx_jsfile.c_str(),&tv);
-		}
-
-		//	加载 jsx的js 文件
-		engine_master_js::ptr p = engine_master_js::instance()->get();
-
-		if(!p->load_file(jsx_jsfile)){
-			COUT << "加载文件" << proc_file << "失败" << std::endl;
-		}
-
-		processer_args args = {
-			req:req,
-			os:os,
-			invoker:invoker,
-			real:proc_file,
-		};
-
-		lyramilk::data::var::array ar;
-		{
-			lyramilk::data::var var_processer_args("__http_processer_args",&args);
-
-			lyramilk::data::var::array args;
-			args.push_back(var_processer_args);
-
-			ar.push_back(p->createobject("HttpRequest",args));
-			ar.push_back(p->createobject("HttpResponse",args));
-
-		}
-		return p->call("onrequest",ar);
-	}
-
-	bool processer_jsx::invoke(lyramilk::data::string proc_file,methodinvoker* invoker,lyramilk::teapoy::http::request* req,std::ostream& os)
-	{
-		return exec_jsx(proc_file,invoker,req,os);
-	}
-	
-	bool processer_jsx::test(methodinvoker* invoker,lyramilk::teapoy::http::request* req,std::ostream& os,bool* ret)
-	{
-		return processer::test(invoker,req,os,ret);
 	}
 
 	/********** processer_master ***********/
@@ -415,22 +427,35 @@ namespace lyramilk{ namespace teapoy { namespace web {
 		}
 	}
 
+	void processer_master::mapping(lyramilk::data::string type,lyramilk::data::string pattern,lyramilk::data::string proc_file_pattern,lyramilk::data::string authfiletype,lyramilk::data::string authfile)
+	{
+		processer_pair pr;
+		pr.ptr = create(type);
+		pr.type = type;
+		if(pr.ptr){
+			es.push_back(pr);
+			processer* proc = es.back().ptr;
+			proc->init(pattern,proc_file_pattern);
+			proc->set_auth(authfiletype,authfile);
+		}
+	}
+
 	bool processer_master::invoke(methodinvoker* invoker,lyramilk::teapoy::http::request* req,std::ostream& os,bool* ret)
 	{
-		try{
+		//try{
 			std::vector<processer_pair>::iterator it = es.begin();
 			for(;it!=es.end();++it){
 				if(it->ptr->test(invoker,req,os,ret)){
 					return true;
 				}
-			}
+			}/*
 		}catch(...){
 			os <<	"HTTP/1.1 500 Internal Server Error\r\n"
 					"Server: " SERVER_VER "\r\n"
 					"\r\n";
 			return true;
-		}
-	
+		}*/
+
 		lyramilk::data::string rawfile = req->root + req->url;
 		std::size_t pos = rawfile.find("?");
 		if(pos != rawfile.npos){
@@ -440,10 +465,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 		struct stat st = {0};
 		if(0 !=::stat(rawfile.c_str(),&st)){
 			if(errno == ENOENT){
-				os <<	"HTTP/1.1 404 Not Found\r\n"
-						"Server: " SERVER_VER "\r\n"
-						"\r\n";
-				return true;
+				return false;
 			}
 			if(errno == EACCES){
 				os <<	"HTTP/1.1 403 Forbidden\r\n"
@@ -487,6 +509,27 @@ namespace lyramilk{ namespace teapoy { namespace web {
 			return true;
 		}
 		return false;
+	}
+
+	bool processer_master::preload(lyramilk::data::string type,const lyramilk::data::var::array& loads)
+	{
+		lyramilk::teapoy::strings& ars = preloads[type];
+		{
+			lyramilk::data::var::array::const_iterator it = loads.begin();
+			for(;it!=loads.end();++it){
+				if(it->type_like(lyramilk::data::var::t_str)){
+					ars.push_back(it->str());
+				}
+			}
+		}
+
+		std::vector<processer_pair>::iterator it = es.begin();
+		for(;it!=es.end();++it){
+			if(it->ptr->preload(ars)){
+				return true;
+			}
+		}
+		return true;
 	}
 
 }}}

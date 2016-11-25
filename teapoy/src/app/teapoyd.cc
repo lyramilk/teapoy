@@ -21,6 +21,7 @@
 #include <libintl.h>
 
 #include <algorithm>
+#include <ttyent.h>
 
 #include "script.h"
 
@@ -67,7 +68,7 @@ class lang_dict:public lyramilk::data::multilanguage::dict
 	bool open(lyramilk::data::string filepath){
 		fdict.open(filepath.c_str(),std::fstream::in|std::fstream::out|std::fstream::binary);
 		if(!fdict){
-			lyramilk::klog(lyramilk::log::warning,"kuwo.teapoy.dict.open") << D("打开词典文件失败") << std::endl;
+			lyramilk::klog(lyramilk::log::warning,"teapoy.dict.open") << D("打开词典文件失败") << std::endl;
 			return false;
 		}
 		return true;
@@ -162,6 +163,7 @@ class teapoy_log_logfile:public teapoy_log_base
 	teapoy_log_logfile(lyramilk::data::string logfilepath)
 	{
 		lfs.open(logfilepath.c_str(),std::ofstream::app);
+		assert(lfs.is_open());
 		pid = getpid();
 	}
 	virtual ~teapoy_log_logfile()
@@ -224,9 +226,9 @@ class teapoy_loader
 			if(logbase && logbase->ok()){
 				if(logger)delete logger;
 				logger = logbase;
-				lyramilk::klog(lyramilk::log::debug,"kuwo.teapoy.log") << D("切换日志成功") << std::endl;
+				lyramilk::klog(lyramilk::log::debug,"teapoy.log") << D("切换日志成功") << std::endl;
 			}else{
-				lyramilk::klog(lyramilk::log::error,"kuwo.teapoy.log") << D("切换日志失败") << std::endl;
+				lyramilk::klog(lyramilk::log::error,"teapoy.log") << D("切换日志失败") << std::endl;
 			}
 		}
 	}
@@ -240,7 +242,7 @@ class teapoy_loader
 		}
 	}
 
-	lyramilk::data::var load(lyramilk::data::var::array args,lyramilk::data::var::map env)
+	lyramilk::data::var load(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 
@@ -255,13 +257,13 @@ class teapoy_loader
 			return false;
 		}
 
-		eng_tmp->load_file(filename);
+		eng_tmp->load_file(false,filename);
 		int ret = eng_tmp->call("onload",parameter);
 		libs.push_back(eng_tmp);
 		return 0 == ret;
 	}
 
-	lyramilk::data::var enable_log(lyramilk::data::var::array args,lyramilk::data::var::map env)
+	lyramilk::data::var enable_log(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 	{
 		if(logger == nullptr) init_log();
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
@@ -278,8 +280,12 @@ class teapoy_loader
 		return true;
 	}
 
-	lyramilk::data::var set_log_file(lyramilk::data::var::array args,lyramilk::data::var::map env)
+	lyramilk::data::var set_log_file(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 	{
+		if(!ondaemon){
+			log(lyramilk::log::debug,__FUNCTION__) << D("控制台模式，自动忽略日志文件。") << std::endl;
+			return false;
+		}
 		if(!logfile.empty()){
 			return false;
 		}
@@ -357,14 +363,17 @@ int main(int argc,char* argv[])
 		launcher_script = argv[argi];
 	}
 	if(isdaemon){
-		::daemon(1,0);
+		::daemon(1,1);
 		int pid = 0;
 		do{
 			pid = fork();
 			if(pid == 0){
+				ondaemon = true;
 				break;
 			}
 		}while(waitpid(pid,NULL,0));
+	}else{
+		ondaemon = getppid() == 1;
 	}
 
 	if(!dictfile.empty()){
@@ -376,7 +385,26 @@ int main(int argc,char* argv[])
 	}
 
 	lyramilk::log::logss log(lyramilk::klog,"teapoy.loader");
-	ondaemon = getppid() == 1;
+
+	if(ondaemon){
+		logswitch["debug"] = false;
+		logswitch["trace"] = true;
+		logswitch["warning"] = true;
+		logswitch["error"] = true;
+		if(!logfile.empty()){
+			teapoy_log_base* logbase = new teapoy_log_logfile(logfile);
+			if(logbase && logbase->ok()){
+				if(logger)delete logger;
+				logger = logbase;
+				log(lyramilk::log::debug,__FUNCTION__) << D("切换日志成功") << std::endl;
+			}else{
+				log(lyramilk::log::error,__FUNCTION__) << D("切换日志失败:%s",logfile.c_str()) << std::endl;
+			}
+		}
+	}else{
+		log(lyramilk::log::debug,__FUNCTION__) << D("控制台模式，自动忽略日志文件。") << std::endl;
+	}
+
 	signal(SIGPIPE, SIG_IGN);
 
 	// 确定启动脚本的类型
@@ -398,11 +426,11 @@ int main(int argc,char* argv[])
 		fn["load"] = lyramilk::script::engine::functional<teapoy_loader,&teapoy_loader::load>;
 		fn["enable_log"] = lyramilk::script::engine::functional<teapoy_loader,&teapoy_loader::enable_log>;
 		fn["set_log_file"] = lyramilk::script::engine::functional<teapoy_loader,&teapoy_loader::set_log_file>;
-		eng_main->define("teapoy",fn,teapoy_loader::ctr,teapoy_loader::dtr);
+		eng_main->define(false,"teapoy",fn,teapoy_loader::ctr,teapoy_loader::dtr);
 	}
 
-	lyramilk::teapoy::script2native::instance()->fill(eng_main);
-	eng_main->load_file(launcher_script);
+	lyramilk::teapoy::script2native::instance()->fill(false,eng_main);
+	eng_main->load_file(false,launcher_script);
 	log << "执行完毕。" << std::endl;
 	return 0;
 }

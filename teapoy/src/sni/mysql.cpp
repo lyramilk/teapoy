@@ -3,19 +3,7 @@
 #include <libmilk/log.h>
 #include <libmilk/multilanguage.h>
 #include <mysql/mysql.h>
-/*
-#include <libmilk/var.h>
-#include <libmilk/codes.h>
-#include <libmilk/json.h>
-#include <sys/stat.h>
-#include <fstream>
-#include <algorithm>
-#include <iostream>
-#include <string>
 
-#include <curl/curl.h>
-#include <curl/easy.h>
-*/
 namespace lyramilk{ namespace teapoy{ namespace native{
 
 	class smysql_iterator
@@ -58,7 +46,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 		{
 			mysql_free_result(res);
 		}
-		lyramilk::data::var ok(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var ok(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			if(values.empty()){
 				MYSQL_ROW row = mysql_fetch_row(res);
@@ -76,7 +64,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return values.size() > 0;
 		}
 
-		lyramilk::data::var key(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var key(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_uint32);
 			lyramilk::data::uint32 u = args[0];
@@ -87,7 +75,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return lyramilk::data::var::nil;
 		}
 
-		lyramilk::data::var value(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var value(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			lyramilk::data::var v = args[0];
@@ -107,7 +95,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 				}
 			}
 
-			if(v.type_compat(lyramilk::data::var::t_int32)){
+			if(v.type_like(lyramilk::data::var::t_int32)){
 				unsigned int index = v;
 				if(index < values.size()){
 					return values[index];
@@ -124,7 +112,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			}
 		}
 
-		lyramilk::data::var next(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var next(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			values.clear();
 			MYSQL_ROW row = mysql_fetch_row(res);
@@ -141,12 +129,12 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return true;
 		}
 
-		lyramilk::data::var size(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var size(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			return res->row_count;
 		}
 
-		lyramilk::data::var seek(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var seek(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_int64);
 			mysql_data_seek(res,args[0]);
@@ -165,7 +153,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return true;
 		}
 
-		static int define(lyramilk::script::engine* p)
+		static int define(bool permanent,lyramilk::script::engine* p)
 		{
 			lyramilk::script::engine::functional_map fn;
 			fn["key"] = lyramilk::script::engine::functional<smysql_iterator,&smysql_iterator::key>;
@@ -174,7 +162,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			fn["next"] = lyramilk::script::engine::functional<smysql_iterator,&smysql_iterator::next>;
 			fn["size"] = lyramilk::script::engine::functional<smysql_iterator,&smysql_iterator::size>;
 			fn["seek"] = lyramilk::script::engine::functional<smysql_iterator,&smysql_iterator::seek>;
-			p->define("mysql.iterator",fn,smysql_iterator::ctr,smysql_iterator::dtr);
+			p->define(permanent,"mysql.iterator",fn,smysql_iterator::ctr,smysql_iterator::dtr);
 			return 1;
 		}
 	};
@@ -211,7 +199,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			_db_ptr = nullptr;
 		}
 
-		lyramilk::data::var setopt(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var setopt(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			int ret = mysql_options(_db_ptr,MYSQL_INIT_COMMAND, args[0].str().c_str());
@@ -221,7 +209,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			}
 			return true;
 		}
-		lyramilk::data::var use(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var use(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			lyramilk::data::string cfgfile = args[0];
@@ -248,7 +236,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return true;
 		}
 
-		lyramilk::data::var open(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var open(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			lyramilk::data::string host;
 			unsigned short port = 0;
@@ -258,14 +246,14 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 
 
 			if(args.size() == 1 && args[0].type() == lyramilk::data::var::t_map){
-				lyramilk::data::var& v = args[0];
-				host = v["host"].str();
-				if(v["port"].type() != lyramilk::data::var::t_invalid){
+				const lyramilk::data::var& v = args[0];
+				host = v.at("host").str();
+				if(v.at("port").type() != lyramilk::data::var::t_invalid){
 					port = v["port"];
 				}
-				db = v["db"].str();
-				user = v["user"].str();
-				passwd = v["password"].str();
+				db = v.at("db").str();
+				user = v.at("user").str();
+				passwd = v.at("password").str();
 			}else{
 				if(args.size() > 0){
 					MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
@@ -304,12 +292,12 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 		}
 
 
-		lyramilk::data::var ok(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var ok(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			return 0 == mysql_ping(_db_ptr);
 		}
 
-		lyramilk::data::var query(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var query(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			lyramilk::data::string sql = args[0];
@@ -336,11 +324,11 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 
 			lyramilk::data::var::array ar;
 			ar.push_back(ud);
-			lyramilk::script::engine* e = (lyramilk::script::engine*)env[lyramilk::script::engine::s_env_engine()].userdata(lyramilk::script::engine::s_user_engineptr());
+			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_user_engineptr());
 			return e->createobject("mysql.iterator",ar);
 		}
 
-		lyramilk::data::var execute(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var execute(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			lyramilk::data::string sql = args[0];
@@ -399,7 +387,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return mysql_affected_rows(_db_ptr);
 		}
 
-		static int define(lyramilk::script::engine* p)
+		static int define(bool permanent,lyramilk::script::engine* p)
 		{
 			{
 				lyramilk::script::engine::functional_map fn;
@@ -409,17 +397,17 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 				fn["ok"] = lyramilk::script::engine::functional<smysql,&smysql::ok>;
 				fn["execute"] = lyramilk::script::engine::functional<smysql,&smysql::execute>;
 				fn["query"] = lyramilk::script::engine::functional<smysql,&smysql::query>;
-				p->define("mysql",fn,smysql::ctr,smysql::dtr);
+				p->define(permanent,"mysql",fn,smysql::ctr,smysql::dtr);
 			}
 			return 1;
 		}
 	};
 
-	static int define(lyramilk::script::engine* p)
+	static int define(bool permanent,lyramilk::script::engine* p)
 	{
 		int i = 0;
-		i+= smysql::define(p);
-		i+= smysql_iterator::define(p);
+		i+= smysql::define(permanent,p);
+		i+= smysql_iterator::define(permanent,p);
 		return i;
 	}
 

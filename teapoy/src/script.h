@@ -9,10 +9,10 @@ namespace lyramilk{ namespace teapoy
 	class script2native
 	{
 	  public:
-		typedef int (*define_func)(lyramilk::script::engine* p);
+		typedef int (*define_func)(bool permanent,lyramilk::script::engine* p);
 
-		int fill(lyramilk::script::engine* p);
-		int fill(lyramilk::data::string libname,lyramilk::script::engine* p);
+		int fill(bool permanent,lyramilk::script::engine* p);
+		int fill(bool permanent,lyramilk::data::string libname,lyramilk::script::engine* p);
 
 		void regist(lyramilk::data::string libname,define_func func);
 		void unregist(lyramilk::data::string libname);

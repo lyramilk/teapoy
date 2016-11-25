@@ -38,12 +38,12 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			if(it)delete it;
 		}
 
-		lyramilk::data::var Valid(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var Valid(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			return it && it->Valid();
 		}
 
-		lyramilk::data::var SeekToFirst(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var SeekToFirst(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			if(it){
 				it->SeekToFirst();
@@ -52,7 +52,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return false;
 		}
 
-		lyramilk::data::var SeekToLast(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var SeekToLast(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			if(it){
 				it->SeekToLast();
@@ -61,7 +61,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return false;
 		}
 
-		lyramilk::data::var Seek(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var Seek(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			lyramilk::data::string target = args[0];
@@ -73,7 +73,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return false;
 		}
 
-		lyramilk::data::var Next(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var Next(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			if(it){
 				it->Next();
@@ -82,7 +82,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return false;
 		}
 
-		lyramilk::data::var Prev(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var Prev(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			if(it){
 				it->Prev();
@@ -91,7 +91,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return false;
 		}
 
-		lyramilk::data::var key(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var key(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			if(it){
 				leveldb::Slice str = it->key();
@@ -103,7 +103,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return lyramilk::data::var::nil;
 		}
 
-		lyramilk::data::var value(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var value(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			if(it){
 				leveldb::Slice str = it->value();
@@ -115,7 +115,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return lyramilk::data::var::nil;
 		}
 		
-		static int define(lyramilk::script::engine* p)
+		static int define(bool permanent,lyramilk::script::engine* p)
 		{
 			lyramilk::script::engine::functional_map fn;
 			fn["Valid"] = lyramilk::script::engine::functional<leveldb_iterator,&leveldb_iterator::Valid>;
@@ -126,7 +126,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			fn["Prev"] = lyramilk::script::engine::functional<leveldb_iterator,&leveldb_iterator::Prev>;
 			fn["key"] = lyramilk::script::engine::functional<leveldb_iterator,&leveldb_iterator::key>;
 			fn["value"] = lyramilk::script::engine::functional<leveldb_iterator,&leveldb_iterator::value>;
-			p->define("leveldb.iterator",fn,leveldb_iterator::ctr,leveldb_iterator::dtr);
+			p->define(permanent,"leveldb.iterator",fn,leveldb_iterator::ctr,leveldb_iterator::dtr);
 			return 1;
 		}
 	};
@@ -200,7 +200,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 		{
 		}
 
-		lyramilk::data::var Put(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var Put(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_str);
@@ -211,7 +211,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return status.ok();
 		}
 
-		lyramilk::data::var Get(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var Get(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			lyramilk::data::string key = args[0];
@@ -224,7 +224,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return lyramilk::data::var::nil;
 		}
 
-		lyramilk::data::var Delete(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var Delete(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			lyramilk::data::string key = args[0];
@@ -255,7 +255,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			}
 		}
 
-		lyramilk::data::var newid(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var newid(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			::leveldb::ReadOptions ropt;
@@ -276,17 +276,17 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return myval;
 		}
 
-		lyramilk::data::var NewIterator(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var NewIterator(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			::leveldb::ReadOptions ropt;
 			::leveldb::Iterator* it = db->NewIterator(ropt);
-			lyramilk::script::engine* e = (lyramilk::script::engine*)env[lyramilk::script::engine::s_env_engine()].userdata(lyramilk::script::engine::s_user_engineptr());
+			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_user_engineptr());
 			lyramilk::data::var::array ar;
 			ar.push_back(lyramilk::data::var("iterator",it));
 			return e->createobject("leveldb.iterator",ar);
 		}
 
-		static int define(lyramilk::script::engine* p)
+		static int define(bool permanent,lyramilk::script::engine* p)
 		{
 			lyramilk::script::engine::functional_map fn;
 			fn["set"] = lyramilk::script::engine::functional<leveldb,&leveldb::Put>;
@@ -294,7 +294,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			fn["remove"] = lyramilk::script::engine::functional<leveldb,&leveldb::Delete>;
 			fn["newid"] = lyramilk::script::engine::functional<leveldb,&leveldb::newid>;
 			fn["scan"] = lyramilk::script::engine::functional<leveldb,&leveldb::NewIterator>;
-			p->define("leveldb",fn,leveldb::ctr,leveldb::dtr);
+			p->define(permanent,"leveldb",fn,leveldb::ctr,leveldb::dtr);
 			return 1;
 		}
 	};
@@ -324,7 +324,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 		{
 		}
 
-		lyramilk::data::var Put(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var Put(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_str);
@@ -336,7 +336,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return true;
 		}
 
-		lyramilk::data::var Get(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var Get(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			lyramilk::data::string key = args[0];
@@ -347,7 +347,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return it->second;
 		}
 
-		lyramilk::data::var Delete(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var Delete(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			lyramilk::data::string key = args[0];
@@ -357,22 +357,22 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return true;
 		}
 
-		static int define(lyramilk::script::engine* p)
+		static int define(bool permanent,lyramilk::script::engine* p)
 		{
 			lyramilk::script::engine::functional_map fn;
 			fn["set"] = lyramilk::script::engine::functional<memmap,&memmap::Put>;
 			fn["get"] = lyramilk::script::engine::functional<memmap,&memmap::Get>;
 			fn["remove"] = lyramilk::script::engine::functional<memmap,&memmap::Delete>;
-			p->define("memmap",fn,memmap::ctr,memmap::dtr);
+			p->define(permanent,"memmap",fn,memmap::ctr,memmap::dtr);
 			return 1;
 		}
 	};
-	static int define(lyramilk::script::engine* p)
+	static int define(bool permanent,lyramilk::script::engine* p)
 	{
 		int i = 0;
-		i+= leveldb::define(p);
-		i+= leveldb_iterator::define(p);
-		i+= memmap::define(p);
+		i+= leveldb::define(permanent,p);
+		i+= leveldb_iterator::define(permanent,p);
+		i+= memmap::define(permanent,p);
 		return i;
 	}
 

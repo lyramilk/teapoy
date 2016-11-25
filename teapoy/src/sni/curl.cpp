@@ -1,4 +1,5 @@
 #include "script.h"
+#include "web.h"
 #include <libmilk/var.h>
 #include <libmilk/log.h>
 #include <libmilk/multilanguage.h>
@@ -45,7 +46,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return size;
 		}
 
-		lyramilk::data::var get(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var get(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			lyramilk::data::stringstream ss;
 			CURL *c = curl_easy_init();
@@ -62,7 +63,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return ss.str();
 		}
 
-		lyramilk::data::var download(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var download(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			lyramilk::data::string downloaddir = args[0];
@@ -108,7 +109,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return filename;
 		}
 
-		lyramilk::data::var upload(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var upload(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_str);
@@ -149,12 +150,12 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return ss.str();
 		}
 
-		lyramilk::data::var todo(lyramilk::data::var::array args,lyramilk::data::var::map env)
+		lyramilk::data::var todo(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			TODO();
 		}
 
-		static int define(lyramilk::script::engine* p)
+		static int define(bool permanent,lyramilk::script::engine* p)
 		{
 			lyramilk::script::engine::functional_map fn;
 			fn["get"] = lyramilk::script::engine::functional<httpclient,&httpclient::get>;
@@ -164,14 +165,64 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			fn["todo"] = lyramilk::script::engine::functional<httpclient,&httpclient::todo>;
 			fn["todo"] = lyramilk::script::engine::functional<httpclient,&httpclient::todo>;
 			fn["todo"] = lyramilk::script::engine::functional<httpclient,&httpclient::todo>;
-			p->define("HttpClient",fn,httpclient::ctr,httpclient::dtr);
+			p->define(permanent,"HttpClient",fn,httpclient::ctr,httpclient::dtr);
 			return 1;
 		}
 	};
-	static int define(lyramilk::script::engine* p)
+
+
+
+	static size_t curl_writestream_callback(void* buff, size_t size, size_t nmemb, void* userp) {
+		std::ofstream* ss = reinterpret_cast<std::ofstream*> (userp);
+		size *= nmemb;
+		ss->write((const char*)buff,size);
+		return size;
+	}
+
+	lyramilk::data::var curl(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+	{
+		MILK_CHECK_SCRIPT_ARGS_LOG(lyramilk::klog("teapoy.native"),lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
+		lyramilk::data::string url = args[0].str();
+
+
+		if(url.find("://") == url.npos){
+			lyramilk::data::stringstream ssrequest;
+			ssrequest << "GET " << url << " HTTP/1.1\r\n";
+			ssrequest << "\r\n";
+
+			lyramilk::data::string strrequest = ssrequest.str();
+			lyramilk::teapoy::web::aiohttpsession sns;
+			lyramilk::data::stringstream ssresponse;
+			sns.onrequest(strrequest.c_str(),strrequest.size(),ssresponse);
+			lyramilk::data::string ret = ssresponse.str();
+			std::size_t sz = ret.find("\r\n\r\n");
+			if(sz == ret.npos){
+				return lyramilk::data::var::nil;
+			}
+			return ret.substr(sz);
+		}
+
+
+
+		lyramilk::data::stringstream ss;
+		CURL *c = curl_easy_init();
+		curl_easy_setopt(c, CURLOPT_URL,url.c_str());
+		curl_easy_setopt(c, CURLOPT_WRITEFUNCTION, curl_writestream_callback);
+		curl_easy_setopt(c, CURLOPT_WRITEDATA, &ss);
+		//curl_easy_setopt(c, CURLOPT_ACCEPT_ENCODING, "");
+		CURLcode res = curl_easy_perform(c);
+		curl_easy_cleanup(c);
+		if(res == CURLE_OK) return ss.str();
+		return lyramilk::data::var::nil;
+	}
+
+
+
+	static int define(bool permanent,lyramilk::script::engine* p)
 	{
 		int i = 0;
-		i+= httpclient::define(p);
+		i+= httpclient::define(permanent,p);
+		p->define(permanent,"curl",curl);++i;
 		return i;
 	}
 

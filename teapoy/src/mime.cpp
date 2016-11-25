@@ -198,6 +198,7 @@ namespace lyramilk{ namespace teapoy {
 	{
 		if(s == s0){
 			mimeheader.append(buf,size);
+			if(mimeheader == "\r\n") return true;
 			std::size_t pos_header = mimeheader.find("\r\n\r\n");
 			if(pos_header == mimeheader.npos) return false;
 			lyramilk::data::string body = mimeheader.substr(pos_header + 4);
@@ -215,6 +216,9 @@ namespace lyramilk{ namespace teapoy {
 				TODO();
 				s = schunked;
 				usefilecache = true;
+			}else{
+				s = s0;
+				body_length = 0;
 			}
 
 			if(s == sbody || s == schunked){
@@ -230,8 +234,9 @@ namespace lyramilk{ namespace teapoy {
 				if(!body.empty()){
 					return parsebody(body.c_str(),body.size(),remain);
 				}
-				return false;
+				return s == sbody && body_length == 0;
 			}
+
 			return true;
 		}
 		return parsebody(buf,size,remain);
@@ -326,5 +331,4 @@ namespace lyramilk{ namespace teapoy {
 	{
 		return len_part;
 	}
-
 }}
