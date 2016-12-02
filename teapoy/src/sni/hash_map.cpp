@@ -115,7 +115,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return lyramilk::data::var::nil;
 		}
 		
-		static int define(bool permanent,lyramilk::script::engine* p)
+		static int define(lyramilk::script::engine* p)
 		{
 			lyramilk::script::engine::functional_map fn;
 			fn["Valid"] = lyramilk::script::engine::functional<leveldb_iterator,&leveldb_iterator::Valid>;
@@ -126,7 +126,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			fn["Prev"] = lyramilk::script::engine::functional<leveldb_iterator,&leveldb_iterator::Prev>;
 			fn["key"] = lyramilk::script::engine::functional<leveldb_iterator,&leveldb_iterator::key>;
 			fn["value"] = lyramilk::script::engine::functional<leveldb_iterator,&leveldb_iterator::value>;
-			p->define(permanent,"leveldb.iterator",fn,leveldb_iterator::ctr,leveldb_iterator::dtr);
+			p->define("leveldb.iterator",fn,leveldb_iterator::ctr,leveldb_iterator::dtr);
 			return 1;
 		}
 	};
@@ -286,7 +286,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return e->createobject("leveldb.iterator",ar);
 		}
 
-		static int define(bool permanent,lyramilk::script::engine* p)
+		static int define(lyramilk::script::engine* p)
 		{
 			lyramilk::script::engine::functional_map fn;
 			fn["set"] = lyramilk::script::engine::functional<leveldb,&leveldb::Put>;
@@ -294,7 +294,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			fn["remove"] = lyramilk::script::engine::functional<leveldb,&leveldb::Delete>;
 			fn["newid"] = lyramilk::script::engine::functional<leveldb,&leveldb::newid>;
 			fn["scan"] = lyramilk::script::engine::functional<leveldb,&leveldb::NewIterator>;
-			p->define(permanent,"leveldb",fn,leveldb::ctr,leveldb::dtr);
+			p->define("leveldb",fn,leveldb::ctr,leveldb::dtr);
 			return 1;
 		}
 	};
@@ -357,22 +357,22 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return true;
 		}
 
-		static int define(bool permanent,lyramilk::script::engine* p)
+		static int define(lyramilk::script::engine* p)
 		{
 			lyramilk::script::engine::functional_map fn;
 			fn["set"] = lyramilk::script::engine::functional<memmap,&memmap::Put>;
 			fn["get"] = lyramilk::script::engine::functional<memmap,&memmap::Get>;
 			fn["remove"] = lyramilk::script::engine::functional<memmap,&memmap::Delete>;
-			p->define(permanent,"memmap",fn,memmap::ctr,memmap::dtr);
+			p->define("memmap",fn,memmap::ctr,memmap::dtr);
 			return 1;
 		}
 	};
-	static int define(bool permanent,lyramilk::script::engine* p)
+	static int define(lyramilk::script::engine* p)
 	{
 		int i = 0;
-		i+= leveldb::define(permanent,p);
-		i+= leveldb_iterator::define(permanent,p);
-		i+= memmap::define(permanent,p);
+		i+= leveldb::define(p);
+		i+= leveldb_iterator::define(p);
+		i+= memmap::define(p);
 		return i;
 	}
 

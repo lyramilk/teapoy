@@ -37,7 +37,6 @@ namespace lyramilk{ namespace teapoy { namespace web {
 		virtual ~processer();
 		bool init(lyramilk::data::string pattern,lyramilk::data::string proc_file_pattern);
 		bool set_auth(lyramilk::data::string authfiletype,lyramilk::data::string authfile);
-		virtual bool preload(const lyramilk::teapoy::strings& loads);
 		virtual bool test(methodinvoker* invoker,lyramilk::teapoy::http::request* req,std::ostream& os,bool* ret);
 		virtual bool auth_check(methodinvoker* invoker,lyramilk::teapoy::http::request* req,std::ostream& os,bool* ret);
 
@@ -62,7 +61,6 @@ namespace lyramilk{ namespace teapoy { namespace web {
 	  public:
 		processer_js();
 		virtual ~processer_js();
-		virtual bool preload(const lyramilk::teapoy::strings& loads);
 
 		static processer* ctr(void* args);
 		static void dtr(processer* ptr);
@@ -98,7 +96,6 @@ namespace lyramilk{ namespace teapoy { namespace web {
 			processer* ptr;
 		};
 		std::vector<processer_pair> es;
-		std::map<lyramilk::data::string,lyramilk::teapoy::strings> preloads;
 	  public:
 		processer_master();
 		virtual ~processer_master();
@@ -106,7 +103,6 @@ namespace lyramilk{ namespace teapoy { namespace web {
 		virtual void mapping(lyramilk::data::string type,lyramilk::data::string pattern,lyramilk::data::string proc_file_pattern);
 		virtual void mapping(lyramilk::data::string type,lyramilk::data::string pattern,lyramilk::data::string proc_file_pattern,lyramilk::data::string authfiletype,lyramilk::data::string authfile);
 		virtual bool invoke(methodinvoker* invoker,lyramilk::teapoy::http::request* req,std::ostream& os,bool* ret);
-		virtual bool preload(lyramilk::data::string type,const lyramilk::data::var::array& loads);
 	};
 }}}
 

@@ -155,7 +155,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			TODO();
 		}
 
-		static int define(bool permanent,lyramilk::script::engine* p)
+		static int define(lyramilk::script::engine* p)
 		{
 			lyramilk::script::engine::functional_map fn;
 			fn["get"] = lyramilk::script::engine::functional<httpclient,&httpclient::get>;
@@ -165,7 +165,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			fn["todo"] = lyramilk::script::engine::functional<httpclient,&httpclient::todo>;
 			fn["todo"] = lyramilk::script::engine::functional<httpclient,&httpclient::todo>;
 			fn["todo"] = lyramilk::script::engine::functional<httpclient,&httpclient::todo>;
-			p->define(permanent,"HttpClient",fn,httpclient::ctr,httpclient::dtr);
+			p->define("HttpClient",fn,httpclient::ctr,httpclient::dtr);
 			return 1;
 		}
 	};
@@ -218,11 +218,11 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 
 
 
-	static int define(bool permanent,lyramilk::script::engine* p)
+	static int define(lyramilk::script::engine* p)
 	{
 		int i = 0;
-		i+= httpclient::define(permanent,p);
-		p->define(permanent,"curl",curl);++i;
+		i+= httpclient::define(p);
+		p->define("curl",curl);++i;
 		return i;
 	}
 

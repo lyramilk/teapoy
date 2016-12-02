@@ -80,11 +80,11 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return e->createobject("Mpeg.Keyframe",ar);
 		}
 
-		static int define(bool permanent,lyramilk::script::engine* p)
+		static int define(lyramilk::script::engine* p)
 		{
 			lyramilk::script::engine::functional_map fn;
 			fn["scan"] = lyramilk::script::engine::functional<Mpeg,&Mpeg::scan>;
-			p->define(permanent,"Mpeg",fn,Mpeg::ctr,Mpeg::dtr);
+			p->define("Mpeg",fn,Mpeg::ctr,Mpeg::dtr);
 			return 1;
 		}
 	};
@@ -332,24 +332,24 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return timestamp;
 		}
 
-		static int define(bool permanent,lyramilk::script::engine* p)
+		static int define(lyramilk::script::engine* p)
 		{
 			lyramilk::script::engine::functional_map fn;
 			fn["ok"] = lyramilk::script::engine::functional<Mpeg_KeyFrame,&Mpeg_KeyFrame::ok>;
 			fn["saveJpeg"] = lyramilk::script::engine::functional<Mpeg_KeyFrame,&Mpeg_KeyFrame::save_jpeg>;
 			fn["time"] = lyramilk::script::engine::functional<Mpeg_KeyFrame,&Mpeg_KeyFrame::time>;
 			fn["next"] = lyramilk::script::engine::functional<Mpeg_KeyFrame,&Mpeg_KeyFrame::next>;
-			p->define(permanent,"Mpeg.Keyframe",fn,Mpeg_KeyFrame::ctr,Mpeg_KeyFrame::dtr);
+			p->define("Mpeg.Keyframe",fn,Mpeg_KeyFrame::ctr,Mpeg_KeyFrame::dtr);
 			return 1;
 		}
 	};
 
 
-	static int define(bool permanent,lyramilk::script::engine* p)
+	static int define(lyramilk::script::engine* p)
 	{
 		int i = 0;
-		i+= Mpeg::define(permanent,p);
-		i+= Mpeg_KeyFrame::define(permanent,p);
+		i+= Mpeg::define(p);
+		i+= Mpeg_KeyFrame::define(p);
 		return i;
 	}
 

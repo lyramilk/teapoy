@@ -65,14 +65,14 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		return true;
 	}
 
-	static int define(bool permanent,lyramilk::script::engine* p)
+	static int define(lyramilk::script::engine* p)
 	{
 		int i = 0;
 		{
-			p->define(permanent,"test",test);++i;
-			p->define(permanent,"trace",trace);++i;
-			p->define(permanent,"echo",echo);++i;
-			p->define(permanent,"log",slog);++i;
+			p->define("test",test);++i;
+			p->define("trace",trace);++i;
+			p->define("echo",echo);++i;
+			p->define("log",slog);++i;
 		}
 		return i;
 	}

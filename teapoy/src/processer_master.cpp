@@ -230,17 +230,12 @@ namespace lyramilk{ namespace teapoy { namespace web {
 	{
 		pauthobj = lyramilk::script::engine::createinstance(authfiletype);
 		if(pauthobj){
-			if(pauthobj->load_file(true,authfile)){
-				lyramilk::teapoy::script2native::instance()->fill(true,pauthobj);
+			if(pauthobj->load_file(authfile)){
+				lyramilk::teapoy::script2native::instance()->fill(pauthobj);
 				return true;
 			}
 			lyramilk::script::engine::destoryinstance(authfiletype,pauthobj);
 		}
-		return false;
-	}
-
-	bool processer::preload(const lyramilk::teapoy::strings& loads)
-	{
 		return false;
 	}
 
@@ -509,27 +504,6 @@ namespace lyramilk{ namespace teapoy { namespace web {
 			return true;
 		}
 		return false;
-	}
-
-	bool processer_master::preload(lyramilk::data::string type,const lyramilk::data::var::array& loads)
-	{
-		lyramilk::teapoy::strings& ars = preloads[type];
-		{
-			lyramilk::data::var::array::const_iterator it = loads.begin();
-			for(;it!=loads.end();++it){
-				if(it->type_like(lyramilk::data::var::t_str)){
-					ars.push_back(it->str());
-				}
-			}
-		}
-
-		std::vector<processer_pair>::iterator it = es.begin();
-		for(;it!=es.end();++it){
-			if(it->ptr->preload(ars)){
-				return true;
-			}
-		}
-		return true;
 	}
 
 }}}

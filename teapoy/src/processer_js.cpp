@@ -39,15 +39,13 @@ namespace lyramilk{ namespace teapoy { namespace web {
 				return nullptr;
 			}
 
-			lyramilk::teapoy::script2native::instance()->fill(true,eng_tmp);
-			for(lyramilk::teapoy::strings::const_iterator it = preloads.begin();it!=preloads.end();++it){
-				eng_tmp->load_file(true,*it);
-			}
+			lyramilk::teapoy::script2native::instance()->fill(eng_tmp);
 			return eng_tmp;
 		}
 
 		virtual void onfire(lyramilk::script::engine* o)
 		{
+			o->set("clearonreset",lyramilk::data::var::map());
 			o->reset();
 		}
 
@@ -86,8 +84,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 		lyramilk::debug::clocktester _d(td,lyramilk::klog(lyramilk::log::debug),k);
 
 		engine_master_js::ptr p = engine_master_js::instance()->get();
-
-		if(!p->load_file(false,proc_file)){
+		if(!p->load_file(proc_file)){
 			COUT << "加载文件" << proc_file << "失败" << std::endl;
 		}
 
@@ -104,22 +101,13 @@ namespace lyramilk{ namespace teapoy { namespace web {
 			ar.push_back(p->createobject("HttpResponse",args));
 		}
 
-		lyramilk::data::var vret = p->call(false,"onrequest",ar);
+		lyramilk::data::var vret = p->call("onrequest",ar);
 		if(vret.type_like(lyramilk::data::var::t_bool)){
 			return vret;
 		}
 		return false;
 	}
 
-	bool processer_js::preload(const lyramilk::teapoy::strings& loads)
-	{
-		if(engine_master_js::instance()->preloads.empty()){
-			engine_master_js::instance()->preloads = loads;
-			return true;
-		}
-		return false;
-	}
-	
 	/********** processer_jsx ***********/
 	processer* processer_jsx::ctr(void* args)
 	{
@@ -229,7 +217,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 		//	加载 jsx的js 文件
 		engine_master_js::ptr p = engine_master_js::instance()->get();
 
-		if(!p->load_file(false,jsx_jsfile)){
+		if(!p->load_file(jsx_jsfile)){
 			COUT << "加载文件" << proc_file << "失败" << std::endl;
 		}
 
@@ -246,7 +234,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 			ar.push_back(p->createobject("HttpResponse",args));
 
 		}
-		lyramilk::data::var vret = p->call(false,"onrequest",ar);
+		lyramilk::data::var vret = p->call("onrequest",ar);
 		if(vret.type_like(lyramilk::data::var::t_bool)){
 			return vret;
 		}

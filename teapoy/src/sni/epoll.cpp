@@ -57,21 +57,21 @@ namespace lyramilk{ namespace teapoy{
 			return true;
 		}
 
-		static int define(bool permanent,lyramilk::script::engine* p)
+		static int define(lyramilk::script::engine* p)
 		{
 			lyramilk::script::engine::functional_map fn;
 			fn["add"] = lyramilk::script::engine::functional<server_poll,&server_poll::add>;
 			fn["active"] = lyramilk::script::engine::functional<server_poll,&server_poll::active>;
 			fn["wait"] = lyramilk::script::engine::functional<server_poll,&server_poll::wait>;
-			p->define(permanent,"epoll",fn,server_poll::ctr,server_poll::dtr);
+			p->define("epoll",fn,server_poll::ctr,server_poll::dtr);
 			return 1;
 		}
 	};
 
-	static int define(bool permanent,lyramilk::script::engine* p)
+	static int define(lyramilk::script::engine* p)
 	{
 		int i = 0;
-		i+= server_poll::define(permanent,p);
+		i+= server_poll::define(p);
 		return i;
 	}
 

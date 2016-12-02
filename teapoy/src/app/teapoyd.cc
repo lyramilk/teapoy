@@ -257,7 +257,7 @@ class teapoy_loader
 			return false;
 		}
 
-		eng_tmp->load_file(false,filename);
+		eng_tmp->load_file(filename);
 		int ret = eng_tmp->call("onload",parameter);
 		libs.push_back(eng_tmp);
 		return 0 == ret;
@@ -426,11 +426,11 @@ int main(int argc,char* argv[])
 		fn["load"] = lyramilk::script::engine::functional<teapoy_loader,&teapoy_loader::load>;
 		fn["enable_log"] = lyramilk::script::engine::functional<teapoy_loader,&teapoy_loader::enable_log>;
 		fn["set_log_file"] = lyramilk::script::engine::functional<teapoy_loader,&teapoy_loader::set_log_file>;
-		eng_main->define(false,"teapoy",fn,teapoy_loader::ctr,teapoy_loader::dtr);
+		eng_main->define("teapoy",fn,teapoy_loader::ctr,teapoy_loader::dtr);
 	}
 
-	lyramilk::teapoy::script2native::instance()->fill(false,eng_main);
-	eng_main->load_file(false,launcher_script);
+	lyramilk::teapoy::script2native::instance()->fill(eng_main);
+	eng_main->load_file(launcher_script);
 	log << "执行完毕。" << std::endl;
 	return 0;
 }

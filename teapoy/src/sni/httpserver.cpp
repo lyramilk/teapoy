@@ -72,14 +72,6 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			return true;
 		}
 
-		lyramilk::data::var preload(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
-		{
-			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
-			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_array);
-			proc_master.preload(args[0],args[1]);
-			return true;
-		}
-
 		lyramilk::data::var set_root(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
@@ -125,15 +117,14 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			return ss;
 		}
 		
-		static int define(bool permanent,lyramilk::script::engine* p)
+		static int define(lyramilk::script::engine* p)
 		{
 			lyramilk::script::engine::functional_map fn;
 			fn["open"] = lyramilk::script::engine::functional<httpserver,&httpserver::open>;
 			fn["bind_url"] = lyramilk::script::engine::functional<httpserver,&httpserver::bind_url>;
-			fn["preload"] = lyramilk::script::engine::functional<httpserver,&httpserver::preload>;
 			fn["set_root"] = lyramilk::script::engine::functional<httpserver,&httpserver::set_root>;
 			fn["set_defaultpage"] = lyramilk::script::engine::functional<httpserver,&httpserver::set_defaultpage>;
-			p->define(permanent,"httpserver",fn,httpserver::ctr,httpserver::dtr);
+			p->define("httpserver",fn,httpserver::ctr,httpserver::dtr);
 			return 1;
 		}
 

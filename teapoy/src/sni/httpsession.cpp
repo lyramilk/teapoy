@@ -57,7 +57,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			TODO();
 		}
 
-		static int define(bool permanent,lyramilk::script::engine* p)
+		static int define(lyramilk::script::engine* p)
 		{
 			lyramilk::script::engine::functional_map fn;
 			fn["get"] = lyramilk::script::engine::functional<httpsession,&httpsession::getAttribute>;
@@ -66,7 +66,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			fn["setMaxInactiveInterval"] = lyramilk::script::engine::functional<httpsession,&httpsession::todo>;
 			fn["getId"] = lyramilk::script::engine::functional<httpsession,&httpsession::todo>;
 			fn["getCreationTime"] = lyramilk::script::engine::functional<httpsession,&httpsession::todo>;
-			p->define(permanent,"HttpSession",fn,httpsession::ctr,httpsession::dtr);
+			p->define("HttpSession",fn,httpsession::ctr,httpsession::dtr);
 			return 1;
 		}
 	};
@@ -181,7 +181,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			return true;
 		}
 
-		static int define(bool permanent,lyramilk::script::engine* p)
+		static int define(lyramilk::script::engine* p)
 		{
 			lyramilk::script::engine::functional_map fn;
 			fn["setHeader"] = lyramilk::script::engine::functional<httpresponse,&httpresponse::setHeader>;
@@ -189,7 +189,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			fn["sendRedirect"] = lyramilk::script::engine::functional<httpresponse,&httpresponse::sendRedirect>;
 			fn["write"] = lyramilk::script::engine::functional<httpresponse,&httpresponse::write>;
 			fn["addCookie"] = lyramilk::script::engine::functional<httpresponse,&httpresponse::addCookie>;
-			p->define(permanent,"HttpResponse",fn,httpresponse::ctr,httpresponse::dtr);
+			p->define("HttpResponse",fn,httpresponse::ctr,httpresponse::dtr);
 			return 1;
 		}
 	};
@@ -326,7 +326,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			return sessionobj;
 		}
 
-		static int define(bool permanent,lyramilk::script::engine* p)
+		static int define(lyramilk::script::engine* p)
 		{
 			lyramilk::script::engine::functional_map fn;
 			fn["getHeader"] = lyramilk::script::engine::functional<httprequest,&httprequest::getHeader>;
@@ -337,17 +337,17 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			fn["getRequestURL"] = lyramilk::script::engine::functional<httprequest,&httprequest::getRequestURL>;
 			fn["getRealPath"] = lyramilk::script::engine::functional<httprequest,&httprequest::getRealPath>;
 			fn["getSession"] = lyramilk::script::engine::functional<httprequest,&httprequest::getSession>;
-			p->define(permanent,"HttpRequest",fn,httprequest::ctr,httprequest::dtr);
+			p->define("HttpRequest",fn,httprequest::ctr,httprequest::dtr);
 			return 1;
 		}
 	};
 
-	static int define(bool permanent,lyramilk::script::engine* p)
+	static int define(lyramilk::script::engine* p)
 	{
 		int i = 0;
-		i+= httprequest::define(permanent,p);
-		i+= httpresponse::define(permanent,p);
-		i+= httpsession::define(permanent,p);
+		i+= httprequest::define(p);
+		i+= httpresponse::define(p);
+		i+= httpsession::define(p);
 		return i;
 	}
 

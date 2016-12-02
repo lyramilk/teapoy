@@ -153,7 +153,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return true;
 		}
 
-		static int define(bool permanent,lyramilk::script::engine* p)
+		static int define(lyramilk::script::engine* p)
 		{
 			lyramilk::script::engine::functional_map fn;
 			fn["key"] = lyramilk::script::engine::functional<smysql_iterator,&smysql_iterator::key>;
@@ -162,7 +162,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			fn["next"] = lyramilk::script::engine::functional<smysql_iterator,&smysql_iterator::next>;
 			fn["size"] = lyramilk::script::engine::functional<smysql_iterator,&smysql_iterator::size>;
 			fn["seek"] = lyramilk::script::engine::functional<smysql_iterator,&smysql_iterator::seek>;
-			p->define(permanent,"mysql.iterator",fn,smysql_iterator::ctr,smysql_iterator::dtr);
+			p->define("mysql.iterator",fn,smysql_iterator::ctr,smysql_iterator::dtr);
 			return 1;
 		}
 	};
@@ -387,7 +387,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return mysql_affected_rows(_db_ptr);
 		}
 
-		static int define(bool permanent,lyramilk::script::engine* p)
+		static int define(lyramilk::script::engine* p)
 		{
 			{
 				lyramilk::script::engine::functional_map fn;
@@ -397,17 +397,17 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 				fn["ok"] = lyramilk::script::engine::functional<smysql,&smysql::ok>;
 				fn["execute"] = lyramilk::script::engine::functional<smysql,&smysql::execute>;
 				fn["query"] = lyramilk::script::engine::functional<smysql,&smysql::query>;
-				p->define(permanent,"mysql",fn,smysql::ctr,smysql::dtr);
+				p->define("mysql",fn,smysql::ctr,smysql::dtr);
 			}
 			return 1;
 		}
 	};
 
-	static int define(bool permanent,lyramilk::script::engine* p)
+	static int define(lyramilk::script::engine* p)
 	{
 		int i = 0;
-		i+= smysql::define(permanent,p);
-		i+= smysql_iterator::define(permanent,p);
+		i+= smysql::define(p);
+		i+= smysql_iterator::define(p);
 		return i;
 	}
 

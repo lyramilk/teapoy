@@ -1,6 +1,6 @@
 ﻿#定义工程名及版本
 project(teapoy)
-set(version 1.0.1)
+set(version 1.0.2)
 set(soversion 1.0)
 
 
@@ -209,10 +209,10 @@ add_library(${PROJECT_NAME} SHARED ${src_cpps} ${src_hs})
 install(TARGETS ${PROJECT_NAME} DESTINATION ${install_dir})
 
 #对libmilk的依赖
-#if(NOT release)
+if(NOT ${LIBMILK_CFLAGS})
 	add_custom_target(milk COMMAND make -C ~/libmilk/build)
 	add_dependencies(${PROJECT_NAME} milk)
-#endif()
+endif()
 
 
 #链接库

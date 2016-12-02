@@ -32,12 +32,13 @@ namespace lyramilk{ namespace teapoy { namespace web {
 				return nullptr;
 			}
 
-			lyramilk::teapoy::script2native::instance()->fill(true,eng_tmp);
+			lyramilk::teapoy::script2native::instance()->fill(eng_tmp);
 			return eng_tmp;
 		}
 
 		virtual void onfire(lyramilk::script::engine* o)
 		{
+			o->set("clearonreset",lyramilk::data::var::map());
 			o->reset();
 		}
 
@@ -74,7 +75,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 
 		engine_master_lua::ptr p = engine_master_lua::instance()->get();
 
-		if(!p->load_file(false,proc_file)){
+		if(!p->load_file(proc_file)){
 			COUT << "加载文件" << proc_file << "失败" << std::endl;
 		}
 
@@ -91,7 +92,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 			ar.push_back(p->createobject("HttpResponse",args));
 
 		}
-		lyramilk::data::var vret = p->call(false,"onrequest",ar);
+		lyramilk::data::var vret = p->call("onrequest",ar);
 		if(vret.type_like(lyramilk::data::var::t_bool)){
 			return vret;
 		}

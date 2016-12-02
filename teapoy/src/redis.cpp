@@ -1,30 +1,12 @@
-#include "redisX.h"
+#include "redis.h"
 #include <pthread.h>
 #include <stdio.h>
-/*
-#include "config.h"
-#include <hiredis/hiredis.h>
-#include <stdarg.h>
-#include <iostream>
-#include <vector>
-#include <sys/poll.h>
-#include <libmilk/log.h>
-#include <libmilk/multilanguage.h>
-#include <libmilk/netio.h>
-
-#include <sys/socket.h>
-#include "stringutil.h"
-#include <string.h>
-#include <errno.h>
-#include <stdlib.h>*/
-
-
 #include <libmilk/log.h>
 #include <libmilk/multilanguage.h>
 #include <libmilk/exception.h>
 
 
-namespace lyramilk{ namespace teapoy{ namespace redisX{
+namespace lyramilk{ namespace teapoy{ namespace redis{
 	////////////////
 	redis_client::redis_client()
 	{
@@ -38,9 +20,15 @@ namespace lyramilk{ namespace teapoy{ namespace redisX{
 	{
 		lyramilk::data::var::array ar;
 		ar.push_back("auth");
+		ar.push_back(password);
 		lyramilk::data::var v;
-		exec(ar,v);
-		return true;
+		if(exec(ar,v)){
+			/*
+			if(v == "OK") type = t_redis;
+			if(v.type() == lyramilk::data::var::t_array && v == "1") type = t_ssdb;*/
+			return true;
+		}
+		return false;
 	}
 
 	char inline hex(char a){
@@ -184,17 +172,18 @@ namespace lyramilk{ namespace teapoy{ namespace redisX{
 	{
 		redis_client* p;
 		redis_client_watch_handler h;
+		void* args;
 	};
 
-	static void thread_redis_client_task(redis_client* p,redis_client_watch_handler h)
+	static void thread_redis_client_task(redis_client* p,redis_client_watch_handler h,void* args)
 	{
 		lyramilk::netio::socket_stream ss(*p);
 		while(true){
 			lyramilk::data::var v;
 			if(parse(ss,v)){
-				if(h && !h(true,v)) break;
+				if(h && !h(true,v,args)) break;
 			}else{
-				if(h && !h(false,v)) break;
+				if(h && !h(false,v,args)) break;
 			}
 		}
 		COUT << "被break了" << std::endl;
@@ -205,12 +194,13 @@ namespace lyramilk{ namespace teapoy{ namespace redisX{
 		thread_redis_client_task_args* args = (thread_redis_client_task_args*)param;
 		redis_client* p = args->p;
 		redis_client_watch_handler h = args->h;
+		void* a = args->args;
 		delete args;
-		thread_redis_client_task(p,h);
+		thread_redis_client_task(p,h,a);
 		return nullptr;
 	}
 
-	bool redis_client::async_exec(const lyramilk::data::var::array& cmd,redis_client_watch_handler h,bool thread_join)
+	bool redis_client::async_exec(const lyramilk::data::var::array& cmd,redis_client_watch_handler h,void* param,bool thread_join)
 	{
 		{
 			lyramilk::data::var::array::const_iterator it = cmd.begin();
@@ -224,18 +214,40 @@ namespace lyramilk{ namespace teapoy{ namespace redisX{
 			ss.flush();
 		}
 		if(thread_join){
-			thread_redis_client_task(this,h);
+			thread_redis_client_task(this,h,param);
 			return true;
 		}else{
 			pthread_t thread;
 			thread_redis_client_task_args* args = new thread_redis_client_task_args();
 			args->p = this;
 			args->h = h;
+			args->args = param;
 			if(pthread_create(&thread,NULL,(void* (*)(void*))thread_redis_client_task2,args) == 0){
 				pthread_detach(thread);
 				return true;
 			}
 			return false;
 		}
+	}
+
+	bool redis_client::is_ssdb()
+	{
+		if(t_unknow == type){
+			lyramilk::data::var::array ar;
+			ar.push_back("info");
+			lyramilk::data::var v;
+			if(exec(ar,v)){
+				if(v.type() == lyramilk::data::var::t_array && v[0] == "ssdb-server"){
+					type = t_ssdb;
+				}
+				if(v.type() == lyramilk::data::var::t_str){
+					lyramilk::data::string str = v.str();
+					if(str.find("redis_version") != str.npos){
+						type = t_redis;
+					}
+				}
+			}
+		}
+		return t_ssdb == type;
 	}
 }}}
