@@ -16,7 +16,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 		lyramilk::log::logss log;
 		leveldb::Iterator* it;
 	  public:
-		static void* ctr(lyramilk::data::var::array args)
+		static void* ctr(const lyramilk::data::var::array& args)
 		{
 			assert(args.size() > 0);
 			const void* p = args[0].userdata("iterator");
@@ -136,7 +136,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 		lyramilk::log::logss log;
 		::leveldb::DB* db;
 	  public:
-		static void* ctr(lyramilk::data::var::array args)
+		static void* ctr(const lyramilk::data::var::array& args)
 		{
 			assert(args.size() > 0);
 			lyramilk::data::string filename = args[0];
@@ -306,7 +306,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 		map_type m;
 		lyramilk::threading::mutex_rw lockrw;
 	  public:
-		static void* ctr(lyramilk::data::var::array args)
+		static void* ctr(const lyramilk::data::var::array& args)
 		{
 			return new memmap();
 		}

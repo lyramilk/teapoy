@@ -14,7 +14,9 @@ extern "C" {
 }
 
 #include <fstream>
-#include <jpeglib.h>
+#ifdef Z_HAVE_LIBJPEG
+	#include <jpeglib.h>
+#endif
 #include <sstream>
 #include <errno.h>
 #include <string.h>
@@ -30,7 +32,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 	  public:
 		AVFormatContext *pformat;
 	  public:
-		static void* ctr(lyramilk::data::var::array args)
+		static void* ctr(const lyramilk::data::var::array& args)
 		{
 			lyramilk::data::string filename = args[0];
 			Mpeg * p = new Mpeg(filename);
@@ -112,7 +114,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 		uint8_t *out_buffer;
 		int sws_width, sws_height;
 	  public:
-		static void* ctr(lyramilk::data::var::array args)
+		static void* ctr(const lyramilk::data::var::array& args)
 		{
 			return new Mpeg_KeyFrame((Mpeg*)args[0].userdata("Mpeg"));
 		}
@@ -222,7 +224,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			}
 			return isok;
 		}
-
+#ifdef Z_HAVE_LIBJPEG
 		lyramilk::data::var save_jpeg(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
@@ -291,7 +293,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			jpeg_destroy_compress(&cinfo);
 			return filename;
 		}
-
+#endif
 		lyramilk::data::var next(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			if(!isinit) init();
@@ -336,7 +338,9 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 		{
 			lyramilk::script::engine::functional_map fn;
 			fn["ok"] = lyramilk::script::engine::functional<Mpeg_KeyFrame,&Mpeg_KeyFrame::ok>;
+#ifdef Z_HAVE_LIBJPEG
 			fn["saveJpeg"] = lyramilk::script::engine::functional<Mpeg_KeyFrame,&Mpeg_KeyFrame::save_jpeg>;
+#endif
 			fn["time"] = lyramilk::script::engine::functional<Mpeg_KeyFrame,&Mpeg_KeyFrame::time>;
 			fn["next"] = lyramilk::script::engine::functional<Mpeg_KeyFrame,&Mpeg_KeyFrame::next>;
 			p->define("Mpeg.Keyframe",fn,Mpeg_KeyFrame::ctr,Mpeg_KeyFrame::dtr);

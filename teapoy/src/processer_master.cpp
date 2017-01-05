@@ -222,6 +222,8 @@ namespace lyramilk{ namespace teapoy { namespace web {
 			}else if(ar.size() > 1){
 				dest = ar;
 			}
+		}else{
+			lyramilk::klog(lyramilk::log::warning,"teapoy.web.processer.init") << D("编译正则表达式%s失败",pattern.c_str()) << std::endl;
 		}
 		return true;
 	}
@@ -256,15 +258,18 @@ namespace lyramilk{ namespace teapoy { namespace web {
 		lyramilk::data::var::map logininfo;
 		lyramilk::teapoy::strings::iterator it = strs.begin();
 		for(;it!=strs.end();++it){
-			lyramilk::teapoy::strings pairs = lyramilk::teapoy::split(*it,"=");
-			if(pairs.size() == 2){
-				logininfo[lyramilk::teapoy::trim(pairs[0]," \"'")] = lyramilk::teapoy::trim(pairs[1]," \"'");
+			std::size_t pos = it->find('=');
+			if(pos != it->npos){
+				lyramilk::data::string str1 = it->substr(0,pos);
+				lyramilk::data::string str2 = it->substr(pos+1);
+				logininfo[lyramilk::teapoy::trim(str1," \"'")] = lyramilk::teapoy::trim(str2," \"'");
 			}
 		}
 
 		logininfo["method"] = req->method;
 		//不使用客户端传过来的nonce，因为这个值有可能是伪造的。
-		logininfo["nonce"] = req->nonce;
+		logininfo["nonce"] = args.get("http.digest.nonce");
+
 		ar.push_back(logininfo);
 		lyramilk::data::var vret = pauthobj->call("auth",ar);
 		if(vret == true){
@@ -273,30 +278,29 @@ namespace lyramilk{ namespace teapoy { namespace web {
 		}
 		if(vret.type() != lyramilk::data::var::t_map){
 			os <<	"HTTP/1.1 500 Internal Server Error\r\n"
-					"Server: " SERVER_VER "\r\n"
+					"Server: " TEAPOY_VERSION "\r\n"
 					"\r\n";
 			if(ret)*ret = false;
 			return false;
 		}
+
+		if(logininfo["nc"].type() == lyramilk::data::var::t_invalid){
+			logininfo["nc"] = 0;
+		}
 		lyramilk::data::string digest = vret["digest"];
 		lyramilk::data::string realm = vret["realm"];
 		lyramilk::data::string algorithm = vret["algorithm"];
-		req->nonce = vret["nonce"].str();
-		lyramilk::data::uint64 nc;
-
-		if(logininfo["nc"].type_like(lyramilk::data::var::t_str)){
-			nc = logininfo["nc"];
-			++nc;
-		}else{
-			nc = 0;
-		}
+		lyramilk::data::string nonce = vret["nonce"].str();
+		lyramilk::data::uint64 nc = logininfo["nc"];
+		args.set("http.digest.nonce",nonce);
 
 		lyramilk::data::stringstream ss;
 		ss <<	"HTTP/1.1 401 Authorization Required\r\n"
 				"Connection: Keep-alive\r\n"
-				"Server: " SERVER_VER "\r\n"
+				"Server: " TEAPOY_VERSION "\r\n"
 				"Content-Length: 0\r\n"
-				"WWW-Authenticate: Digest username=\"" << digest << "\",realm=\"" << realm << "\",nonce=\"" << req->nonce << "\", algorithm=\"" << algorithm << "\",qop=\"auth\"\r\n"
+				"WWW-Authenticate: Digest username=\"" << digest << "\", realm=\"" << realm << "\", nonce=\"" << nonce << "\", algorithm=\"" << algorithm << "\", nc=" << nc << ", qop=\"auth\"\r\n"
+				"Set-Cookie: TeapoyId=" << args.getsid() << "\r\n"
 				"\r\n";
 		os << ss.str();
 		if(ret)*ret = true;
@@ -309,7 +313,6 @@ namespace lyramilk{ namespace teapoy { namespace web {
 
 		if(!regex) return false;
 		int ov[256] = {0};
-
 		int rc = pcre_exec((const pcre*)regex,nullptr,url.c_str(),url.size(),0,0,ov,256);
 		if(rc > 0){
 			if(dest.type() == lyramilk::data::var::t_str){
@@ -326,7 +329,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 					if(errno == EACCES){
 						/*
 						os <<	"HTTP/1.1 404 Not Found\r\n"
-								"Server: " SERVER_VER "\r\n"
+								"Server: " TEAPOY_VERSION "\r\n"
 								"\r\n";
 						if(ret)*ret = true;
 						return true;*/
@@ -372,7 +375,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 					if(errno == EACCES){
 						/*
 						os <<	"HTTP/1.1 404 Not Found\r\n"
-								"Server: " SERVER_VER "\r\n"
+								"Server: " TEAPOY_VERSION "\r\n"
 								"\r\n";
 						if(ret)*ret = true;
 						return true;*/
@@ -446,7 +449,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 			}/*
 		}catch(...){
 			os <<	"HTTP/1.1 500 Internal Server Error\r\n"
-					"Server: " SERVER_VER "\r\n"
+					"Server: " TEAPOY_VERSION "\r\n"
 					"\r\n";
 			return true;
 		}*/
@@ -464,19 +467,19 @@ namespace lyramilk{ namespace teapoy { namespace web {
 			}
 			if(errno == EACCES){
 				os <<	"HTTP/1.1 403 Forbidden\r\n"
-						"Server: " SERVER_VER "\r\n"
+						"Server: " TEAPOY_VERSION "\r\n"
 						"\r\n";
 				if(ret)*ret = false;
 				return true;
 			}
 			if(errno == ENAMETOOLONG){
 				os <<	"HTTP/1.1 400 Bad Request\r\n"
-						"Server: " SERVER_VER "\r\n"
+						"Server: " TEAPOY_VERSION "\r\n"
 						"\r\n";
 				return true;
 			}
 			os <<	"HTTP/1.1 500 Internal Server Error\r\n"
-					"Server: " SERVER_VER "\r\n"
+					"Server: " TEAPOY_VERSION "\r\n"
 					"\r\n";
 			if(ret)*ret = false;
 			return true;

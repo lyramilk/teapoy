@@ -1,12 +1,11 @@
 #ifndef _lyramilk_teapoy_web_h_
 #define _lyramilk_teapoy_web_h_
 
+#include "config.h"
 #include "http.h"
 #include <libmilk/netaio.h>
-#include <libmilk/factory.hpp>
+#include <libmilk/factory.h>
 #include <map>
-
-#define SERVER_VER "teapoy/3.1.0"
 
 namespace lyramilk{ namespace teapoy { namespace web {
 	class methodinvoker;

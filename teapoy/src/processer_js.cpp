@@ -79,9 +79,10 @@ namespace lyramilk{ namespace teapoy { namespace web {
 	bool processer_js::invoke(lyramilk::data::string proc_file,methodinvoker* invoker,lyramilk::teapoy::http::request* req,std::ostream& os)
 	{
 		//debug
+		/*
 		lyramilk::data::string k = D("%s -> %s ",req->url.c_str(),proc_file.c_str());
 		lyramilk::debug::nsecdiff td;
-		lyramilk::debug::clocktester _d(td,lyramilk::klog(lyramilk::log::debug),k);
+		lyramilk::debug::clocktester _d(td,lyramilk::klog(lyramilk::log::debug,"teapoy.web.js"),k);*/
 
 		engine_master_js::ptr p = engine_master_js::instance()->get();
 		if(!p->load_file(proc_file)){
@@ -128,9 +129,10 @@ namespace lyramilk{ namespace teapoy { namespace web {
 	bool processer_jsx::exec_jsx(lyramilk::data::string proc_file,methodinvoker* invoker,lyramilk::teapoy::http::request* req,std::ostream& os)
 	{
 		//debug
+		/*
 		lyramilk::data::string k = D("%s -> %s ",req->url.c_str(),proc_file.c_str());
 		lyramilk::debug::nsecdiff td;
-		lyramilk::debug::clocktester _d(td,lyramilk::klog(lyramilk::log::debug),k);
+		lyramilk::debug::clocktester _d(td,lyramilk::klog(lyramilk::log::debug,"teapoy.web.jsx"),k);*/
 
 
 
@@ -142,18 +144,18 @@ namespace lyramilk{ namespace teapoy { namespace web {
 			}
 			if(errno == EACCES){
 				os <<	"HTTP/1.1 403 Forbidden\r\n"
-						"Server: " SERVER_VER "\r\n"
+						"Server: " TEAPOY_VERSION "\r\n"
 						"\r\n";
 				return true;
 			}
 			if(errno == ENAMETOOLONG){
 				os <<	"HTTP/1.1 400 Bad Request\r\n"
-						"Server: " SERVER_VER "\r\n"
+						"Server: " TEAPOY_VERSION "\r\n"
 						"\r\n";
 				return true;
 			}
 			os <<	"HTTP/1.1 500 Internal Server Error\r\n"
-					"Server: " SERVER_VER "\r\n"
+					"Server: " TEAPOY_VERSION "\r\n"
 					"\r\n";
 			return false;
 		}

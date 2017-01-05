@@ -79,27 +79,26 @@ namespace lyramilk{ namespace teapoy{ namespace native
 
 		lyramilk::data::inotify_file iff(ei.filename);
 
-		lyramilk::script::engine* eng = nullptr;
+		lyramilk::script::engine* eng = lyramilk::script::engine::createinstance(ei.type);
+		if(!eng){
+			log(lyramilk::log::error,"task") << D("获取启动脚本失败") << std::endl;
+			return nullptr;
+		}
+		lyramilk::teapoy::script2native::instance()->fill(eng);
+		eng->load_file(ei.filename);
 		while(true){
 			lyramilk::data::inotify_file::status st = iff.check();
-			if(eng == nullptr || st != lyramilk::data::inotify_file::s_keep){
-				if(eng != nullptr){
-					lyramilk::script::engine::destoryinstance(ei.type,eng);
-					log(lyramilk::log::warning,"task") << D("重新加载%s",ei.filename.c_str()) << std::endl;
-				}
-				eng = lyramilk::script::engine::createinstance(ei.type);
-				if(!eng){
-					log(lyramilk::log::error,"task") << D("获取启动脚本失败") << std::endl;
-					continue;
-				}
-				lyramilk::teapoy::script2native::instance()->fill(eng);
+			if(st != lyramilk::data::inotify_file::s_keep){
+				log(lyramilk::log::warning,"task") << D("重新加载%s",ei.filename.c_str()) << std::endl;
+				eng->reset();
 				eng->load_file(ei.filename);
 			}
 			lyramilk::data::var v = eng->call("ontimer");
 			if(v.type() == lyramilk::data::var::t_bool && v == false)break;
+			eng->gc();
 			sleep(1);
-
 		};
+		lyramilk::script::engine::destoryinstance(ei.type,eng);
 
 		pthread_exit(0);
 		return nullptr;
@@ -235,7 +234,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 	lyramilk::data::var get_config(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
-		lyramilk::data::var cfg = env::get_config("config");
+		const lyramilk::data::var& cfg = env::get_config("config");
 		lyramilk::data::string item = args[0].str();
 		return cfg.path(item);
 	}
@@ -319,8 +318,8 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		lyramilk::data::string uri = vuri.type_like(lyramilk::data::var::t_str)?vuri.str():"";
 		lyramilk::data::string method = vmethod.type_like(lyramilk::data::var::t_str)?vmethod.str():"";
 
-		if(realm.empty() || nonce.empty() || cnonce.empty() || nc.empty() || uri.empty() || method.empty() || username.empty() || password.empty()){
-			return false;
+		if(realm.empty() || nonce.empty() || cnonce.empty() || nc.empty() || /*uri.empty() || */method.empty() || username.empty() || password.empty()){
+			return lyramilk::data::var::nil;
 		}
 
 		lyramilk::data::string HA1;
@@ -336,17 +335,30 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		if(qop == "auth-int"){
 			lyramilk::data::var vbody = v["body"];
 			lyramilk::data::string body = vbody.type_like(lyramilk::data::var::t_str)?vbody.str():"";
-			if(body.empty()) return false;
+			if(body.empty()) return lyramilk::data::var::nil;
 			HD = nonce + ":" + nc + ":" + cnonce + ":" + qop;
-			HA2 = method + ":" + uri + ":" + md5(body);
+			if(uri.empty()){
+			
+			}else{
+				HA2 = method + ":" + uri + ":" + md5(body);
+			}
 		}else if(qop == ""){
 			HD = nonce;
-			HA2 = method + ":" + uri;
+			if(uri.empty()){
+				HA2 = method;
+			}else{
+				HA2 = method + ":" + uri;
+			}
 		}else if(qop == "auth"){
 			HD = nonce + ":" + nc + ":" + cnonce + ":" + qop;
-			HA2 = method + ":" + uri;
+			if(uri.empty()){
+				HA2 = method;
+			}else{
+				HA2 = method + ":" + uri;
+			}
+
 		}else{
-			return false;
+			return lyramilk::data::var::nil;
 		}
 
 		return md5(md5(HA1) + ":" + HD + ":" + md5(HA2));

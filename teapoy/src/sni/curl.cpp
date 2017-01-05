@@ -21,7 +21,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 		lyramilk::data::string url;
 		lyramilk::data::string lasterror;
 	  public:
-		static void* ctr(lyramilk::data::var::array args)
+		static void* ctr(const lyramilk::data::var::array& args)
 		{
 			return new httpclient(args[0]);
 		}
@@ -53,6 +53,29 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			curl_easy_setopt(c, CURLOPT_URL,url.c_str());
 			curl_easy_setopt(c, CURLOPT_WRITEFUNCTION, curl_writestream_callback);
 			curl_easy_setopt(c, CURLOPT_WRITEDATA, (std::ostream*)&ss);
+			
+			CURLcode res = curl_easy_perform(c);
+			curl_easy_cleanup(c);
+
+			if(res != CURLE_OK){
+				lasterror = curl_easy_strerror(res);
+				return lyramilk::data::var::nil;
+			}
+			return ss.str();
+		}
+
+		lyramilk::data::var post(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		{
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
+			lyramilk::data::string postdata = args[0];
+			lyramilk::data::stringstream ss;
+			CURL *c = curl_easy_init();
+			curl_easy_setopt(c, CURLOPT_URL,url.c_str());
+			curl_easy_setopt(c, CURLOPT_WRITEFUNCTION, curl_writestream_callback);
+			curl_easy_setopt(c, CURLOPT_WRITEDATA, (std::ostream*)&ss);
+			curl_easy_setopt(c, CURLOPT_POST, 1);
+			curl_easy_setopt(c, CURLOPT_POSTFIELDS, postdata.c_str());
+			curl_easy_setopt(c,CURLOPT_VERBOSE,1);
 			CURLcode res = curl_easy_perform(c);
 			curl_easy_cleanup(c);
 
@@ -159,7 +182,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 		{
 			lyramilk::script::engine::functional_map fn;
 			fn["get"] = lyramilk::script::engine::functional<httpclient,&httpclient::get>;
-			//fn["post"] = lyramilk::script::engine::functional<httpclient,&httpclient::post>;
+			fn["post"] = lyramilk::script::engine::functional<httpclient,&httpclient::post>;
 			fn["download"] = lyramilk::script::engine::functional<httpclient,&httpclient::download>;
 			fn["upload"] = lyramilk::script::engine::functional<httpclient,&httpclient::upload>;
 			fn["todo"] = lyramilk::script::engine::functional<httpclient,&httpclient::todo>;
@@ -183,27 +206,6 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(lyramilk::klog("teapoy.native"),lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 		lyramilk::data::string url = args[0].str();
-
-
-		if(url.find("://") == url.npos){
-			lyramilk::data::stringstream ssrequest;
-			ssrequest << "GET " << url << " HTTP/1.1\r\n";
-			ssrequest << "\r\n";
-
-			lyramilk::data::string strrequest = ssrequest.str();
-			lyramilk::teapoy::web::aiohttpsession sns;
-			lyramilk::data::stringstream ssresponse;
-			sns.onrequest(strrequest.c_str(),strrequest.size(),ssresponse);
-			lyramilk::data::string ret = ssresponse.str();
-			std::size_t sz = ret.find("\r\n\r\n");
-			if(sz == ret.npos){
-				return lyramilk::data::var::nil;
-			}
-			return ret.substr(sz);
-		}
-
-
-
 		lyramilk::data::stringstream ss;
 		CURL *c = curl_easy_init();
 		curl_easy_setopt(c, CURLOPT_URL,url.c_str());

@@ -5,7 +5,7 @@
 #include <iostream>
 #include <libmilk/log.h>
 #include <libmilk/multilanguage.h>
-#include <libmilk/factory.hpp>
+#include <libmilk/factory.h>
 #include "redis.h"
 #include <queue>
 #include <sys/socket.h>
@@ -14,17 +14,39 @@
 namespace lyramilk{ namespace teapoy{ namespace native {
 	using namespace lyramilk::teapoy::redis;
 
+
+	void static listener(const lyramilk::data::string& addr,const lyramilk::data::var::array& cmd,bool success,const lyramilk::data::var& ret)
+	{
+		lyramilk::data::stringstream ss;
+
+		lyramilk::data::string logcmd;
+		lyramilk::data::var::array::const_iterator it = cmd.begin();
+		for(;it!=cmd.end();++it){
+			logcmd += it->str() + ' ';
+		}
+
+		ss << addr << "执行" << logcmd << (success?"成功：":"失败，原因：") << "返回值" << ret;
+
+		if(success){
+			lyramilk::klog(lyramilk::log::debug,"teapoy.redis.log") << ss.str() << std::endl;
+		}else{
+			lyramilk::klog(lyramilk::log::error,"teapoy.redis.log") << ss.str() << std::endl;
+		}
+	}
+
 	class redis_clients:public lyramilk::threading::exclusive::list<lyramilk::teapoy::redis::redis_client>
 	{
 		lyramilk::data::string host;
 		lyramilk::data::uint16 port;
 		lyramilk::data::string pwd;
+		bool withlistener;
 	  public:
-		redis_clients(lyramilk::data::string host,lyramilk::data::uint16 port,lyramilk::data::string pwd)
+		redis_clients(lyramilk::data::string host,lyramilk::data::uint16 port,lyramilk::data::string pwd,bool withlistener)
 		{
 			this->host = host;
 			this->port = port;
 			this->pwd = pwd;
+			this->withlistener = withlistener;
 		}
 
 		virtual ~redis_clients()
@@ -37,6 +59,9 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			if(!p) return nullptr;
 			p->open(host.c_str(),port);
 			p->auth(pwd);
+			if(withlistener){
+				p->set_listener(listener);
+			}
 			return p;
 		}
 	};
@@ -57,16 +82,15 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			return host;
 		}
 
-		virtual redis_clients::ptr getobj(lyramilk::data::string host,lyramilk::data::uint16 port,lyramilk::data::string pwd)
+		virtual redis_clients::ptr getobj(lyramilk::data::string host,lyramilk::data::uint16 port,lyramilk::data::string pwd,bool withlistener)
 		{
 			lyramilk::data::string token = makekey(host,port);
 			redis_clients* c = get(token);
 			if(c == nullptr){
 				lyramilk::threading::mutex_sync _(lock);
-				define(token,new redis_clients(host,port,pwd));
+				define(token,new redis_clients(host,port,pwd,withlistener));
 				c = get(token);
 			}
-
 			if(c == nullptr) return nullptr;
 			return c->get();
 		}
@@ -79,27 +103,31 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 		lyramilk::log::logss log;
 		redis_clients::ptr c;
 		bool isreadonly;
-		static void* ctr(lyramilk::data::var::array args)
+		static void* ctr(const lyramilk::data::var::array& args)
 		{
 			bool readonly = true;
 			redis_clients::ptr c;
 			if(args.size() == 2){
-				c = redis_clients_multiton::instance()->getobj(args[0],args[1],"");
+				c = redis_clients_multiton::instance()->getobj(args[0],args[1],"",false);
 			}else if(args.size() == 3){
-				c = redis_clients_multiton::instance()->getobj(args[0],args[1],args[2]);
+				c = redis_clients_multiton::instance()->getobj(args[0],args[1],args[2],false);
 			}else if(args.size() == 4){
 				readonly = args[3];
-				c = redis_clients_multiton::instance()->getobj(args[0],args[1],args[2]);
+				c = redis_clients_multiton::instance()->getobj(args[0],args[1],args[2],false);
+			}else if(args.size() == 5){
+				readonly = args[3];
+				c = redis_clients_multiton::instance()->getobj(args[0],args[1],args[2],args[4]);
 			}else if(args.size() == 1){
-				lyramilk::data::var& v = args[0];
+				const lyramilk::data::var& v = args[0];
 				lyramilk::data::string host = v["host"];
 				lyramilk::data::uint16 port = v["port"];
 				lyramilk::data::string pwd = v["password"];
-				lyramilk::data::var& vrdonly = v["readonly"];
+				lyramilk::data::var vrdonly = v["readonly"];
+				bool withlistener = v["listener"].type_like(lyramilk::data::var::t_str);
 				if(vrdonly.type_like(lyramilk::data::var::t_bool)){
 					readonly = vrdonly;
 				}
-				c = redis_clients_multiton::instance()->getobj(host,port,pwd);
+				c = redis_clients_multiton::instance()->getobj(host,port,pwd,withlistener);
 			}
 			if(c){
 				redis* p = new redis(c);
@@ -183,7 +211,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			lyramilk::data::var::array cmd;
 			cmd.reserve(2);
 			cmd.push_back("incr");
-			cmd.push_back("teapoy:auto_increment:" + skey + ":");
+			cmd.push_back("teapoy:auto_increment:" + skey);
 			lyramilk::data::var vret;
 			if(!c->exec(cmd,vret)) return lyramilk::data::var::nil;
 			return vret;
@@ -192,6 +220,33 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 		lyramilk::data::var ok(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			TODO();
+		}
+
+		lyramilk::data::var kvget(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		{
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
+			lyramilk::data::var::array cmd;
+			cmd.reserve(2);
+			cmd.push_back("get");
+			cmd.push_back(args[0]);
+			lyramilk::data::var vret;
+			if(!c->exec(cmd,vret)) return lyramilk::data::var::nil;
+			return vret;
+		}
+
+		lyramilk::data::var kvset(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		{
+			if(readonly()) throw lyramilk::exception(D("redis.%s：禁止向只读Redis实例写入数据",__FUNCTION__));
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_str);
+			lyramilk::data::var::array cmd;
+			cmd.reserve(3);
+			cmd.push_back("set");
+			cmd.push_back(args[0]);
+			cmd.push_back(args[1]);
+			lyramilk::data::var vret;
+			if(!c->exec(cmd,vret)) return lyramilk::data::var::nil;
+			return vret;
 		}
 
 		lyramilk::data::var kv(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
@@ -253,11 +308,103 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			lyramilk::script::engine* eng;
 		};
 
+
+		lyramilk::teapoy::strings static split_redis_string(lyramilk::data::string str)
+		{
+			const char *p = str.c_str();
+			std::size_t sz = str.size();
+			const char *e = p + sz + 1;
+
+			lyramilk::teapoy::strings ret;
+			lyramilk::data::string current;
+			current.reserve(sz);
+			enum {
+				s_0,
+				s_str1,
+				s_str2,
+			}s = s_0;
+			while(*p && isspace(*p) && p < e) p++;
+			for(;*p && p < e;++p){
+				switch(s){
+				  case s_0:{
+					switch(*p) {
+					  case ' ':
+					  case '\n':
+					  case '\r':
+					  case '\t':
+					  case '\0':
+						if(!current.empty()) ret.push_back(current);
+						current.clear();
+						for(++p;*p && isspace(*p) && p < e;++p);
+						--p;
+						continue;
+					  case '"':
+						s = s_str1;
+						current.clear();
+						break;
+					  case '\'':
+						s = s_str2;
+						current.clear();
+						break;
+					  default:
+						current.push_back(*p);
+					}
+				  }break;
+				  case s_str1:{
+					if(*p == '"'){
+						s = s_0;
+						if(!current.empty()) ret.push_back(current);
+						current.clear();
+						for(++p;*p && isspace(*p) && p < e;++p);
+						--p;
+					}else{
+						current.push_back(*p);
+					}
+				  }break;
+				  case s_str2:{
+					if(*p == '\''){
+						s = s_0;
+						if(!current.empty()) ret.push_back(current);
+						current.clear();
+						for(++p;*p && isspace(*p) && p < e;++p);
+						--p;
+					}else{
+						current.push_back(*p);
+					}
+				  }break;
+				}
+			}
+			if(!current.empty()) ret.push_back(current);
+			return ret;
+		}
+
 		static bool callback_monitor(bool success,const lyramilk::data::var& v,void* param)
 		{
+			if(v.type() != lyramilk::data::var::t_str){
+				throw lyramilk::exception(D("监听错误"));
+			}
+			lyramilk::teapoy::strings rets = split_redis_string(v.str());
+
+			if(rets.size() < 4) return true;
+
+			lyramilk::data::string time = rets[0];
+			lyramilk::data::string db = rets[1].substr(1);
+			rets[2].erase(rets[2].end() - 1);
+			lyramilk::data::string addr = rets[2];
+			lyramilk::data::string cmd = lyramilk::teapoy::lowercase(rets[3]);
 			redis_args* p = (redis_args*)param;
 			lyramilk::data::var::array ar;
-			ar.push_back(v);
+			ar.reserve(4);
+			lyramilk::data::var::array cmds;
+			cmds.reserve(rets.size() - 3);
+			cmds.push_back(cmd);
+			for(lyramilk::teapoy::strings::iterator it = rets.begin()+4;it!=rets.end();++it){
+				cmds.push_back(*it);
+			}
+			ar.push_back(time);
+			ar.push_back(db);
+			ar.push_back(addr);
+			ar.push_back(cmds);
 			p->eng->call(p->param[0],ar);
 			return true;
 		}
@@ -312,6 +459,8 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			fn["clear"] = lyramilk::script::engine::functional<redis,&redis::clear>;
 			fn["newid"] = lyramilk::script::engine::functional<redis,&redis::newid>;
 			fn["ok"] = lyramilk::script::engine::functional<redis,&redis::ok>;
+			fn["kvget"] = lyramilk::script::engine::functional<redis,&redis::kvget>;
+			fn["kvset"] = lyramilk::script::engine::functional<redis,&redis::kvset>;
 			fn["kv"] = lyramilk::script::engine::functional<redis,&redis::kv>;
 			fn["hashmap"] = lyramilk::script::engine::functional<redis,&redis::hashmap>;
 			fn["zset"] = lyramilk::script::engine::functional<redis,&redis::zset>;
@@ -338,7 +487,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 		bool reverse;
 		std::queue<std::pair<lyramilk::data::string,lyramilk::data::var> > dq;
 	  public:
-		static void* ctr(lyramilk::data::var::array args)
+		static void* ctr(const lyramilk::data::var::array& args)
 		{
 			return new redis_zset_iterator((redis*)args[0].userdata("redis"),args[1],args[2],args[3]);
 		}
@@ -477,7 +626,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 		lyramilk::data::string key;
 		redis* predis;
 	  public:
-		static void* ctr(lyramilk::data::var::array args)
+		static void* ctr(const lyramilk::data::var::array& args)
 		{
 			assert(args.size() == 2);
 			return new redis_zset((redis*)args[0].userdata("redis"),args[1]);
@@ -550,9 +699,13 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_uint64);
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_str);
 			lyramilk::data::string str = args[1];
-
-			if(predis->is_ssdb() && str.size() > 200){
-				throw lyramilk::exception(D("redis.zset.%s：SSDB禁止向zset插入超长键%d:%s",str.size(),str.c_str()));
+			if(predis->is_ssdb()){
+				if(str.size() > 200){
+					throw lyramilk::exception(D("redis.zset.%s：SSDB禁止向zset插入超长键%d:%s",__FUNCTION__,str.size(),str.c_str()));
+				}
+				if(args[0].type() == lyramilk::data::var::t_double){
+					throw lyramilk::exception(D("redis.zset.%s：SSDB禁止使用浮点数作为zset的score，请检查参数1",__FUNCTION__));
+				}
 			}
 
 			lyramilk::data::var::array cmd;
@@ -684,6 +837,19 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			return vret[0];
 		}
 
+		lyramilk::data::var rank(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		{
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
+			lyramilk::data::var::array cmd;
+			cmd.reserve(3);
+			cmd.push_back("zrank");
+			cmd.push_back(key);
+			cmd.push_back(args[0]);
+			lyramilk::data::var vret;
+			if(!predis->c->exec(cmd,vret)) return lyramilk::data::var::nil;
+			return vret;
+		}
+
 		lyramilk::data::var random(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_uint64);
@@ -746,6 +912,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			fn["clear"] = lyramilk::script::engine::functional<redis_zset,&redis_zset::clear>;
 			fn["score"] = lyramilk::script::engine::functional<redis_zset,&redis_zset::score>;
 			fn["at"] = lyramilk::script::engine::functional<redis_zset,&redis_zset::at>;
+			fn["rank"] = lyramilk::script::engine::functional<redis_zset,&redis_zset::rank>;
 			fn["random"] = lyramilk::script::engine::functional<redis_zset,&redis_zset::random>;
 			p->define("redis.zset",fn,redis_zset::ctr,redis_zset::dtr);
 			return 1;
@@ -765,7 +932,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 		lyramilk::data::uint64 cursor;
 		lyramilk::data::uint64 start;
 	  public:
-		static void* ctr(lyramilk::data::var::array args)
+		static void* ctr(const lyramilk::data::var::array& args)
 		{
 			return new redis_hmap_iterator((redis*)args[0].userdata("redis"),args[1],args[2],args[3]);
 		}
@@ -865,7 +1032,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 		lyramilk::data::string key;
 		redis* predis;
 	  public:
-		static void* ctr(lyramilk::data::var::array args)
+		static void* ctr(const lyramilk::data::var::array& args)
 		{
 			return new redis_hmap((redis*)args[0].userdata("redis"),args[1]);
 		}
@@ -984,6 +1151,37 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			return vret;
 		}
 
+		lyramilk::data::var incr(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		{
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_int64);
+			lyramilk::data::var::array cmd;
+			cmd.reserve(4);
+			cmd.push_back("hincrby");
+			cmd.push_back(key);
+			cmd.push_back(args[0]);
+			cmd.push_back(args[1]);
+			lyramilk::data::var vret;
+			if(!predis->c->exec(cmd,vret)) return lyramilk::data::var::nil;
+			return vret;
+		}
+
+		lyramilk::data::var decr(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		{
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_int64);
+			lyramilk::data::int64 v = args[1];
+			lyramilk::data::var::array cmd;
+			cmd.reserve(4);
+			cmd.push_back("hincrby");
+			cmd.push_back(key);
+			cmd.push_back(args[0]);
+			cmd.push_back(0 - v);
+			lyramilk::data::var vret;
+			if(!predis->c->exec(cmd,vret)) return lyramilk::data::var::nil;
+			return vret;
+		}
+
 		lyramilk::data::var clear(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			if(predis->readonly()) throw lyramilk::exception(D("redis.hashmap.%s：禁止向只读Redis实例写入数据",__FUNCTION__));
@@ -1014,6 +1212,8 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			fn["get"] = lyramilk::script::engine::functional<redis_hmap,&redis_hmap::get>;
 			fn["set"] = lyramilk::script::engine::functional<redis_hmap,&redis_hmap::set>;
 			fn["exist"] = lyramilk::script::engine::functional<redis_hmap,&redis_hmap::exist>;
+			fn["incr"] = lyramilk::script::engine::functional<redis_hmap,&redis_hmap::incr>;
+			fn["decr"] = lyramilk::script::engine::functional<redis_hmap,&redis_hmap::decr>;
 			fn["clear"] = lyramilk::script::engine::functional<redis_hmap,&redis_hmap::clear>;
 			p->define("redis.hashmap",fn,redis_hmap::ctr,redis_hmap::dtr);
 			return 1;
@@ -1035,7 +1235,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 		lyramilk::data::int64 start;
 		lyramilk::data::string list_item_value;
 	  public:
-		static void* ctr(lyramilk::data::var::array args)
+		static void* ctr(const lyramilk::data::var::array& args)
 		{
 			return new redis_list_iterator((redis*)args[0].userdata("redis"),args[1],args[2],args[3]);
 		}
@@ -1146,7 +1346,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 		lyramilk::data::string key;
 		redis* predis;
 	  public:
-		static void* ctr(lyramilk::data::var::array args)
+		static void* ctr(const lyramilk::data::var::array& args)
 		{
 			return new redis_list((redis*)args[0].userdata("redis"),args[1]);
 		}
@@ -1410,7 +1610,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 		lyramilk::data::string key;
 		redis* predis;
 	  public:
-		static void* ctr(lyramilk::data::var::array args)
+		static void* ctr(const lyramilk::data::var::array& args)
 		{
 			return new redis_kv((redis*)args[0].userdata("redis"),args[1]);
 		}

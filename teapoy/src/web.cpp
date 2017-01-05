@@ -98,14 +98,14 @@ namespace lyramilk{ namespace teapoy { namespace web {
 		lyramilk::debug::nsecdiff td;
 		lyramilk::debug::clocktester _d(td,lyramilk::klog(lyramilk::log::debug),k);
 */
-
 		if(req.bad()){
 			os <<	"HTTP/1.1 400 Bad Request\r\n"
-					"Server: " SERVER_VER "\r\n"
+					"Server: " TEAPOY_VERSION "\r\n"
 					"\r\n";
 			return false;
 		}
 		req.parse_cookies();
+		req.ssl_peer_certificate_info = ssl_get_peer_certificate_info();
 
 		// 动态调用
 		methodinvoker* invoder = methodinvokers::instance()->get(req.method);
@@ -122,7 +122,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 				support.erase(support.end()-1);
 			}
 			os <<	"HTTP/1.1 405 Method Not Allowed\r\n"
-					"Server: " SERVER_VER "\r\n"
+					"Server: " TEAPOY_VERSION "\r\n"
 					"Allow: " << support << "\r\n"
 					"\r\n";
 			return false;
@@ -163,6 +163,12 @@ namespace lyramilk{ namespace teapoy { namespace web {
 			}
 		}
 		//静态处理
+		/*
+		//debug
+		lyramilk::data::string k = D("%s ",req.url.c_str());
+		lyramilk::debug::nsecdiff td;
+		lyramilk::debug::clocktester _d(td,lyramilk::klog(lyramilk::log::debug,"teapoy.web"),k);*/
+
 		if(req.ver.major == 1 && req.ver.minor < 1){
 			invoder->call(&req,os);
 			return false;
@@ -198,28 +204,35 @@ namespace lyramilk{ namespace teapoy { namespace web {
 				rawfile = rawfile.substr(0,pos);
 			}
 
+			if(rawfile.find("/../") != rawfile.npos){
+				os <<	"HTTP/1.1 400 Bad Request\r\n"
+						"Server: " TEAPOY_VERSION "\r\n"
+						"\r\n";
+				return true;
+			}
+
 			struct stat st = {0};
 			if(0 !=::stat(rawfile.c_str(),&st)){
 				if(errno == ENOENT){
 					os <<	"HTTP/1.1 404 Not Found\r\n"
-							"Server: " SERVER_VER "\r\n"
+							"Server: " TEAPOY_VERSION "\r\n"
 							"\r\n";
 					return true;
 				}
 				if(errno == EACCES){
 					os <<	"HTTP/1.1 403 Forbidden\r\n"
-							"Server: " SERVER_VER "\r\n"
+							"Server: " TEAPOY_VERSION "\r\n"
 							"\r\n";
 					return false;
 				}
 				if(errno == ENAMETOOLONG){
 					os <<	"HTTP/1.1 400 Bad Request\r\n"
-							"Server: " SERVER_VER "\r\n"
+							"Server: " TEAPOY_VERSION "\r\n"
 							"\r\n";
 					return true;
 				}
 				os <<	"HTTP/1.1 500 Internal Server Error\r\n"
-						"Server: " SERVER_VER "\r\n"
+						"Server: " TEAPOY_VERSION "\r\n"
 						"\r\n";
 				return false;
 			}
@@ -270,7 +283,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 			ifs.open(rawfile.c_str(),std::ifstream::binary|std::ifstream::in);
 			if(!ifs.is_open()){
 				os <<	"HTTP/1.1 404 Not Found\r\n"
-						"Server: " SERVER_VER "\r\n"
+						"Server: " TEAPOY_VERSION "\r\n"
 						"\r\n";
 				return true;
 			}
@@ -281,7 +294,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 			if(is_range){
 				if(!has_range_start && !has_range_end){
 					os <<	"HTTP/1.1 500 Internal Server Error\r\n"
-							"Server: " SERVER_VER "\r\n"
+							"Server: " TEAPOY_VERSION "\r\n"
 							"\r\n";
 					return false;
 				}
@@ -325,14 +338,14 @@ namespace lyramilk{ namespace teapoy { namespace web {
 
 			if(vifetagnotmatch.type() != lyramilk::data::var::t_invalid && vifetagnotmatch == etag){
 				os <<	"HTTP/1.1 304 Not Modified\r\n"
-						"Server: " SERVER_VER "\r\n"
+						"Server: " TEAPOY_VERSION "\r\n"
 						"\r\n";
 				return true;
 			}
 
 			if(vifmodified.type() != lyramilk::data::var::t_invalid && vifmodified == lastmodified){
 				os <<	"HTTP/1.1 304 Not Modified\r\n"
-						"Server: " SERVER_VER "\r\n"
+						"Server: " TEAPOY_VERSION "\r\n"
 						"\r\n";
 				return true;
 			}
@@ -375,7 +388,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 				ss <<	"Content-Type: " << mimetype << "\r\n";
 			}
 
-			ss <<		"Server: " SERVER_VER "\r\n";
+			ss <<		"Server: " TEAPOY_VERSION "\r\n";
 			ss <<		"Accept-Ranges: bytes\r\n";
 			{
 				time_t t_now = time(nullptr);
@@ -440,28 +453,35 @@ namespace lyramilk{ namespace teapoy { namespace web {
 				rawfile = rawfile.substr(0,pos);
 			}
 
+			if(rawfile.find("/../") != rawfile.npos){
+				os <<	"HTTP/1.1 400 Bad Request\r\n"
+						"Server: " TEAPOY_VERSION "\r\n"
+						"\r\n";
+				return true;
+			}
+
 			struct stat st = {0};
 			if(0 !=::stat(rawfile.c_str(),&st)){
 				if(errno == ENOENT){
 					os <<	"HTTP/1.1 404 Not Found\r\n"
-							"Server: " SERVER_VER "\r\n"
+							"Server: " TEAPOY_VERSION "\r\n"
 							"\r\n";
 					return true;
 				}
 				if(errno == EACCES){
 					os <<	"HTTP/1.1 403 Forbidden\r\n"
-							"Server: " SERVER_VER "\r\n"
+							"Server: " TEAPOY_VERSION "\r\n"
 							"\r\n";
 					return false;
 				}
 				if(errno == ENAMETOOLONG){
 					os <<	"HTTP/1.1 400 Bad Request\r\n"
-							"Server: " SERVER_VER "\r\n"
+							"Server: " TEAPOY_VERSION "\r\n"
 							"\r\n";
 					return true;
 				}
 				os <<	"HTTP/1.1 500 Internal Server Error\r\n"
-						"Server: " SERVER_VER "\r\n"
+						"Server: " TEAPOY_VERSION "\r\n"
 						"\r\n";
 				return false;
 			}
@@ -488,7 +508,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 			ifs.open(rawfile.c_str(),std::ifstream::binary|std::ifstream::in);
 			if(!ifs.is_open()){
 				os <<	"HTTP/1.1 404 Not Found\r\n"
-						"Server: " SERVER_VER "\r\n"
+						"Server: " TEAPOY_VERSION "\r\n"
 						"\r\n";
 				return true;
 			}
@@ -499,7 +519,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 
 			lyramilk::data::stringstream ss;
 			ss <<	"HTTP/1.1 200 OK\r\n";
-			ss <<	"Server: " SERVER_VER "\r\n";
+			ss <<	"Server: " TEAPOY_VERSION "\r\n";
 			ss <<	"Content-Length: " << filesize << "\r\n";
 			ss <<	"Connection: Keep-Alive\r\n";
 			ss <<	"Access-Control-Allow-Origin: *\r\n";

@@ -5,30 +5,30 @@
 #include <libmilk/testing.h>
 
 namespace lyramilk{ namespace teapoy { namespace web {
-	/********** engine_master_lua ***********/
+	/********** engine_master_php ***********/
 
-	class engine_master_lua:public lyramilk::script::engines
+	class engine_master_php:public lyramilk::script::engines
 	{
 	  public:
-		engine_master_lua()
+		engine_master_php()
 		{
 		}
 
-		virtual ~engine_master_lua()
+		virtual ~engine_master_php()
 		{
 		}
 
-		static engine_master_lua* instance()
+		static engine_master_php* instance()
 		{
-			static engine_master_lua _mm;
+			static engine_master_php _mm;
 			return &_mm;
 		}
 
 		virtual lyramilk::script::engine* underflow()
 		{
-			lyramilk::script::engine* eng_tmp = lyramilk::script::engine::createinstance("lua");
+			lyramilk::script::engine* eng_tmp = lyramilk::script::engine::createinstance("php");
 			if(!eng_tmp){
-				lyramilk::klog(lyramilk::log::error,"teapoy.web.engine_master_lua.underflow") << D("创建引擎对象失败(%s)","lua") << std::endl;
+				lyramilk::klog(lyramilk::log::error,"teapoy.web.engine_master_php.underflow") << D("创建引擎对象失败(%s)","php") << std::endl;
 				return nullptr;
 			}
 
@@ -44,37 +44,36 @@ namespace lyramilk{ namespace teapoy { namespace web {
 
 		virtual void onremove(lyramilk::script::engine* o)
 		{
-			lyramilk::script::engine::destoryinstance("lua",o);
+			lyramilk::script::engine::destoryinstance("php",o);
 		}
 	};
 
 
-	/********** processer_lua ***********/
-	processer* processer_lua::ctr(void* args)
+	/********** processer_php ***********/
+	processer* processer_php::ctr(void* args)
 	{
-		return new processer_lua;
+		return new processer_php;
 	}
 
-	void processer_lua::dtr(processer* ptr)
+	void processer_php::dtr(processer* ptr)
 	{
 		delete ptr;
 	}
 
-	processer_lua::processer_lua()
+	processer_php::processer_php()
 	{}
 
-	processer_lua::~processer_lua()
+	processer_php::~processer_php()
 	{}
 	
-	bool processer_lua::invoke(lyramilk::data::string proc_file,methodinvoker* invoker,lyramilk::teapoy::http::request* req,std::ostream& os)
+	bool processer_php::invoke(lyramilk::data::string proc_file,methodinvoker* invoker,lyramilk::teapoy::http::request* req,std::ostream& os)
 	{
 		//debug
-		/*
 		lyramilk::data::string k = D("%s -> %s ",req->url.c_str(),proc_file.c_str());
 		lyramilk::debug::nsecdiff td;
-		lyramilk::debug::clocktester _d(td,lyramilk::klog(lyramilk::log::debug,"teapoy.web.lua"),k);*/
+		lyramilk::debug::clocktester _d(td,lyramilk::klog(lyramilk::log::debug,"teapoy.web.php"),k);
 
-		engine_master_lua::ptr p = engine_master_lua::instance()->get();
+		engine_master_php::ptr p = engine_master_php::instance()->get();
 
 		if(!p->load_file(proc_file)){
 			COUT << "加载文件" << proc_file << "失败" << std::endl;

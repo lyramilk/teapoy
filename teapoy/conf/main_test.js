@@ -6,17 +6,30 @@ require("config.js");
 	conf.redis.test_redis = {
 		host:"172.17.72.54",
 		port:6379,
-		readonly:false
+		password:"cyxOO2cycyxOO2cycyxOO2cycyxOO2cy",
+		readonly:false,
+		enablelog:true,
 	}
 	conf.redis.test_ssdb = {
 		host:"172.17.72.54",
 		port:8888,
-		readonly:false
+		password:"cyxOO2cycyxOO2cycyxOO2cycyxOO2cy",
+		readonly:false,
+		enablelog:true,
 	}
-	conf.redis.family = {
+	conf.redis.familyR = {
 		host:"172.17.72.54",
 		port:8888,
-		readonly:false
+		password:"cyxOO2cycyxOO2cycyxOO2cycyxOO2cy",
+		readonly:true,
+		enablelog:true,
+	}
+	conf.redis.familyW = {
+		host:"172.17.72.54",
+		port:8888,
+		password:"cyxOO2cycyxOO2cycyxOO2cycyxOO2cy",
+		readonly:false,
+		enablelog:true,
 	}
 	conf.redis.test = {
 		host:"172.17.72.54",
@@ -99,6 +112,7 @@ for(var i in self.task){
 	trace("启动[" + type + "]任务" + filename);
 	task(type,filename);
 }
+//create_repeater(8000,"0.0.0.0","127.0.0.1",22,false,30);
 epfd.wait();
 
 /*

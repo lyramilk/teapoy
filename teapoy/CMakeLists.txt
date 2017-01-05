@@ -1,6 +1,6 @@
 ﻿#定义工程名及版本
 project(teapoy)
-set(version 1.0.2)
+set(version 1.0.3)
 set(soversion 1.0)
 
 
@@ -56,6 +56,8 @@ if(UNIX)
 	include_directories(src/sni)
 endif()
 
+list(APPEND LIBS_DEPENDS -ldl)
+
 ## 搜索可选的外部依赖
 if(UNIX)
 	pkg_check_modules(LIBMILK libmilk)
@@ -73,15 +75,16 @@ if(UNIX)
 
 	check_include_file_cxx(mysql/mysql.h Z_HAVE_MYSQLDEVEL)
 	check_include_file_cxx(jpeglib.h Z_HAVE_LIBJPEG)
+	check_include_file_cxx(mongo/version.h Z_HAVE_MONGODB)
 endif()
 
 #if(NOT Z_HAVE_FILEDEVEL)
 #	message(FATAL_ERROR "require rpm package file-devel")
 #endif()
 
-if(NOT Z_HAVE_MYSQLDEVEL)
-	message(FATAL_ERROR "require rpm package mysql-devel")
-endif()
+#if(NOT Z_HAVE_MYSQLDEVEL)
+#	message(FATAL_ERROR "require rpm package mysql-devel")
+#endif()
 
 if(NOT PCRE_FOUND)
 	message(FATAL_ERROR "require rpm package pcre-devel")
@@ -101,6 +104,8 @@ if(LEVELDB_FOUND)
 	list(APPEND LIBS_DEPENDS ${LEVELDB_LDFLAGS})
 	list(APPEND INCS_DEPENDS ${LEVELDB_CFLAGS})
 	list(APPEND CONFIG_MACROS LEVELDB_FOUND)
+else()
+	list(REMOVE_ITEM src_cpps src/sni/hash_map.cpp)
 endif()
 
 if(LIBCURL_FOUND)
@@ -109,6 +114,8 @@ if(LIBCURL_FOUND)
 	list(APPEND LIBS_DEPENDS ${LIBCURL_LDFLAGS})
 	list(APPEND INCS_DEPENDS ${LIBCURL_CFLAGS})
 	list(APPEND CONFIG_MACROS LIBCURL_FOUND)
+else()
+	list(REMOVE_ITEM src_cpps src/sni/curl.cpp)
 endif()
 
 if(JS17_FOUND)
@@ -124,6 +131,8 @@ if(Z_HAVE_MYSQLDEVEL)
 	list(APPEND RUN_DEPENDS mysql-libs)
 	list(APPEND LIBS_DEPENDS -L/usr/lib64/mysql -lmysqlclient)
 	list(APPEND CONFIG_MACROS Z_HAVE_MYSQLDEVEL)
+else()
+	list(REMOVE_ITEM src_cpps src/sni/mysql.cpp)
 endif()
 
 if(FFMPEG_FOUND)
@@ -152,6 +161,8 @@ if(FFMPEG_FOUND)
 	list(APPEND INCS_DEPENDS ${FFMPEG_AVDEVICE_CFLAGS})
 
 	list(APPEND CONFIG_MACROS FFMPEG_FOUND)
+else()
+	list(REMOVE_ITEM src_cpps src/sni/mpeg.cpp)
 endif()
 
 if(PCRE_FOUND)
@@ -163,12 +174,23 @@ if(PCRE_FOUND)
 endif()
 
 
-#if(Z_HAVE_LIBJPEG)
+if(Z_HAVE_LIBJPEG)
 	list(APPEND BUILD_DEPENDS libjpeg-turbo)
 	list(APPEND RUN_DEPENDS libjpeg-turbo-devel)
 	list(APPEND LIBS_DEPENDS -ljpeg)
 	list(APPEND CONFIG_MACROS Z_HAVE_LIBJPEG)
-#endif()
+else()
+	list(REMOVE_ITEM src_cpps src/sni/jpeg.cpp)
+endif()
+
+if(Z_HAVE_MONGODB)
+	list(APPEND BUILD_DEPENDS mongo-cxx-driver)
+	list(APPEND RUN_DEPENDS mongo-cxx-driver-devel)
+	list(APPEND LIBS_DEPENDS -lmongoclient)
+	list(APPEND CONFIG_MACROS Z_HAVE_MONGODB)
+else()
+	list(REMOVE_ITEM src_cpps src/sni/mongodb.cpp)
+endif()
 
 
 
@@ -192,6 +214,7 @@ foreach(v ${INCS_DEPENDS})
 endforeach()
 
 set(CMAKE_LIBS_DEPENDS ${LIBS_DEPENDS})
+
 message(${CMAKE_LIBS_DEPENDS})
 
 foreach(v ${CONFIG_MACROS})
@@ -209,10 +232,10 @@ add_library(${PROJECT_NAME} SHARED ${src_cpps} ${src_hs})
 install(TARGETS ${PROJECT_NAME} DESTINATION ${install_dir})
 
 #对libmilk的依赖
-if(NOT ${LIBMILK_CFLAGS})
-	add_custom_target(milk COMMAND make -C ~/libmilk/build)
+#if(NOT ${LIBMILK_CFLAGS})
+	add_custom_target(milk COMMAND make -C /usr/local/src/libmilk/build)
 	add_dependencies(${PROJECT_NAME} milk)
-endif()
+#endif()
 
 
 #链接库
@@ -251,4 +274,3 @@ foreach(var ${src_test})
 	target_link_libraries(${var2} ${PROJECT_NAME})
 	add_test(NAME ${var2} COMMAND ${unittest} ./${var2})
 endforeach()
-

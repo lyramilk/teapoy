@@ -68,6 +68,13 @@ namespace lyramilk{ namespace teapoy {namespace http{
 		httpheader.clear();
 		ver.major = 0;
 		ver.minor = 0;
+		method.clear();
+		url.clear();
+		root.clear();
+		parameter.clear();
+		cookies.clear();
+
+
 		mime::reset();
 	}
 

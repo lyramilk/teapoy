@@ -12,7 +12,7 @@ namespace lyramilk{ namespace teapoy{
 		lyramilk::log::logss log;
 	  public:
 
-		static void* ctr(lyramilk::data::var::array)
+		static void* ctr(const lyramilk::data::var::array& args)
 		{
 			return new server_poll();
 		}

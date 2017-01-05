@@ -10,10 +10,24 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 	////////////////
 	redis_client::redis_client()
 	{
+		listener = nullptr;
+		type = t_unknow;
 	}
 
 	redis_client::~redis_client()
 	{
+	}
+
+	bool redis_client::open(lyramilk::data::string host,lyramilk::data::uint16 port)
+	{
+		this->host = host;
+		this->port = port;
+		return client::open(host,port);
+	}
+
+	void redis_client::set_listener(redis_client_listener lst)
+	{
+		listener = lst;
 	}
 
 	bool redis_client::auth(lyramilk::data::string password)
@@ -23,44 +37,186 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 		ar.push_back(password);
 		lyramilk::data::var v;
 		if(exec(ar,v)){
-			/*
+			this->pwd = pwd;
 			if(v == "OK") type = t_redis;
-			if(v.type() == lyramilk::data::var::t_array && v == "1") type = t_ssdb;*/
+			if(v.type() == lyramilk::data::var::t_array && v == "1") type = t_ssdb;
 			return true;
 		}
 		return false;
 	}
 
-	char inline hex(char a){
-		if(a >= '0' && a <= '9') return a - '0';
-		if(a >= 'a' && a <= 'f') return a - 'a' + 10;
-		if(a >= 'A' && a <= 'F') return a - 'A' + 10;
-		return 0;
+	bool inline is_hex_digit(char c) {
+		return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+	}
+
+	char inline hex_digit_to_int(char c){
+		switch(c) {
+		  case '0': return 0;
+		  case '1': return 1;
+		  case '2': return 2;
+		  case '3': return 3;
+		  case '4': return 4;
+		  case '5': return 5;
+		  case '6': return 6;
+		  case '7': return 7;
+		  case '8': return 8;
+		  case '9': return 9;
+		  case 'a': case 'A': return 10;
+		  case 'b': case 'B': return 11;
+		  case 'c': case 'C': return 12;
+		  case 'd': case 'D': return 13;
+		  case 'e': case 'E': return 14;
+		  case 'f': case 'F': return 15;
+		  default: return 0;
+		}
+	}
+
+	lyramilk::data::var::array uconv_split(lyramilk::data::string str)
+	{
+		lyramilk::data::var::array ret;
+		const char *p = str.c_str();
+		lyramilk::data::string current;
+		current.reserve(ret.size());
+
+		while(1) {
+			while(*p && isspace(*p)) p++;
+			if (*p) {
+				int inq=0;
+				int insq=0;
+				int done=0;
+
+				while(!done) {
+					if (inq) {
+						if (*p == '\\' && *(p+1) == 'x' && is_hex_digit(*(p+2)) && is_hex_digit(*(p+3))){
+							unsigned char byte;
+							byte = (hex_digit_to_int(*(p+2))*16) + hex_digit_to_int(*(p+3));
+							current.push_back(byte);
+							p += 3;
+						} else if (*p == '\\' && *(p+1)) {
+							char c;
+							p++;
+							switch(*p) {
+							  case 'n': c = '\n'; break;
+							  case 'r': c = '\r'; break;
+							  case 't': c = '\t'; break;
+							  case 'b': c = '\b'; break;
+							  case 'a': c = '\a'; break;
+							  default: c = *p; break;
+							}
+							current.push_back(c);
+						} else if (*p == '"') {
+						if (*(p+1) && !isspace(*(p+1))) throw lyramilk::exception(D("redis错误：响应格式错误"));
+							done=1;
+						} else if (!*p) {
+							throw lyramilk::exception(D("redis错误：响应格式错误"));
+						} else {
+							current.push_back(*p);
+						}
+					} else if (insq) {
+						if (*p == '\\' && *(p+1) == '\'') {
+							p++;
+							current.push_back('\'');
+						} else if (*p == '\'') {
+						if (*(p+1) && !isspace(*(p+1))) throw lyramilk::exception(D("redis错误：响应格式错误"));
+							done=1;
+						} else if (!*p) {
+							throw lyramilk::exception(D("redis错误：响应格式错误"));
+						} else {
+							current.push_back(*p);
+						}
+					} else {
+						switch(*p) {
+						  case ' ':
+						  case '\n':
+						  case '\r':
+						  case '\t':
+						  case '\0':
+							done=1;
+							break;
+						  case '"':
+							inq=1;
+							break;
+						  case '\'':
+							insq=1;
+							break;
+						  default:
+							current.push_back(*p);
+							break;
+						}
+					}
+					if (*p) p++;
+				}
+				ret.push_back(current);
+				current.clear();
+			} else {
+				return ret;
+			}
+		}
 	}
 
 	lyramilk::data::string uconv(lyramilk::data::string str)
 	{
-		lyramilk::data::string ret;
-		lyramilk::data::string::iterator it = str.begin();
-		for(;it!=str.end();++it){
-			if(*it != '\\'){
-				ret.push_back(*it);
-			}else{
-				++it;
-				if(*it == 'r'){
-					ret.push_back('\r');
-				}else if(*it == 'n'){
-					ret.push_back('\n');
-				}else if(*it == 'x'){
-					++it;
-					char ca = *it;
-					++it;
-					char cb = *it;
-					ret.push_back(hex(cb) | (hex(ca) << 4));
+		const char *p = str.c_str();
+		std::size_t sz = str.size();
+		const char *e = p + sz + 1;
+
+		lyramilk::data::string current;
+		current.reserve(sz);
+
+		enum {
+			s_0,
+			s_str1,
+			s_str2,
+		}s = s_0;
+
+		for(;*p && p < e;++p){
+			switch(s){
+			  case s_0:{
+				switch(*p) {
+				  case '"':
+					s = s_str1;
+					break;
+				  case '\'':
+					s = s_str2;
+					break;
 				}
+				current.push_back(*p);
+			  }break;
+			  case s_str1:{
+				if(*p == '\\' && *(p+1) == 'x' && is_hex_digit(*(p+2)) && is_hex_digit(*(p+3))){
+					unsigned char byte;
+					byte = (hex_digit_to_int(*(p+2))*16) + hex_digit_to_int(*(p+3));
+					current.push_back(byte);
+					p+=3;
+				}else if (*p == '\\' && *(p+1)) {
+					char c;
+					p++;
+					switch(*p) {
+					  case 'n': c = '\n'; break;
+					  case 'r': c = '\r'; break;
+					  case 't': c = '\t'; break;
+					  case 'b': c = '\b'; break;
+					  case 'a': c = '\a'; break;
+					  default: c = *p; break;
+					}
+					current.push_back(c);
+				} else {
+					current.push_back(*p);
+					if(*p == '"') s = s_0;
+				}
+			  }break;
+			  case s_str2:{
+				if (*p == '\\' && *(p+1) == '\''){
+					p++;
+					current.push_back('\'');
+				}else{
+					current.push_back(*p);
+					if(*p == '\'') s = s_0;
+				}
+			  }break;
 			}
 		}
-		return ret;
+		return current;
 	}
 
 	inline bool parse(lyramilk::data::stringstream& is,lyramilk::data::var& v)
@@ -142,7 +298,8 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 						str.push_back(c);
 					}
 
-					v = uconv(str);
+					/* 断言这个数字恒为非负整数，如果不是需要修改代码。 */
+					v = str;
 					v.type(lyramilk::data::var::t_int64);
 					return true;
 				}
@@ -156,6 +313,12 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 
 	bool redis_client::exec(const lyramilk::data::var::array& cmd,lyramilk::data::var& ret)
 	{
+		if(!check_write(300)){
+			close();
+			if(!open(host,port)){
+				throw lyramilk::exception(D("redis错误：网络连接失败。"));
+			}
+		}
 		lyramilk::data::var::array::const_iterator it = cmd.begin();
 		lyramilk::netio::socket_stream ss(*this);
 		ss << "*" << cmd.size() << "\r\n";
@@ -165,7 +328,15 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 			ss << str << "\r\n";
 		}
 		ss.flush();
-		return parse(ss,ret);
+		bool suc =  parse(ss,ret);
+		if(addr.empty()){
+			lyramilk::data::stringstream ss;
+			lyramilk::netio::netaddress naddr = dest();
+			ss << naddr.ip_str() << ":" << naddr.port;
+			addr = ss.str();
+		}
+		if(listener)listener(addr,cmd,suc,ret);
+		return suc;
 	}
 
 	struct thread_redis_client_task_args

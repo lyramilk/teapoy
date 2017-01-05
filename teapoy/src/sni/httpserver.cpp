@@ -20,7 +20,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		web::processer_master proc_master;
 	  public:
 
-		static void* ctr(lyramilk::data::var::array)
+		static void* ctr(const lyramilk::data::var::array& args)
 		{
 			return new httpserver();
 		}
@@ -41,7 +41,11 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_uint16);
 
 			proc_master.define("jsx",web::processer_jsx::ctr,web::processer_jsx::dtr);
+			log(lyramilk::log::debug,__FUNCTION__) << D("注册脚本引擎适配器：%s","jsx") << std::endl;
 			proc_master.define("js",web::processer_js::ctr,web::processer_js::dtr);
+			log(lyramilk::log::debug,__FUNCTION__) << D("注册脚本引擎适配器：%s","js") << std::endl;
+			proc_master.define("lua",web::processer_lua::ctr,web::processer_lua::dtr);
+			log(lyramilk::log::debug,__FUNCTION__) << D("注册脚本引擎适配器：%s","lua") << std::endl;
 
 			lyramilk::data::var::array keys = web::methodinvokers::instance()->keys();
 			for(lyramilk::data::var::array::iterator it = keys.begin();it!=keys.end();++it){
@@ -102,6 +106,26 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			return false;
 		}
 
+		lyramilk::data::var set_ssl(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		{
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_str);
+			init_ssl(args[0],args[1]);
+			return true;
+		}
+
+		lyramilk::data::var set_ssl_verify_locations(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		{
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_array);
+			return ssl_load_verify_locations(args[0]);
+		}
+
+		lyramilk::data::var set_ssl_client_verify(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		{
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_bool);
+			return ssl_use_client_verify(args[0]);
+		}
+
 		lyramilk::data::var set_defaultpage(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_array);
@@ -123,6 +147,9 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			fn["open"] = lyramilk::script::engine::functional<httpserver,&httpserver::open>;
 			fn["bind_url"] = lyramilk::script::engine::functional<httpserver,&httpserver::bind_url>;
 			fn["set_root"] = lyramilk::script::engine::functional<httpserver,&httpserver::set_root>;
+			fn["set_ssl"] = lyramilk::script::engine::functional<httpserver,&httpserver::set_ssl>;
+			fn["set_ssl_verify_locations"] = lyramilk::script::engine::functional<httpserver,&httpserver::set_ssl_verify_locations>;
+			fn["set_ssl_client_verify"] = lyramilk::script::engine::functional<httpserver,&httpserver::set_ssl_client_verify>;
 			fn["set_defaultpage"] = lyramilk::script::engine::functional<httpserver,&httpserver::set_defaultpage>;
 			p->define("httpserver",fn,httpserver::ctr,httpserver::dtr);
 			return 1;

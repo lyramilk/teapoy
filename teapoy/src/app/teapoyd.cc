@@ -205,8 +205,9 @@ class teapoy_loader
 {
 	lyramilk::log::logss log;
 	std::vector<lyramilk::script::engine*> libs;
+	std::vector<void*> solibs;
   public:
-	static void* ctr(lyramilk::data::var::array)
+	static void* ctr(const lyramilk::data::var::array& args)
 	{
 		return new teapoy_loader();
 	}
@@ -235,10 +236,18 @@ class teapoy_loader
 
 	virtual ~teapoy_loader()
 	{
-		std::vector<lyramilk::script::engine*>::iterator it = libs.begin();
-		for(;it!=libs.end();++it){
-			lyramilk::script::engine*& eng = *it;
-			lyramilk::script::engine::destoryinstance(eng->name(),eng);
+		{
+			std::vector<lyramilk::script::engine*>::iterator it = libs.begin();
+			for(;it!=libs.end();++it){
+				lyramilk::script::engine*& eng = *it;
+				lyramilk::script::engine::destoryinstance(eng->name(),eng);
+			}
+		}
+		{
+			std::vector<void*>::iterator it = solibs.begin();
+			for(;it!=solibs.end();++it){
+				dlclose(*it);
+			}
 		}
 	}
 
@@ -253,7 +262,7 @@ class teapoy_loader
 
 		lyramilk::script::engine* eng_tmp = lyramilk::script::engine::createinstance(filename);
 		if(!eng_tmp){
-			log(lyramilk::log::error) << D("加载%s失败",filename.c_str()) << std::endl;
+			log(lyramilk::log::error,__FUNCTION__) << D("加载%s失败",filename.c_str()) << std::endl;
 			return false;
 		}
 
@@ -263,6 +272,31 @@ class teapoy_loader
 		return 0 == ret;
 	}
 
+	lyramilk::data::var loadso(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+	{
+		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
+		lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_user_engineptr());
+
+		lyramilk::data::string filename = args[0];
+		void *handle = dlopen(filename.c_str(), RTLD_NOW);
+		if(handle == nullptr){
+			log(lyramilk::log::error,__FUNCTION__) << D("加载%s失败：%s",filename.c_str(),dlerror()) << std::endl;
+			return false;
+		}
+		solibs.push_back(handle);
+		bool (*pinit)(void*) = (bool (*)(void*))dlsym(handle,"init");
+		if(pinit == nullptr){
+			log(lyramilk::log::error,__FUNCTION__) << D("从%s中查找init失败：%s",filename.c_str(),dlerror()) << std::endl;
+			return false;
+		}
+		if(pinit(e)){
+			log(lyramilk::log::debug,__FUNCTION__) << D("加载%s成功",filename.c_str()) << std::endl;
+			return true;
+		}else{
+			log(lyramilk::log::warning,__FUNCTION__) << D("加载%s成功，但是初始化失败",filename.c_str()) << std::endl;
+		}
+		return false;
+	}
 	lyramilk::data::var enable_log(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 	{
 		if(logger == nullptr) init_log();
@@ -424,6 +458,7 @@ int main(int argc,char* argv[])
 	{
 		lyramilk::script::engine::functional_map fn;
 		fn["load"] = lyramilk::script::engine::functional<teapoy_loader,&teapoy_loader::load>;
+		fn["loadso"] = lyramilk::script::engine::functional<teapoy_loader,&teapoy_loader::loadso>;
 		fn["enable_log"] = lyramilk::script::engine::functional<teapoy_loader,&teapoy_loader::enable_log>;
 		fn["set_log_file"] = lyramilk::script::engine::functional<teapoy_loader,&teapoy_loader::set_log_file>;
 		eng_main->define("teapoy",fn,teapoy_loader::ctr,teapoy_loader::dtr);
