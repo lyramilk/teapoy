@@ -85,7 +85,9 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			return nullptr;
 		}
 		lyramilk::teapoy::script2native::instance()->fill(eng);
-		eng->load_file(ei.filename);
+		while(!eng->load_file(ei.filename)){
+			sleep(10);
+		}
 		while(true){
 			lyramilk::data::inotify_file::status st = iff.check();
 			if(st != lyramilk::data::inotify_file::s_keep){

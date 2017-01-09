@@ -5,7 +5,6 @@
 #include "script.h"
 #include "web.h"
 #include "env.h"
-#include "processer_master.h"
 #include <sys/stat.h>
 #include <errno.h>
 #include <string.h>
@@ -17,7 +16,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		lyramilk::log::logss log;
 		lyramilk::data::string root;
 
-		web::processer_master proc_master;
+		web::website_worker worker;
 	  public:
 
 		static void* ctr(const lyramilk::data::var::array& args)
@@ -39,14 +38,13 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		lyramilk::data::var open(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_uint16);
-
+/*
 			proc_master.define("jsx",web::processer_jsx::ctr,web::processer_jsx::dtr);
 			log(lyramilk::log::debug,__FUNCTION__) << D("注册脚本引擎适配器：%s","jsx") << std::endl;
 			proc_master.define("js",web::processer_js::ctr,web::processer_js::dtr);
 			log(lyramilk::log::debug,__FUNCTION__) << D("注册脚本引擎适配器：%s","js") << std::endl;
 			proc_master.define("lua",web::processer_lua::ctr,web::processer_lua::dtr);
 			log(lyramilk::log::debug,__FUNCTION__) << D("注册脚本引擎适配器：%s","lua") << std::endl;
-
 			lyramilk::data::var::array keys = web::methodinvokers::instance()->keys();
 			for(lyramilk::data::var::array::iterator it = keys.begin();it!=keys.end();++it){
 				web::methodinvoker* invoker = web::methodinvokers::instance()->get(it->str());
@@ -54,6 +52,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 					invoker->set_processer(&proc_master);
 				}
 			}
+*/
 			return lyramilk::netio::aiolistener::open(args[0]);
 		}
 
@@ -63,47 +62,32 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			const lyramilk::data::var::array& ar = args[0];
 			lyramilk::data::var::array::const_iterator it = ar.begin();
 			for(;it!=ar.end();++it){
+				lyramilk::data::string method = it->at("method");
 				lyramilk::data::string type = it->at("type");
 				lyramilk::data::string pattern = it->at("pattern");
 				lyramilk::data::string module = it->at("module");
 				lyramilk::data::var auth = it->at("auth");
-				if(auth.type() == lyramilk::data::var::t_map){
-					proc_master.mapping(type,pattern,module,auth["type"],auth["module"]);
+				lyramilk::data::var::array index;
+
+				{
+					const lyramilk::data::var& v = it->at("index");
+					if(v.type() == lyramilk::data::var::t_array){
+						index = v;
+					}
+				}
+
+				web::url_worker *w = web::url_worker_master::instance()->create(type);
+				if(w){
+					w->init(method,pattern,module,index);
+					if(auth.type() == lyramilk::data::var::t_map){
+						w->init_auth(auth["type"],auth["module"]);
+					}
+					worker.lst.push_back(w);
 				}else{
-					proc_master.mapping(type,pattern,module);
+					log(lyramilk::log::warning,__FUNCTION__) << D("定义url处理器失败：%s类型未定义",type.c_str()) << std::endl;
 				}
 			}
 			return true;
-		}
-
-		lyramilk::data::var set_root(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
-		{
-			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
-			lyramilk::data::string str = args[0].str();
-
-			lyramilk::data::string rawdir;
-			std::size_t pos_end = str.find_last_not_of("/");
-			root = str.substr(0,pos_end + 1);
-
-			rawdir = root;
-			rawdir.push_back('/');
-
-			rawdir = root;
-			rawdir.push_back('/');
-
-			struct stat st = {0};
-			if(0 !=::stat(rawdir.c_str(),&st)){
-				log(lyramilk::log::warning,__FUNCTION__) << D("设置网站根目录%s失败：%s",str.c_str(),strerror(errno)) << std::endl;
-				return false;
-			}
-
-			if(S_ISDIR(st.st_mode) || S_ISLNK(st.st_mode)){
-				log(lyramilk::log::trace,__FUNCTION__) << D("设置网站根目录：%s",str.c_str()) << std::endl;
-				return true;
-			}
-
-			log(lyramilk::log::warning,__FUNCTION__) << D("设置网站根目录%s失败：该路径不是目录",str.c_str()) << std::endl;
-			return false;
 		}
 
 		lyramilk::data::var set_ssl(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
@@ -126,18 +110,10 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			return ssl_use_client_verify(args[0]);
 		}
 
-		lyramilk::data::var set_defaultpage(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
-		{
-			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_array);
-			env::set_config("web.index",args[0]);
-			return true;
-		}
-
 		virtual lyramilk::netio::aiosession* create()
 		{
 			lyramilk::teapoy::web::aiohttpsession* ss = lyramilk::netio::aiosession::__tbuilder<lyramilk::teapoy::web::aiohttpsession>();
-			ss->root = root;
-			//ss->cacheroot = cacheroot;
+			ss->worker = &worker;
 			return ss;
 		}
 		
@@ -146,11 +122,9 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			lyramilk::script::engine::functional_map fn;
 			fn["open"] = lyramilk::script::engine::functional<httpserver,&httpserver::open>;
 			fn["bind_url"] = lyramilk::script::engine::functional<httpserver,&httpserver::bind_url>;
-			fn["set_root"] = lyramilk::script::engine::functional<httpserver,&httpserver::set_root>;
 			fn["set_ssl"] = lyramilk::script::engine::functional<httpserver,&httpserver::set_ssl>;
 			fn["set_ssl_verify_locations"] = lyramilk::script::engine::functional<httpserver,&httpserver::set_ssl_verify_locations>;
 			fn["set_ssl_client_verify"] = lyramilk::script::engine::functional<httpserver,&httpserver::set_ssl_client_verify>;
-			fn["set_defaultpage"] = lyramilk::script::engine::functional<httpserver,&httpserver::set_defaultpage>;
 			p->define("httpserver",fn,httpserver::ctr,httpserver::dtr);
 			return 1;
 		}

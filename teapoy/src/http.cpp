@@ -1,3 +1,4 @@
+#include "config.h"
 #include "http.h"
 #include "stringutil.h"
 #include <strings.h>
@@ -5,6 +6,10 @@
 #include <libmilk/multilanguage.h>
 #include <libmilk/codes.h>
 #include <stdlib.h>
+
+#define PARSE_STATUS_URL_PARAM	0x1
+#define PARSE_STATUS_BODY_PARAM	0x2
+#define PARSE_STATUS_COOKIE	0x4
 
 namespace lyramilk{ namespace teapoy {namespace http{
 
@@ -33,6 +38,12 @@ namespace lyramilk{ namespace teapoy {namespace http{
 			}
 			method = fields[0];
 			url  = fields[1];
+			std::size_t pos = url.find("?");
+			if(pos != url.npos && pos < url.size()){
+				url_pure = lyramilk::data::codes::instance()->decode("url",url.substr(0,pos));
+			}else{
+				url_pure = lyramilk::data::codes::instance()->decode("url",url);
+			}
 
 			lyramilk::data::string verstr = fields[2];
 			if(verstr.compare(0,5,"HTTP/") != 0){
@@ -65,12 +76,12 @@ namespace lyramilk{ namespace teapoy {namespace http{
 	void request::reset()
 	{
 		s = s0;
+		parse_status = 0;
 		httpheader.clear();
 		ver.major = 0;
 		ver.minor = 0;
 		method.clear();
 		url.clear();
-		root.clear();
 		parameter.clear();
 		cookies.clear();
 
@@ -78,17 +89,47 @@ namespace lyramilk{ namespace teapoy {namespace http{
 		mime::reset();
 	}
 
-	bool request::parse_args()
+	bool request::parse_url()
 	{
-		lyramilk::data::var vmimetype = get("Content-Type");
-
-		lyramilk::data::string urlparams;
-		//解析请求头中的参数
+		if(parse_status&PARSE_STATUS_URL_PARAM) return true;
 		std::size_t pos = url.find("?");
+		lyramilk::data::string urlparams;
 		if(pos != url.npos && pos < url.size()){
+			lyramilk::data::string url1 = url.substr(0,pos);
 			urlparams = url.substr(pos + 1);
+			url_pure = lyramilk::data::codes::instance()->decode("url",url1) + "?" + urlparams;
+		}else{
+			url_pure = lyramilk::data::codes::instance()->decode("url",url);
 		}
 
+		lyramilk::teapoy::strings param_fields = lyramilk::teapoy::split(urlparams,"&");
+		lyramilk::teapoy::strings::iterator it = param_fields.begin();
+
+		lyramilk::data::coding* urlcoder = lyramilk::data::codes::instance()->getcoder("urlcomponent");
+		for(;it!=param_fields.end();++it){
+			std::size_t pos_eq = it->find("=");
+			if(pos_eq == it->npos || pos_eq == it->size()) continue;
+			lyramilk::data::string k = it->substr(0,pos_eq);
+			lyramilk::data::string v = it->substr(pos_eq + 1);
+			if(urlcoder){
+				k = urlcoder->decode(k);
+				v = urlcoder->decode(v);
+			}
+
+			lyramilk::data::var& parameters_of_key = parameter[k];
+			parameters_of_key.type(lyramilk::data::var::t_array);
+			lyramilk::data::var::array& ar = parameters_of_key;
+			ar.push_back(v);
+		}
+		parse_status |= PARSE_STATUS_URL_PARAM;
+		return true;
+	}
+
+	bool request::parse_body_param()
+	{
+		if(parse_status&PARSE_STATUS_BODY_PARAM) return true;
+		lyramilk::data::var vmimetype = get("Content-Type");
+		lyramilk::data::string urlparams;
 		//解析请求正文中的参数
 		if(vmimetype.type_like(lyramilk::data::var::t_str)){
 			lyramilk::data::string str = vmimetype;
@@ -136,15 +177,13 @@ namespace lyramilk{ namespace teapoy {namespace http{
 			ar.push_back(v);
 		}
 
+		parse_status |= PARSE_STATUS_BODY_PARAM;
 		return true;
 	}
 
 	bool request::parse_cookies()
 	{
-		/*
-		if(!cookies.empty()) return true;
-		lyramilk::data::var::map::iterator cookieit = header.find("cookie");
-		if(cookieit==header.end()) return false;*/
+		if(parse_status&PARSE_STATUS_COOKIE) return true;
 		lyramilk::data::string cookiestr = get("cookie");
 
 		lyramilk::teapoy::strings vheader = lyramilk::teapoy::split(cookiestr,";");
@@ -157,7 +196,8 @@ namespace lyramilk{ namespace teapoy {namespace http{
 				cookies[key] = value;
 			}
 		}
-		return false;
+		parse_status |= PARSE_STATUS_COOKIE;
+		return true;
 	}
 
 	static std::map<int,lyramilk::data::string> __init_code_map()
@@ -206,11 +246,17 @@ namespace lyramilk{ namespace teapoy {namespace http{
 
 	lyramilk::data::string get_error_code_desc(int code)
 	{
-		
 		static std::map<int,lyramilk::data::string> code_map = __init_code_map();
 		std::map<int,lyramilk::data::string>::iterator it = code_map.find(code);
 		if(it == code_map.end()) return "500 Internal Server Error";
 		return it->second;
+	}
+
+	void make_response_header(std::ostream& os,const char* retcodemsg,bool has_header_ending,int httpver_major,int httpver_minor)
+	{
+		os <<	"HTTP/" << httpver_major << "." << httpver_minor << " " << retcodemsg << "\r\n"
+				"Server: " TEAPOY_VERSION "\r\n";
+		if(has_header_ending) os << "\r\n";
 	}
 
 }}}

@@ -16,10 +16,12 @@ namespace lyramilk{ namespace teapoy {namespace http{
 			smime,
 			sbad,
 		}s;
+
+		char parse_status;
 	  public:
 		lyramilk::data::string method;
 		lyramilk::data::string url;
-		lyramilk::data::string root;
+		lyramilk::data::string url_pure;
 		lyramilk::data::var::map parameter;
 		lyramilk::data::var::map cookies;
 		lyramilk::data::string ssl_peer_certificate_info;
@@ -40,12 +42,17 @@ namespace lyramilk{ namespace teapoy {namespace http{
 		virtual bool parse(const char* buf,int size,int* remain);
 		virtual bool bad();
 		virtual void reset();
-		virtual bool parse_args();
+		virtual bool parse_url();
+		virtual bool parse_body_param();
 		virtual bool parse_cookies();
+
+		static void make_response();
 	};
 
 
 	lyramilk::data::string get_error_code_desc(int code);
+	void make_response_header(std::ostream& os,const char* retcodemsg,bool has_header_ending,int httpver_major = 1,int httpver_minor = 0);
+	
 }}}
 
 #endif

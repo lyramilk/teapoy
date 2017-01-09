@@ -8,57 +8,73 @@
 #include <map>
 
 namespace lyramilk{ namespace teapoy { namespace web {
-	class methodinvoker;
 
-	class urlfilter
+	class website_worker;
+
+	class url_worker
 	{
+		lyramilk::data::string method;
+
+		void* matcher_regex;
+		lyramilk::data::var matcher_dest;
+		lyramilk::data::string matcher_regexstr;
+		lyramilk::data::string authtype;
+		lyramilk::data::string authscript;
+		lyramilk::data::strings index;
+	  protected:
+		virtual bool call(lyramilk::teapoy::http::request* req,std::ostream& os,lyramilk::data::string real,website_worker& w) const = 0;
+		virtual bool test(lyramilk::teapoy::http::request* req,std::ostream& os,lyramilk::data::string& real,website_worker& w) const;
 	  public:
-		virtual bool convert(lyramilk::data::string& url) const = 0;
+		url_worker();
+		virtual ~url_worker();
+		lyramilk::data::string get_method();
+		virtual bool init(lyramilk::data::string method,lyramilk::data::string pattern,lyramilk::data::string real,lyramilk::data::var::array index);
+		virtual bool init_auth(lyramilk::data::string enginetype,lyramilk::data::string authscript);
+		virtual bool check_auth(lyramilk::teapoy::http::request* req,std::ostream& os,website_worker& w,bool* ret) const;
+		virtual bool try_call(lyramilk::teapoy::http::request* req,std::ostream& os,website_worker& w,bool* ret) const;
 	};
 
-	class processer_selector
+	class url_worker_master:public lyramilk::util::factory<url_worker>
 	{
 	  public:
-		virtual bool invoke(methodinvoker* invoker,lyramilk::teapoy::http::request* req,std::ostream& os,bool* ret) = 0;
+		static url_worker_master* instance();
 	};
 
-	class parametersfilter
+	class website_worker
 	{
 	  public:
-		virtual bool convert(lyramilk::data::var::map& args) const = 0;
+		std::vector<url_worker*> lst;
+	  public:
+		website_worker();
+		virtual ~website_worker();
+
+		virtual bool try_call(lyramilk::teapoy::http::request* req,std::ostream& os,website_worker& w,bool* ret) const;
 	};
 
-	class methodinvoker
+	class session_info
 	{
-		urlfilter* puf;
-		parametersfilter* paf;
-		processer_selector* pcc;
+		lyramilk::data::string sid;
 	  public:
-		methodinvoker();
-		virtual ~methodinvoker();
-		virtual bool call(lyramilk::teapoy::http::request* req,std::ostream& os) = 0;
-		virtual void set_url_filter(urlfilter* uf);
-		virtual void set_parameters_filter(parametersfilter* af);
-		virtual void set_processer(processer_selector* cs);
+		lyramilk::teapoy::http::request* req;
+		std::ostream& os;
+		website_worker& worker;
+		lyramilk::data::string real;
 
-		virtual bool convert_url(lyramilk::data::string& url) const;
-		virtual bool convert_parameters(lyramilk::data::var::map& args) const;
-		virtual bool process(lyramilk::teapoy::http::request* req,std::ostream& os,bool* ret);
-	};
+		session_info(lyramilk::data::string realfile,lyramilk::teapoy::http::request* req,std::ostream& os,website_worker& w);
+		~session_info();
+
+		const lyramilk::data::string& getsid();
 
 
-	class methodinvokers:public lyramilk::util::multiton_factory<methodinvoker>
-	{
-	  public:
-		static methodinvokers *instance();
-
+		lyramilk::data::var& get(const lyramilk::data::string& key);
+		void set(const lyramilk::data::string& key,const lyramilk::data::var& value);
 	};
 
 	class aiohttpsession:public lyramilk::netio::aiosession2
 	{
 		lyramilk::teapoy::http::request req;
 	  public:
-		lyramilk::data::string root;
+		website_worker* worker;
 		aiohttpsession();
 		virtual ~aiohttpsession();
 

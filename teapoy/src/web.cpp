@@ -1,73 +1,421 @@
 #include "web.h"
 #include "stringutil.h"
+#include "script.h"
 #include "env.h"
 #include <fstream>
-#include <unistd.h>
 #include <sys/stat.h>
-#include <errno.h>
-#include <string.h>
 #include <libmilk/log.h>
 #include <libmilk/multilanguage.h>
 #include <libmilk/testing.h>
+#include <pcre.h>
 
 namespace lyramilk{ namespace teapoy { namespace web {
 
-	/**************** methodinvoker ********************/
-	methodinvoker::methodinvoker()
+	/********** sessions ***********/
+
+	class sessions
 	{
-		puf = nullptr;
-		paf = nullptr;
-		pcc = nullptr;
+		struct timedmap
+		{
+			lyramilk::data::var::map m;
+			time_t tm;
+			timedmap();
+		};
+		time_t st;
+		std::map<lyramilk::data::string,timedmap> k;
+	  public:
+		sessions();
+		virtual ~sessions();
+		lyramilk::data::var& get(const lyramilk::data::string& sid,const lyramilk::data::string& key);
+		void gc();
+		void set(const lyramilk::data::string& sid,const lyramilk::data::string& key,const lyramilk::data::var& value);
+		lyramilk::data::string newid();
+
+		static sessions* instance();
+	};
+
+	sessions::timedmap::timedmap()
+	{
+		tm = time(0);
 	}
 
-	methodinvoker::~methodinvoker()
+	sessions::sessions()
 	{
+		st = time(0);
 	}
 
-	void methodinvoker::set_url_filter(urlfilter* uf)
+	sessions::~sessions()
+	{}
+
+	lyramilk::data::var& sessions::get(const lyramilk::data::string& sid,const lyramilk::data::string& key)
 	{
-		puf = uf;
+		gc();
+		timedmap& t = k[sid];
+		t.tm = time(0);
+		return t.m[key];
 	}
 
-	void methodinvoker::set_parameters_filter(parametersfilter* af)
+	void sessions::gc()
 	{
-		paf = af;
+		time_t now = time(0);
+		if(st < now){
+			//每60秒触发一次gc。
+			st = now + 10;
+			//会话时间为600秒。
+			time_t q = now - 600;
+			for(std::map<lyramilk::data::string,timedmap>::iterator it = k.begin();it!=k.end();++it){
+				if(it->second.tm < q){
+					k.erase(it);
+				}
+			}
+		}
 	}
 
-	void methodinvoker::set_processer(processer_selector* cs)
+	void sessions::set(const lyramilk::data::string& sid,const lyramilk::data::string& key,const lyramilk::data::var& value)
 	{
-		pcc = cs;
+		gc();
+		timedmap& t = k[sid];
+		t.tm = time(0);
+		t.m[key] = value;
 	}
 
-	bool methodinvoker::convert_url(lyramilk::data::string& url) const
+	static lyramilk::data::string makeid()
 	{
-		if(!puf) return true;
-		return puf->convert(url);
+		union{
+			int i[4];
+			char c[1];
+		}u;
+		u.i[0] = rand();
+		u.i[1] = rand();
+		u.i[2] = rand();
+		u.i[3] = rand();
+		int size = sizeof(u);
+		lyramilk::data::string str;
+		str.reserve(size);
+		for(int i=0;i<size;++i){
+			unsigned char c = u.c[i];
+			unsigned char q = c % 36;
+			if(q <10){
+				str.push_back(q + '0');
+			}else{
+				str.push_back(q - 10 + 'A');
+			}
+		}
+		return str;
 	}
 
-	bool methodinvoker::convert_parameters(lyramilk::data::var::map& args) const
+	lyramilk::data::string sessions::newid()
 	{
-		if(!paf) return true;
-		return paf->convert(args);
+		srand(time(0));
+		std::map<lyramilk::data::string,lyramilk::data::var::map>::iterator it;
+		while(true){
+			lyramilk::data::string id = makeid();
+			if(k.find(id) == k.end()){
+				return id;
+			}
+		}
 	}
 
-	bool methodinvoker::process(lyramilk::teapoy::http::request* req,std::ostream& os,bool* ret)
+	sessions* sessions::instance()
 	{
-		if(!pcc) return false;
-		return pcc->invoke(this,req,os,ret);
-	}
-
-	/**************** methodinvokers ********************/
-	methodinvokers* methodinvokers::instance()
-	{
-		static methodinvokers _mm;
+		static sessions _mm;
 		return &_mm;
 	}
+
+	/**************** session_info ********************/
+	session_info::session_info(lyramilk::data::string realfile,lyramilk::teapoy::http::request* req,std::ostream& argos,website_worker& w):os(argos),worker(w)
+	{
+		this->real = realfile;
+		this->req = req;
+	}
+
+	session_info::~session_info()
+	{
+	}
+
+	const lyramilk::data::string& session_info::getsid()
+	{
+		if(!sid.empty()) return sid;
+
+		lyramilk::data::var::map::iterator it = req->cookies.find("TeapoyId");
+
+		if(it!=req->cookies.end()){
+			if(it->second.type() == lyramilk::data::var::t_map){
+				sid = it->second.at("value").str();
+			}
+			if(it->second.type_like(lyramilk::data::var::t_str)){
+				sid = it->second.str();
+			}
+		}
+		if(sid.empty()){
+			sid = lyramilk::teapoy::web::sessions::instance()->newid();
+			lyramilk::data::var v;
+			v.type(lyramilk::data::var::t_map);
+			v["value"] = sid;
+			req->cookies["TeapoyId"] = v;
+		}
+		return sid;
+	}
+
+	lyramilk::data::var& session_info::get(const lyramilk::data::string& key)
+	{
+		return lyramilk::teapoy::web::sessions::instance()->get(req->dest + getsid(),key);
+	}
+
+	void session_info::set(const lyramilk::data::string& key,const lyramilk::data::var& value)
+	{
+		lyramilk::teapoy::web::sessions::instance()->set(req->dest + getsid(),key,value);
+	}
+	/**************** url_worker ********************/
+	url_worker::url_worker()
+	{
+		matcher_regex = nullptr;
+	}
+
+	url_worker::~url_worker()
+	{}
+
+	lyramilk::data::string url_worker::get_method()
+	{
+		return method;
+	}
+
+	bool url_worker::init(lyramilk::data::string method,lyramilk::data::string pattern,lyramilk::data::string real,lyramilk::data::var::array index)
+	{
+		this->method = method;
+		lyramilk::data::var::array::iterator it = index.begin();
+		this->index.reserve(index.size());
+		for(;it!=index.end();++it){
+			this->index.push_back(*it);
+		}
+		assert(matcher_regex == nullptr);
+		if(matcher_regex == nullptr){
+			int  erroffset = 0;
+			const char *error = "";
+			matcher_regex = pcre_compile(pattern.c_str(),0,&error,&erroffset,nullptr);
+		}
+		if(matcher_regex){
+			matcher_regexstr = pattern;
+			lyramilk::data::var::array ar;
+			lyramilk::data::string ret;
+			int sz = real.size();
+			for(int i=0;i<sz;++i){
+				char &c = real[i];
+				if(c == '$'){
+					if(real[i + 1] == '{'){
+						std::size_t d = real.find('}',i+1);
+						if(d != real.npos){
+							lyramilk::data::string su = real.substr(i+2,d - i - 2);
+							int qi = atoi(su.c_str());
+							ar.push_back(ret);
+							ar.push_back(qi);
+							ret.clear();
+							i = d;
+							continue;
+						}
+					}
+				}
+				ret.push_back(c);
+			}
+			ar.push_back(ret);
+			if(ar.size() == 1){
+				matcher_dest = ar[0];
+			}else if(ar.size() > 1){
+				matcher_dest = ar;
+			}
+		}else{
+			lyramilk::klog(lyramilk::log::warning,"teapoy.web.processer.init") << D("编译正则表达式%s失败",pattern.c_str()) << std::endl;
+		}
+		return true;
+	}
+
+	bool url_worker::init_auth(lyramilk::data::string enginetype,lyramilk::data::string authscript)
+	{
+		authtype = enginetype;
+		this->authscript = authscript;
+		return false;
+	}
+
+	bool url_worker::check_auth(lyramilk::teapoy::http::request* req,std::ostream& os,website_worker& w,bool* ret) const
+	{
+		if(authtype.empty()) return true;
+
+		req->parse_cookies();
+
+		session_info si("",req,os,w);
+		lyramilk::data::var v = si.get("http.digest.user");
+		if(v.type() == lyramilk::data::var::t_str){
+			return true;
+		}
+
+		lyramilk::data::var::array ar;
+		lyramilk::data::string authorization_str = req->get("authorization");
+		lyramilk::teapoy::strings strs = lyramilk::teapoy::split(authorization_str,",");
+		lyramilk::data::var::map logininfo;
+		lyramilk::teapoy::strings::iterator it = strs.begin();
+		for(;it!=strs.end();++it){
+			std::size_t pos = it->find('=');
+			if(pos != it->npos){
+				lyramilk::data::string str1 = it->substr(0,pos);
+				lyramilk::data::string str2 = it->substr(pos+1);
+				logininfo[lyramilk::teapoy::trim(str1," \"'")] = lyramilk::teapoy::trim(str2," \"'");
+			}
+		}
+
+		logininfo["method"] = req->method;
+		//不使用客户端传过来的nonce，因为这个值有可能是伪造的。
+		logininfo["nonce"] = si.get("http.digest.nonce");
+
+		ar.push_back(logininfo);
+		lyramilk::script::engines::ptr eng = engine_pool::instance()->get("js")->get();
+		if(!eng->load_file(authscript)){
+			lyramilk::teapoy::http::make_response_header(os,"500 Internal Server Error",true,req->ver.major,req->ver.minor);
+			if(ret)*ret = false;
+			return false;
+		}
+		lyramilk::data::var vret = eng->call("auth",ar);
+		if(vret == true){
+			si.set("http.digest.user",logininfo["Digest username"]);
+			return true;
+		}
+		if(vret.type() != lyramilk::data::var::t_map){
+			lyramilk::teapoy::http::make_response_header(os,"500 Internal Server Error",true,req->ver.major,req->ver.minor);
+			if(ret)*ret = false;
+			return false;
+		}
+
+		if(logininfo["nc"].type() == lyramilk::data::var::t_invalid){
+			logininfo["nc"] = 0;
+		}
+		lyramilk::data::string digest = vret["digest"];
+		lyramilk::data::string realm = vret["realm"];
+		lyramilk::data::string algorithm = vret["algorithm"];
+		lyramilk::data::string nonce = vret["nonce"].str();
+		lyramilk::data::uint64 nc = logininfo["nc"];
+		si.set("http.digest.nonce",nonce);
+
+		lyramilk::data::stringstream ss;
+
+		lyramilk::teapoy::http::make_response_header(ss,"401 Authorization Required",false,req->ver.major,req->ver.minor);
+		ss <<	"Connection: Keep-alive\r\n"
+				"Content-Length: 0\r\n"
+				"WWW-Authenticate: Digest username=\"" << digest << "\", realm=\"" << realm << "\", nonce=\"" << nonce << "\", algorithm=\"" << algorithm << "\", nc=" << nc << ", qop=\"auth\"\r\n"
+				"Set-Cookie: TeapoyId=" << si.getsid() << "\r\n"
+				"\r\n";
+		os << ss.str();
+		if(ret)*ret = true;
+		return false;
+	}
+
+	bool url_worker::test(lyramilk::teapoy::http::request* req,std::ostream& os,lyramilk::data::string& real,website_worker& w) const
+	{
+		lyramilk::data::string url = req->url_pure;
+		if(!matcher_regex) return false;
+		int ov[256] = {0};
+		int rc = pcre_exec((const pcre*)matcher_regex,nullptr,url.c_str(),url.size(),0,0,ov,256);
+		if(rc > 0){
+			if(matcher_dest.type() == lyramilk::data::var::t_str){
+				real = matcher_dest.str();
+				std::size_t pos_args = real.find("?");
+				if(pos_args!=real.npos){
+					real = real.substr(0,pos_args);
+				}
+				return true;
+			}else if(matcher_dest.type() == lyramilk::data::var::t_array){
+				const lyramilk::data::var::array& ar = matcher_dest;
+				real.clear();
+				for(lyramilk::data::var::array::const_iterator it = ar.begin();it!=ar.end();++it){
+					if(it->type() == lyramilk::data::var::t_str){
+						real.append(it->str());
+					}else if(it->type_like(lyramilk::data::var::t_int32)){
+						int qi = *it;
+						int bof = ov[(qi<<1)];
+						int eof = ov[(qi<<1)|1];
+						if(eof - bof > 0 && bof < (int)url.size()){
+							real.append(url.substr(bof,eof-bof));
+						}
+					}
+				}
+				std::size_t pos_args = real.find("?");
+				if(pos_args!=real.npos){
+					real = real.substr(0,pos_args);
+				}
+				return true;
+			}
+		}
+		return false;
+	}
+
+	bool url_worker::try_call(lyramilk::teapoy::http::request* req,std::ostream& os,website_worker& w,bool* ret) const
+	{
+		lyramilk::data::string real;
+		if(!test(req,os,real,w)) return false;
+		struct stat st = {0};
+		if(0 !=::stat(real.c_str(),&st)){
+			return false;
+		}
+
+		if(st.st_mode&S_IFDIR){
+			lyramilk::data::string rawdir;
+			std::size_t pos_end = real.find_last_not_of("/");
+			rawdir = real.substr(0,pos_end + 1);
+			rawdir.push_back('/');
+			lyramilk::data::strings::const_iterator it = index.begin();
+			for(;it!=index.end();++it){
+				real = rawdir + *it;
+				if(0 == ::stat(real.c_str(),&st) && !(st.st_mode&S_IFDIR)){
+					break;
+				}
+			}
+			if (it == index.end()){
+				return false;
+			}
+		}
+
+		if(!check_auth(req,os,w,ret)){
+			return true;
+		}
+
+		if(ret){	
+			*ret = call(req,os,real,w);
+		}else{
+			call(req,os,real,w);
+		}
+		return true;
+	}
+
+	/**************** url_worker_master ********************/
+
+	url_worker_master* url_worker_master::instance()
+	{
+		static url_worker_master _mm;
+		return &_mm;
+	}
+
+	/**************** website_worker ********************/
+	website_worker::website_worker()
+	{
+	}
+	website_worker::~website_worker()
+	{
+	}
+
+	bool website_worker::try_call(lyramilk::teapoy::http::request* req,std::ostream& os,website_worker& w,bool* ret) const
+	{
+		std::vector<url_worker*>::const_iterator it = lst.begin();
+		for(;it!=lst.end();++it){
+			lyramilk::data::string method = it[0]->get_method();
+			if(method.find(req->method) != method.npos && it[0]->try_call(req,os,w,ret)) return true;
+		}
+		return false;
+	}
+	
 
 	/**************** aiohttpsession ********************/
 
 	aiohttpsession::aiohttpsession()
 	{
+		worker = nullptr;
 	}
 
 	aiohttpsession::~aiohttpsession()
@@ -89,6 +437,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 
 	bool aiohttpsession::onrequest(const char* cache,int size,std::ostream& os)
 	{
+//std::cout.write(cache,size) << std::endl;
 		int remain = 0;
 		if(!req.parse(cache,size,&remain)){
 			return true;
@@ -99,481 +448,43 @@ namespace lyramilk{ namespace teapoy { namespace web {
 		lyramilk::debug::clocktester _d(td,lyramilk::klog(lyramilk::log::debug),k);
 */
 		if(req.bad()){
-			os <<	"HTTP/1.1 400 Bad Request\r\n"
-					"Server: " TEAPOY_VERSION "\r\n"
-					"\r\n";
+			lyramilk::teapoy::http::make_response_header(os,"400 Bad Request",true);
 			return false;
 		}
-		req.parse_cookies();
 		req.ssl_peer_certificate_info = ssl_get_peer_certificate_info();
 
-		// 动态调用
-		methodinvoker* invoder = methodinvokers::instance()->get(req.method);
-		if(invoder == nullptr){
-			lyramilk::data::var::array ar = methodinvokers::instance()->keys();
-			lyramilk::data::var::array::iterator it = ar.begin();
-			lyramilk::data::string support;
-			support.reserve(128);
-			for(;it!=ar.end();++it){
-				support+= it->str();
-				support.push_back(',');
-			}
-			if(support.size()){
-				support.erase(support.end()-1);
-			}
-			os <<	"HTTP/1.1 405 Method Not Allowed\r\n"
-					"Server: " TEAPOY_VERSION "\r\n"
-					"Allow: " << support << "\r\n"
-					"\r\n";
+		if(worker == nullptr){
+			lyramilk::teapoy::http::make_response_header(os,"503 Service Temporarily Unavailable",true);
 			return false;
 		}
 
-		req.root = root;
+		bool bret = false;
+		if(!worker->try_call(&req,os,*worker,&bret)){
+			lyramilk::teapoy::http::make_response_header(os,"404 Not Found",true,req.ver.major,req.ver.minor);
+			return false;
+		}
 
-		// URL过滤器
-		invoder->convert_url(req.url);
-		req.parse_args();
-		// 参数过滤器
-		invoder->convert_parameters(req.parameter);
-		// 动态处理
-		{
-			bool dm_ret=true;
-			if(invoder->process(&req,os,&dm_ret)){
-				if(dm_ret){
-					if(req.ver.major <= 1 && req.ver.minor < 1){
-						return false;
-					}
-
-					lyramilk::data::var vconnection = req.get("Connection");
-					lyramilk::data::var strconnection;
-					if(vconnection.type_like(lyramilk::data::var::t_str)){
-						strconnection = lyramilk::teapoy::lowercase(vconnection.str());
-					}
-					if(strconnection == "keep-alive"){
-						req.reset();
-						if(remain != 0){
-							//如果多个请求的数据在一个包中，
-							return onrequest(cache+size-remain,remain,os);
-						}
-						return true;
-					}
-					return false;
-				}
+		if(bret){
+			if(req.ver.major <= 1 && req.ver.minor < 1){
 				return false;
 			}
-		}
-		//静态处理
-		/*
-		//debug
-		lyramilk::data::string k = D("%s ",req.url.c_str());
-		lyramilk::debug::nsecdiff td;
-		lyramilk::debug::clocktester _d(td,lyramilk::klog(lyramilk::log::debug,"teapoy.web"),k);*/
 
-		if(req.ver.major == 1 && req.ver.minor < 1){
-			invoder->call(&req,os);
-			return false;
-		}else if(invoder->call(&req,os)){
 			lyramilk::data::var vconnection = req.get("Connection");
 			lyramilk::data::var strconnection;
 			if(vconnection.type_like(lyramilk::data::var::t_str)){
-				strconnection = lyramilk::teapoy::lowercase(vconnection);
+				strconnection = lyramilk::teapoy::lowercase(vconnection.str());
 			}
 			if(strconnection == "keep-alive"){
 				req.reset();
 				if(remain != 0){
-					//如果多个请求的数据在一个包中，
+					//如果多个请求的数据在一个包中，未测试。
 					return onrequest(cache+size-remain,remain,os);
 				}
-				return false;
+				return true;
 			}
+			return false;
 		}
 		return false;
-	}
-
-	class method_get_invoker:public methodinvoker
-	{
-	  protected:
-		virtual bool call(lyramilk::teapoy::http::request* req,std::ostream& os)
-		{
-			//	GET请求支持缓存、断点续传。,
-			//	获取文件本地路径
-			lyramilk::data::string rawfile = req->root + req->url;
-
-			std::size_t pos = rawfile.find("?");
-			if(pos != rawfile.npos){
-				rawfile = rawfile.substr(0,pos);
-			}
-
-			if(rawfile.find("/../") != rawfile.npos){
-				os <<	"HTTP/1.1 400 Bad Request\r\n"
-						"Server: " TEAPOY_VERSION "\r\n"
-						"\r\n";
-				return true;
-			}
-
-			struct stat st = {0};
-			if(0 !=::stat(rawfile.c_str(),&st)){
-				if(errno == ENOENT){
-					os <<	"HTTP/1.1 404 Not Found\r\n"
-							"Server: " TEAPOY_VERSION "\r\n"
-							"\r\n";
-					return true;
-				}
-				if(errno == EACCES){
-					os <<	"HTTP/1.1 403 Forbidden\r\n"
-							"Server: " TEAPOY_VERSION "\r\n"
-							"\r\n";
-					return false;
-				}
-				if(errno == ENAMETOOLONG){
-					os <<	"HTTP/1.1 400 Bad Request\r\n"
-							"Server: " TEAPOY_VERSION "\r\n"
-							"\r\n";
-					return true;
-				}
-				os <<	"HTTP/1.1 500 Internal Server Error\r\n"
-						"Server: " TEAPOY_VERSION "\r\n"
-						"\r\n";
-				return false;
-			}
-
-			if(st.st_mode&S_IFDIR){
-				lyramilk::data::string rawdir;
-				std::size_t pos_end = rawfile.find_last_not_of("/");
-				rawdir = rawfile.substr(0,pos_end + 1);
-				rawdir.push_back('/');
-				lyramilk::data::var indexs = env::get_config("web.index");
-				if(indexs.type() == lyramilk::data::var::t_array){
-					lyramilk::data::var::array& ar = indexs;
-					lyramilk::data::var::array::iterator it = ar.begin();
-					for(;it!=ar.end();++it){
-						rawfile = rawdir + it->str();
-						if(0 == ::stat(rawfile.c_str(),&st) && !(st.st_mode&S_IFDIR)){
-							break;
-						}
-					}
-				}
-			}
-
-			lyramilk::data::var v = req->get("Range");
-			lyramilk::data::int64 range_start = 0;
-			lyramilk::data::int64 range_end = -1;
-			bool is_range = false;
-			bool has_range_start = false;
-			bool has_range_end = false;
-			if(v != lyramilk::data::var::nil){
-				is_range = true;
-				lyramilk::data::string rangstr = v.str();
-				lyramilk::teapoy::strings range;
-				if(rangstr.compare(0,6,"bytes=") == 0){
-					range = lyramilk::teapoy::split(rangstr.substr(6),"-");
-				}
-				if(range.size() > 0 && !range[0].empty()){
-					range_start = lyramilk::data::var(range[0]);
-					has_range_start = true;
-				}
-
-				if(range.size() > 1 && !range[1].empty()){
-					range_end = lyramilk::data::var(range[1]);
-					has_range_end = true;
-				}
-			}
-
-			std::ifstream ifs;
-			ifs.open(rawfile.c_str(),std::ifstream::binary|std::ifstream::in);
-			if(!ifs.is_open()){
-				os <<	"HTTP/1.1 404 Not Found\r\n"
-						"Server: " TEAPOY_VERSION "\r\n"
-						"\r\n";
-				return true;
-			}
-
-			ifs.seekg(0,std::ifstream::end);
-			lyramilk::data::uint64 filesize = ifs.tellg();
-			lyramilk::data::uint64 datacount = filesize;
-			if(is_range){
-				if(!has_range_start && !has_range_end){
-					os <<	"HTTP/1.1 500 Internal Server Error\r\n"
-							"Server: " TEAPOY_VERSION "\r\n"
-							"\r\n";
-					return false;
-				}
-				if(!has_range_start){
-					//最后range_end个字节
-					range_start = filesize - range_end;
-					range_end = filesize;
-				}
-				if(!has_range_end){
-					//从range_start到最后
-					range_end = filesize;
-				}
-				ifs.seekg(range_start,std::ifstream::beg);
-			}else{
-				ifs.seekg(0,std::ifstream::beg);
-			}
-
-			if(is_range){
-				datacount = range_end-range_start;
-			}
-
-			lyramilk::data::var vifmodified = req->get("If-Modified-Since");
-			lyramilk::data::var vifetagnotmatch = req->get("If-None-Match");
-
-			lyramilk::data::string lastmodified;
-			lyramilk::data::string etag;
-
-			{
-				{
-					struct tm* gmt_mtime = gmtime(&st.st_mtime);
-					char buff_time[100];
-					strftime(buff_time,sizeof(buff_time),"%a, %0e %h %Y %T GMT",gmt_mtime);
-					lastmodified = buff_time;
-				}
-				{
-					char buff_etag[100];
-					sprintf(buff_etag,"%lx-%llx",st.st_mtime,filesize);
-					etag = buff_etag;
-				}
-			}
-
-			if(vifetagnotmatch.type() != lyramilk::data::var::t_invalid && vifetagnotmatch == etag){
-				os <<	"HTTP/1.1 304 Not Modified\r\n"
-						"Server: " TEAPOY_VERSION "\r\n"
-						"\r\n";
-				return true;
-			}
-
-			if(vifmodified.type() != lyramilk::data::var::t_invalid && vifmodified == lastmodified){
-				os <<	"HTTP/1.1 304 Not Modified\r\n"
-						"Server: " TEAPOY_VERSION "\r\n"
-						"\r\n";
-				return true;
-			}
-
-
-			if(is_range){
-				lyramilk::data::var vifrange = req->get("If-Range");
-				lyramilk::data::var vifunmodified = req->get("If-Unmodified-Since");
-				lyramilk::data::var vifmatch = req->get("If-Match");
-
-				if(vifrange.type() != lyramilk::data::var::t_invalid && (vifrange != etag) && (vifrange != lastmodified)){
-					//Range失效
-					is_range = false;
-				}
-
-				if(vifunmodified.type() != lyramilk::data::var::t_invalid && vifunmodified != lastmodified){
-					//Range失效
-					is_range = false;
-				}
-
-				if(vifmatch.type() != lyramilk::data::var::t_invalid && vifmatch != etag){
-					//Range失效
-					is_range = false;
-				}
-
-			}
-
-			lyramilk::data::string mimetype = mime::getmimetype_byname(rawfile);
-			if(mimetype.empty()){
-				mimetype = mime::getmimetype_byfile(rawfile);
-			}
-
-			lyramilk::data::stringstream ss;
-			if(is_range){
-				ss <<	"HTTP/1.1 206 Partial Content\r\n";
-			}else{
-				ss <<	"HTTP/1.1 200 OK\r\n";
-			}
-			if(!mimetype.empty()){
-				ss <<	"Content-Type: " << mimetype << "\r\n";
-			}
-
-			ss <<		"Server: " TEAPOY_VERSION "\r\n";
-			ss <<		"Accept-Ranges: bytes\r\n";
-			{
-				time_t t_now = time(nullptr);
-				struct tm* gmt_now = gmtime(&t_now);
-				char buff_time[100] = {0};
-				strftime(buff_time,sizeof(buff_time),"%a, %0e %h %Y %T GMT",gmt_now);
-				ss <<		"Date: " << buff_time << "\r\n";
-
-				//建议客户端缓存60秒。
-				t_now += 60;
-				struct tm* gmt_expires = gmtime(&t_now);
-				char buff_time2[100] = {0};
-				strftime(buff_time2,sizeof(buff_time2),"%a, %0e %h %Y %T GMT",gmt_expires);
-
-				ss <<		"Expires: "<< buff_time2 << "\r\n";
-				ss <<		"Cache-Control: max-age=60\r\n";
-			}
-			if(!lastmodified.empty()){
-				ss <<		"Last-Modified: " << lastmodified << "\r\n";
-			}
-			if(!etag.empty()){
-				ss <<		"ETag: " << etag << "\r\n";
-			}
-			ss <<		"Content-Length: " << datacount << "\r\n";
-			if(is_range){
-				ss <<	"Content-Range: " << range_start << "-" << range_end << "/" << filesize << "\r\n";
-			}
-			ss <<		"Access-Control-Allow-Origin: *\r\n";
-			ss <<		"Access-Control-Allow-Methods: *\r\n";
-			ss <<		"\r\n";
-
-			os << ss.str();
-			char buff[4096];
-			for(;ifs && datacount > 0;){
-				ifs.read(buff,4096);
-				lyramilk::data::int64 gcount = ifs.gcount();
-				if(gcount > 0){
-					datacount -= gcount;
-					os.write(buff,gcount);
-				}else{
-					ifs.close();
-					return false;
-				}
-			}
-			ifs.close();
-			return true;
-		}
-	};
-
-	class method_post_invoker:public methodinvoker
-	{
-	  protected:
-		virtual bool call(lyramilk::teapoy::http::request* req,std::ostream& os)
-		{
-			//POST请求不支持缓存和分块
-
-			//	获取文件本地路径
-			lyramilk::data::string rawfile = req->root + req->url;
-				
-			std::size_t pos = rawfile.find("?");
-			if(pos != rawfile.npos){
-				rawfile = rawfile.substr(0,pos);
-			}
-
-			if(rawfile.find("/../") != rawfile.npos){
-				os <<	"HTTP/1.1 400 Bad Request\r\n"
-						"Server: " TEAPOY_VERSION "\r\n"
-						"\r\n";
-				return true;
-			}
-
-			struct stat st = {0};
-			if(0 !=::stat(rawfile.c_str(),&st)){
-				if(errno == ENOENT){
-					os <<	"HTTP/1.1 404 Not Found\r\n"
-							"Server: " TEAPOY_VERSION "\r\n"
-							"\r\n";
-					return true;
-				}
-				if(errno == EACCES){
-					os <<	"HTTP/1.1 403 Forbidden\r\n"
-							"Server: " TEAPOY_VERSION "\r\n"
-							"\r\n";
-					return false;
-				}
-				if(errno == ENAMETOOLONG){
-					os <<	"HTTP/1.1 400 Bad Request\r\n"
-							"Server: " TEAPOY_VERSION "\r\n"
-							"\r\n";
-					return true;
-				}
-				os <<	"HTTP/1.1 500 Internal Server Error\r\n"
-						"Server: " TEAPOY_VERSION "\r\n"
-						"\r\n";
-				return false;
-			}
-
-			if(st.st_mode&S_IFDIR){
-				lyramilk::data::string rawdir;
-				std::size_t pos_end = rawfile.find_last_not_of("/");
-				rawdir = rawfile.substr(0,pos_end + 1);
-				rawdir.push_back('/');
-				lyramilk::data::var indexs = env::get_config("web.index");
-				if(indexs.type() == lyramilk::data::var::t_array){
-					lyramilk::data::var::array& ar = indexs;
-					lyramilk::data::var::array::iterator it = ar.begin();
-					for(;it!=ar.end();++it){
-						rawfile = rawdir + it->str();
-						if(0 == ::stat(rawfile.c_str(),&st) && !(st.st_mode&S_IFDIR)){
-							break;
-						}
-					}
-				}
-			}
-
-			std::ifstream ifs;
-			ifs.open(rawfile.c_str(),std::ifstream::binary|std::ifstream::in);
-			if(!ifs.is_open()){
-				os <<	"HTTP/1.1 404 Not Found\r\n"
-						"Server: " TEAPOY_VERSION "\r\n"
-						"\r\n";
-				return true;
-			}
-
-			ifs.seekg(0,std::ifstream::end);
-			lyramilk::data::uint64 filesize = ifs.tellg();
-			ifs.seekg(0,std::ifstream::beg);
-
-			lyramilk::data::stringstream ss;
-			ss <<	"HTTP/1.1 200 OK\r\n";
-			ss <<	"Server: " TEAPOY_VERSION "\r\n";
-			ss <<	"Content-Length: " << filesize << "\r\n";
-			ss <<	"Connection: Keep-Alive\r\n";
-			ss <<	"Access-Control-Allow-Origin: *\r\n";
-			ss <<	"Access-Control-Allow-Methods: *\r\n";
-			{
-				time_t t_now = time(nullptr);
-				struct tm* gmt_now = gmtime(&t_now);
-				char buff_time[100] = {0};
-				strftime(buff_time,sizeof(buff_time),"%a, %0e %h %Y %T GMT",gmt_now);
-				ss <<"Date: " << buff_time << "\r\n";
-			}
-			ss <<	"\r\n";
-			os << ss.str();
-
-
-			char buff[4096];
-			for(;ifs;){
-				ifs.read(buff,4096);
-				lyramilk::data::int64 gcount = ifs.gcount();
-				if(gcount > 0){
-					os.write(buff,gcount);
-				}
-			}
-			ifs.close();
-			return true;
-
-
-			/*
-			int max = req->getmultipartcount();
-			for(int i=0;i<max;++i){
-				mime& m = req->selectpart(i);
-				std::ofstream ofs;
-				ofs.open("/tmp/1",std::ofstream::binary|std::ofstream::out);
-				ofs.write(m.getbodyptr(),m.getbodylength());
-				ofs.close();
-
-				FILE* fp = popen("/usr/bin/md5sum /tmp/1","r");
-				if(fp){
-					char buff[409600];
-					int r = fread(buff,1,409600,fp);
-					fclose(fp);
-					if(r > 0){
-COUT.write(buff,r) << std::endl;
-					}
-				}
-			}*/
-		}
-	};
-
-	static __attribute__ ((constructor)) void __init()
-	{
-		methodinvokers::instance()->define("GET",new method_get_invoker);
-		methodinvokers::instance()->define("HEAD",new method_get_invoker);
-		methodinvokers::instance()->define("POST",new method_post_invoker);
 	}
 
 }}}

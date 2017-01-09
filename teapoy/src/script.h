@@ -2,6 +2,7 @@
 #define _lyramilk_teapoy_script_h_
 
 #include <libmilk/scriptengine.h>
+#include <libmilk/factory.h>
 
 namespace lyramilk{ namespace teapoy
 {
@@ -20,6 +21,12 @@ namespace lyramilk{ namespace teapoy
 		static script2native* instance();
 	  protected:
 		std::map<lyramilk::data::string,std::vector<define_func> > c;
+	};
+
+	class engine_pool:public lyramilk::util::multiton_factory<lyramilk::script::engines>
+	{
+	  public:
+		static engine_pool* instance();
 	};
 }}
 

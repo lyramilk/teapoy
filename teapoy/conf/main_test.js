@@ -84,15 +84,6 @@ var self = conf.self;
 var srv = new httpserver();
 srv.open(self.port);
 srv.bind_url(url_mapping);
-srv.set_root(webdir + "/html");
-
-srv.set_defaultpage([
-	"index.jsx",
-	"index.html",
-	"index.htm",
-	"index.js",
-	"index.jssp",
-]);
 
 //	异步IO模型
 var epfd = new epoll();

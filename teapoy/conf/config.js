@@ -1,34 +1,49 @@
+function newid()
+{
+	if(!this.id) this.id = 0;
+	return +this.id;
+}
+
 
 var url_mapping = [
 	{
 		type:"js",
+		method:"GET,POST",
 		pattern: "^/haoshengyin/(.*)[\\.]js([\\?].*)?$",
-		module: webdir + "/logic/haoshengyin/${1}.js${2}",
+		module: webdir + "/logic/haoshengyin/${1}.js",
 	},
 	{
 		type:"js",
+		method:"GET,POST",
 		pattern: "^/yinyuegushi/(.*)[\\.]js([\\?].*)?$",
-		module: webdir + "/logic/yinyuegushi/${1}.js${2}",
+		module: webdir + "/logic/yinyuegushi/${1}.js",
 	},
 	{
 		type:"js",
+		method:"GET,POST",
 		pattern: "^/family/(.*)[\\.]js([\\?].*)?$",
-		module: webdir + "/logic/family/${1}.js${2}",
+		module: webdir + "/logic/family/${1}.js",
 	},
 	{
 		type:"js",
+		method:"GET,POST",
 		pattern: "^/test/(.*)[\\.]js([\\?].*)?$",
-		module: webdir + "/logic/test/${1}.js${2}",
+		module: webdir + "/logic/test/${1}.js",
 	},
 	{
 		type:"js",
+		method:"GET,POST",
 		pattern: "^/kwcom/(.*)[\\.]js([\\?].*)?$",
-		module: webdir + "/logic/kwcom/${1}.js${2}",
+		module: webdir + "/logic/kwcom/${1}.js",
 	},
 	{
 		type:"jsx",
+		method:"GET,POST",
 		pattern: "^(.*)[\\.]jssp([\\?].*)?$",
 		module: webdir + "/html/${0}",
+		index:[
+			"index.jssp"
+		],
 		auth:{
 			type:"js",
 			module:webdir + "/auth.js",
@@ -36,12 +51,28 @@ var url_mapping = [
 	},
 	{
 		type:"jsx",
+		method:"GET,POST",
 		pattern: "^.*[\\.]jsx([\\?].*)?$",
 		module: webdir + "/html/${0}",
+		index:[
+			"index.jsx"
+		],
 		auth:{
 			type:"js",
 			module:webdir + "/auth.js",
 		}
+	},
+	{
+		type:"static",
+		method:"GET,POST",
+		pattern: "^.*$",
+		module: webdir + "/html/${0}",
+		index:[
+			"index.html",
+			"index.htm",
+			"default.html",
+			"default.htm",
+		],
 	},
 ];
 
