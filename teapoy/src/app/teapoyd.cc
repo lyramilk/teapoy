@@ -2,7 +2,6 @@
 #include <libmilk/scriptengine.h>
 #include <libmilk/log.h>
 #include <libmilk/multilanguage.h>
-#include <libmilk/ansi_3_64.h>
 
 #include <unistd.h>
 #include <signal.h>
@@ -130,74 +129,138 @@ class teapoy_log_base:public lyramilk::log::logb
 class teapoy_log_stdio:public teapoy_log_base
 {
   public:
-	void log(time_t ti,lyramilk::log::type ty,lyramilk::data::string usr,lyramilk::data::string app,lyramilk::data::string module,lyramilk::data::string str)
+	virtual void log(time_t ti,lyramilk::log::type ty,lyramilk::data::string usr,lyramilk::data::string app,lyramilk::data::string module,lyramilk::data::string str) const
 	{
+		lyramilk::data::string cache;
+		cache.reserve(1024);
 		switch(ty){
 		  case lyramilk::log::debug:
 			if(!*enable_log_debug)return;
-			std::cout << lyramilk::ansi_3_64::cyan << strtime(ti) << " [" << module << "] " << str << lyramilk::ansi_3_64::reset;
+			cache.append("\x1b[36m");
+			cache.append(strtime(ti));
+			cache.append(" [");
+			cache.append(module);
+			cache.append("] ");
+			cache.append(str);
+			cache.append("\x1b[0m");
+			fwrite(cache.c_str(),cache.size(),1,stdout);
 			break;
 		  case lyramilk::log::trace:
 			if(!*enable_log_trace)return;
-			std::clog << lyramilk::ansi_3_64::white << strtime(ti) << " [" << module << "] " << str << lyramilk::ansi_3_64::reset;
+			cache.append("\x1b[37m");
+			cache.append(strtime(ti));
+			cache.append(" [");
+			cache.append(module);
+			cache.append("] ");
+			cache.append(str);
+			cache.append("\x1b[0m");
+			fwrite(cache.c_str(),cache.size(),1,stdout);
 			break;
 		  case lyramilk::log::warning:
 			if(!*enable_log_warning)return;
-			std::clog << lyramilk::ansi_3_64::yellow << strtime(ti) << " [" << module << "] " << str << lyramilk::ansi_3_64::reset;
+			cache.append("\x1b[33m");
+			cache.append(strtime(ti));
+			cache.append(" [");
+			cache.append(module);
+			cache.append("] ");
+			cache.append(str);
+			cache.append("\x1b[0m");
+			fwrite(cache.c_str(),cache.size(),1,stdout);
 			break;
 		  case lyramilk::log::error:
 			if(!*enable_log_error)return;
-			std::cerr << lyramilk::ansi_3_64::red << strtime(ti) << " [" << module << "] " << str << lyramilk::ansi_3_64::reset;
+			cache.append("\x1b[31m");
+			cache.append(strtime(ti));
+			cache.append(" [");
+			cache.append(module);
+			cache.append("] ");
+			cache.append(str);
+			cache.append("\x1b[0m");
+			fwrite(cache.c_str(),cache.size(),1,stdout);
 			break;
-		  default:
-			std::cout << lyramilk::ansi_3_64::reset;
 		}
 	}
 };
 
 class teapoy_log_logfile:public teapoy_log_base
 {
-	std::ofstream lfs;
-	pid_t pid;
+	FILE* fp;
+	lyramilk::data::string pidstr;
   public:
 	teapoy_log_logfile(lyramilk::data::string logfilepath)
 	{
-		lfs.open(logfilepath.c_str(),std::ofstream::app);
-		assert(lfs.is_open());
-		pid = getpid();
+		fp = fopen(logfilepath.c_str(),"ab");
+		assert(fp);
+		pid_t pid = getpid();
+		lyramilk::data::stringstream ss;
+		ss << pid << " ";
+		pidstr = ss.str();
+
 	}
 	virtual ~teapoy_log_logfile()
 	{
+		fclose(fp);
 	}
 
 	virtual bool ok()
 	{
-		return lfs.good();
+		return fp != nullptr;
 	}
 
-	void log(time_t ti,lyramilk::log::type ty,lyramilk::data::string usr,lyramilk::data::string app,lyramilk::data::string module,lyramilk::data::string str)
+	virtual void log(time_t ti,lyramilk::log::type ty,lyramilk::data::string usr,lyramilk::data::string app,lyramilk::data::string module,lyramilk::data::string str) const
 	{
+		lyramilk::data::string cache;
+		cache.reserve(1024);
 		switch(ty){
 		  case lyramilk::log::debug:
 			if(!*enable_log_debug)return;
-			lfs << pid << " " << strtime(ti) << " [" << module << "] " << str;
+			cache.append(pidstr);
+			cache.append("[debug] ");
+			cache.append(strtime(ti));
+			cache.append(" [");
+			cache.append(module);
+			cache.append("] ");
+			cache.append(str);
+			fwrite(cache.c_str(),cache.size(),1,fp);
+			fflush(fp);
 			break;
 		  case lyramilk::log::trace:
 			if(!*enable_log_trace)return;
-			lfs << pid << " " << strtime(ti) << " [" << module << "] " << str;
+			cache.append(pidstr);
+			cache.append("[trace] ");
+			cache.append(strtime(ti));
+			cache.append(" [");
+			cache.append(module);
+			cache.append("] ");
+			cache.append(str);
+			fwrite(cache.c_str(),cache.size(),1,fp);
+			fflush(fp);
 			break;
 		  case lyramilk::log::warning:
 			if(!*enable_log_warning)return;
-			lfs << pid << " " << strtime(ti) << " [" << module << "] " << str;
+			cache.append(pidstr);
+			cache.append("[warning] ");
+			cache.append(strtime(ti));
+			cache.append(" [");
+			cache.append(module);
+			cache.append("] ");
+			cache.append(str);
+			fwrite(cache.c_str(),cache.size(),1,fp);
+			fflush(fp);
 			break;
 		  case lyramilk::log::error:
 			if(!*enable_log_error)return;
-			lfs << pid << " " << strtime(ti) << " [" << module << "] " << str;
+			cache.append(pidstr);
+			cache.append("[error] ");
+			cache.append(strtime(ti));
+			cache.append(" [");
+			cache.append(module);
+			cache.append("] ");
+			cache.append(str);
+			fwrite(cache.c_str(),cache.size(),1,fp);
+			fflush(fp);
 			break;
-		  default:
-			lfs << pid << " " << strtime(ti) << " [" << module << "] " << str;
 		}
-		lfs.flush();
 	}
 };
 
@@ -448,7 +511,7 @@ int main(int argc,char* argv[])
 		return -1;
 	}
 
-	log << D("启动脚本%s(类型为：%s)",launcher_script.c_str(),launcher_script_type.c_str()) << std::endl;
+	log(lyramilk::log::trace) << D("启动脚本%s(类型为：%s)",launcher_script.c_str(),launcher_script_type.c_str()) << std::endl;
 	eng_main = lyramilk::script::engine::createinstance(launcher_script_type);
 	if(!eng_main){
 		log(lyramilk::log::error) << D("获取启动脚本失败") << std::endl;
@@ -466,6 +529,6 @@ int main(int argc,char* argv[])
 
 	lyramilk::teapoy::script2native::instance()->fill(eng_main);
 	eng_main->load_file(launcher_script);
-	log << "执行完毕。" << std::endl;
+	log(lyramilk::log::trace) << "执行完毕。" << std::endl;
 	return 0;
 }

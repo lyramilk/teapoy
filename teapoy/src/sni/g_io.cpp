@@ -16,10 +16,11 @@ namespace lyramilk{ namespace teapoy{ namespace native
 
 	lyramilk::data::var echo(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 	{
+		lyramilk::data::string str;
 		for(lyramilk::data::var::array::const_iterator it = args.begin();it!=args.end();++it){
-			std::cout << it->str();
+			str += it->str();
 		}
-		std::cout << std::endl;
+		printf("%s\n",str.c_str());
 		return true;
 	}
 
@@ -28,11 +29,12 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_user_engineptr());
 		lyramilk::data::string mod = "s=" + e->filename();
 
-		lyramilk::klog(lyramilk::log::trace,mod);
+		lyramilk::data::string str;
 		for(lyramilk::data::var::array::const_iterator it = args.begin();it!=args.end();++it){
-			lyramilk::klog << it->str();
+			str += it->str();
 		}
-		lyramilk::klog << std::endl;
+
+		lyramilk::klog(lyramilk::log::trace,mod) << str << std::endl;
 		return true;
 	}
 
@@ -43,27 +45,24 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		lyramilk::data::string mod = "s=" + e->filename();
 		lyramilk::data::string logtype = args[0];
 
+		lyramilk::log::type t = lyramilk::log::trace;
 		if(logtype == "debug"){
-			lyramilk::klog(lyramilk::log::debug,mod);
+			t = lyramilk::log::debug;
 		}else if(logtype == "trace"){
-			lyramilk::klog(lyramilk::log::trace,mod);
+			t = lyramilk::log::trace;
 		}else if(logtype == "warning"){
-			lyramilk::klog(lyramilk::log::warning,mod);
+			t = lyramilk::log::warning;
 		}else if(logtype == "error"){
-			lyramilk::klog(lyramilk::log::error,mod);
+			t = lyramilk::log::error;
 		}else{
 			throw lyramilk::exception(D("错误的日志类型"));
 		}
 
-
-		lyramilk::data::var::array::const_iterator it = args.begin();
-		if(it!=args.end()){
-			++it;
-			for(;it!=args.end();++it){
-				lyramilk::klog << it->str();
-			}
+		lyramilk::data::string str;
+		for(lyramilk::data::var::array::const_iterator it = args.begin();it!=args.end();++it){
+			str += it->str();
 		}
-		lyramilk::klog << std::endl;
+		lyramilk::klog(t,mod) << str << std::endl;
 		return true;
 	}
 

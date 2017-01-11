@@ -168,10 +168,8 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 
 		lyramilk::data::var exec(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
-			if(readonly()) throw lyramilk::exception(D("redis.%s：禁止向只读Redis实例写入数据",__FUNCTION__));
-			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_array);
 			lyramilk::data::var vret;
-			if(!c->exec(args[0],vret)) return lyramilk::data::var::nil;
+			if(!c->exec(args,vret)) return lyramilk::data::var::nil;
 			return vret;
 		}
 

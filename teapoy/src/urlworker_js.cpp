@@ -11,19 +11,42 @@
 #include <utime.h>
 
 namespace lyramilk{ namespace teapoy { namespace web {
+
+
+	struct url_worker_js_loger
+	{
+		lyramilk::debug::nsecdiff td;
+		const lyramilk::log::logss& loger;
+		lyramilk::teapoy::http::request* req;
+
+		url_worker_js_loger(const lyramilk::log::logss& _log,lyramilk::teapoy::http::request* req):loger(_log)
+		{
+			td.mark();
+			this->req = req;
+		}
+
+		~url_worker_js_loger()
+		{
+			long long des = td.diff();
+			loger(lyramilk::log::debug) << D("%s:%u-->%s 耗时：%lld(纳秒)",req->dest.c_str(),req->dest_port,req->url.c_str(),des) << std::endl;
+		}
+	};
+
 	class url_worker_js : public url_worker
 	{
 		lyramilk::script::engines* pool;
-
+		lyramilk::log::logss log;
 		bool call(lyramilk::teapoy::http::request* req,std::ostream& os,lyramilk::data::string real,website_worker& worker) const
 		{
+			url_worker_js_loger _(log,req);
+
 			req->parse_cookies();
 			req->parse_body_param();
 			req->parse_url();
 
 			lyramilk::script::engines::ptr p = pool->get();
 			if(!p->load_file(real)){
-				lyramilk::klog(lyramilk::log::warning,"lyramilk.teapoy.web.url_worker_js.call") << D("加载文件%s失败",real.c_str()) << std::endl;
+				log(lyramilk::log::warning,__FUNCTION__) << D("加载文件%s失败",real.c_str()) << std::endl;
 			}
 
 			session_info si(real,req,os,worker);
@@ -46,7 +69,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 			return false;
 		}
 	  public:
-		url_worker_js(lyramilk::script::engines* es)
+		url_worker_js(lyramilk::script::engines* es):log(lyramilk::klog,"teapoy.web.js")
 		{
 			pool = es;
 		}

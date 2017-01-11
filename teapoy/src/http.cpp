@@ -97,9 +97,6 @@ namespace lyramilk{ namespace teapoy {namespace http{
 		if(pos != url.npos && pos < url.size()){
 			lyramilk::data::string url1 = url.substr(0,pos);
 			urlparams = url.substr(pos + 1);
-			url_pure = lyramilk::data::codes::instance()->decode("url",url1) + "?" + urlparams;
-		}else{
-			url_pure = lyramilk::data::codes::instance()->decode("url",url);
 		}
 
 		lyramilk::teapoy::strings param_fields = lyramilk::teapoy::split(urlparams,"&");
