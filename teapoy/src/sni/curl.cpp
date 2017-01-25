@@ -75,7 +75,6 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			curl_easy_setopt(c, CURLOPT_WRITEDATA, (std::ostream*)&ss);
 			curl_easy_setopt(c, CURLOPT_POST, 1);
 			curl_easy_setopt(c, CURLOPT_POSTFIELDS, postdata.c_str());
-			curl_easy_setopt(c,CURLOPT_VERBOSE,1);
 			CURLcode res = curl_easy_perform(c);
 			curl_easy_cleanup(c);
 
@@ -202,9 +201,10 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 		return size;
 	}
 
+	lyramilk::log::logss static log_curl(lyramilk::klog,"teapoy.native");
 	lyramilk::data::var curl(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 	{
-		MILK_CHECK_SCRIPT_ARGS_LOG(lyramilk::klog("teapoy.native"),lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
+		MILK_CHECK_SCRIPT_ARGS_LOG(log_curl,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 		lyramilk::data::string url = args[0].str();
 		lyramilk::data::stringstream ss;
 		CURL *c = curl_easy_init();

@@ -133,12 +133,12 @@ COUT << "reapeater end" << std::endl;
 
 	lyramilk::data::var create_repeater(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 	{
-		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_uint16);	//监听端口
+		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_uint);	//监听端口
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_str);		//源ip
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,2,lyramilk::data::var::t_str);		//目标ip
-		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,3,lyramilk::data::var::t_uint16);	//目标端口
+		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,3,lyramilk::data::var::t_uint);	//目标端口
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,4,lyramilk::data::var::t_bool);		//是否一次性
-		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,5,lyramilk::data::var::t_int32);	//存活时间，秒
+		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,5,lyramilk::data::var::t_int);	//存活时间，秒
 
 		unsigned short listenport = args[0];
 		repeater_args* p = new repeater_args;

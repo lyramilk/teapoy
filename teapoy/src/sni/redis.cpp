@@ -58,7 +58,10 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			lyramilk::teapoy::redis::redis_client* p = new lyramilk::teapoy::redis::redis_client();
 			if(!p) return nullptr;
 			p->open(host.c_str(),port);
-			p->auth(pwd);
+			try{
+				p->auth(pwd);
+			}catch(lyramilk::exception& e){
+			}
 			if(withlistener){
 				p->set_listener(listener);
 			}
@@ -130,6 +133,10 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 				c = redis_clients_multiton::instance()->getobj(host,port,pwd,withlistener);
 			}
 			if(c){
+				if(!c->isalive()){
+					lyramilk::data::var v(args);
+					throw lyramilk::exception(D("redis错误：网络连接失败。(%s)",v.str().c_str()));
+				}
 				redis* p = new redis(c);
 				p->readonly(readonly);
 				return p;
@@ -169,7 +176,10 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 		lyramilk::data::var exec(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			lyramilk::data::var vret;
-			if(!c->exec(args,vret)) return lyramilk::data::var::nil;
+			if(!c->exec(args,vret)){
+				//return lyramilk::data::var::nil;
+				throw lyramilk::exception(D("redis.%s执行命令%s错误：%s",__FUNCTION__,lyramilk::data::var(args).str().c_str(),vret.str().c_str()));
+			}
 			return vret;
 		}
 
@@ -540,7 +550,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 					lyramilk::data::string s = ret[i+1];
 					lyramilk::data::var v = s;
 					if(s.find('.') == s.npos){
-						v.type(lyramilk::data::var::t_int64);
+						v.type(lyramilk::data::var::t_int);
 					}else{
 						v.type(lyramilk::data::var::t_double);
 					}
@@ -654,8 +664,8 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			lyramilk::data::uint64 startof = 0;
 			if(args.size() > 0){
 				const lyramilk::data::var& v = args.at(0);
-				if(!v.type_like(lyramilk::data::var::t_uint64)){
-					throw lyramilk::exception(D("参数%d类型不兼容:%s，期待%s",1,v.type_name().c_str(),lyramilk::data::var::type_name(lyramilk::data::var::t_uint64).c_str()));
+				if(!v.type_like(lyramilk::data::var::t_uint)){
+					throw lyramilk::exception(D("参数%d类型不兼容:%s，期待%s",1,v.type_name().c_str(),lyramilk::data::var::type_name(lyramilk::data::var::t_uint).c_str()));
 				}
 				startof = v;
 			}
@@ -675,8 +685,8 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			lyramilk::data::uint64 startof = 0;
 			if(args.size() > 0){
 				const lyramilk::data::var& v = args.at(0);
-				if(!v.type_like(lyramilk::data::var::t_uint64)){
-					throw lyramilk::exception(D("参数%d类型不兼容:%s，期待%s",1,v.type_name().c_str(),lyramilk::data::var::type_name(lyramilk::data::var::t_uint64).c_str()));
+				if(!v.type_like(lyramilk::data::var::t_uint)){
+					throw lyramilk::exception(D("参数%d类型不兼容:%s，期待%s",1,v.type_name().c_str(),lyramilk::data::var::type_name(lyramilk::data::var::t_uint).c_str()));
 				}
 				startof = v;
 			}
@@ -694,7 +704,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 		lyramilk::data::var add(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			if(predis->readonly()) throw lyramilk::exception(D("redis.zset.%s：禁止向只读Redis实例写入数据",__FUNCTION__));
-			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_uint64);
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_uint);
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_str);
 			lyramilk::data::string str = args[1];
 			if(predis->is_ssdb()){
@@ -812,7 +822,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			if(vret.type() == lyramilk::data::var::t_str){
 				lyramilk::data::string s = vret.str();
 				if(s.find('.') == s.npos){
-					vret.type(lyramilk::data::var::t_int64);
+					vret.type(lyramilk::data::var::t_int);
 				}else{
 					vret.type(lyramilk::data::var::t_double);
 				}
@@ -822,7 +832,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 
 		lyramilk::data::var at(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
-			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_int64);
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_int);
 			lyramilk::data::int64 i = args[0];
 			lyramilk::data::var::array cmd;
 			cmd.reserve(4);
@@ -850,7 +860,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 
 		lyramilk::data::var random(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
-			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_uint64);
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_uint);
 			lyramilk::data::uint64 n = args[0];
 			lyramilk::data::uint64 max = size(args,env);
 
@@ -1059,8 +1069,8 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			lyramilk::data::uint64 startof = 0;
 			if(args.size() > 0){
 				const lyramilk::data::var& v = args.at(0);
-				if(!v.type_like(lyramilk::data::var::t_uint64)){
-					throw lyramilk::exception(D("参数%d类型不兼容:%s，期待%s",1,v.type_name().c_str(),lyramilk::data::var::type_name(lyramilk::data::var::t_uint64).c_str()));
+				if(!v.type_like(lyramilk::data::var::t_uint)){
+					throw lyramilk::exception(D("参数%d类型不兼容:%s，期待%s",1,v.type_name().c_str(),lyramilk::data::var::type_name(lyramilk::data::var::t_uint).c_str()));
 				}
 				startof = v;
 			}
@@ -1080,8 +1090,8 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			lyramilk::data::uint64 startof = 0;
 			if(args.size() > 0){
 				const lyramilk::data::var& v = args.at(0);
-				if(!v.type_like(lyramilk::data::var::t_uint64)){
-					throw lyramilk::exception(D("参数%d类型不兼容:%s，期待%s",1,v.type_name().c_str(),lyramilk::data::var::type_name(lyramilk::data::var::t_uint64).c_str()));
+				if(!v.type_like(lyramilk::data::var::t_uint)){
+					throw lyramilk::exception(D("参数%d类型不兼容:%s，期待%s",1,v.type_name().c_str(),lyramilk::data::var::type_name(lyramilk::data::var::t_uint).c_str()));
 				}
 				startof = v;
 			}
@@ -1125,6 +1135,20 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			return vret;
 		}
 
+		lyramilk::data::var remove(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		{
+			if(predis->readonly()) throw lyramilk::exception(D("redis.hashmap.%s：禁止向只读Redis实例写入数据",__FUNCTION__));
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
+			lyramilk::data::var::array cmd;
+			cmd.reserve(3);
+			cmd.push_back("hdel");
+			cmd.push_back(key);
+			cmd.push_back(args[0]);
+			lyramilk::data::var vret;
+			if(!predis->c->exec(cmd,vret)) return lyramilk::data::var::nil;
+			return vret == 1;
+		}
+
 		lyramilk::data::var size(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			lyramilk::data::var::array cmd;
@@ -1152,7 +1176,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 		lyramilk::data::var incr(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
-			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_int64);
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_int);
 			lyramilk::data::var::array cmd;
 			cmd.reserve(4);
 			cmd.push_back("hincrby");
@@ -1167,7 +1191,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 		lyramilk::data::var decr(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
-			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_int64);
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_int);
 			lyramilk::data::int64 v = args[1];
 			lyramilk::data::var::array cmd;
 			cmd.reserve(4);
@@ -1209,6 +1233,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			fn["rscan"] = lyramilk::script::engine::functional<redis_hmap,&redis_hmap::rscan>;
 			fn["get"] = lyramilk::script::engine::functional<redis_hmap,&redis_hmap::get>;
 			fn["set"] = lyramilk::script::engine::functional<redis_hmap,&redis_hmap::set>;
+			fn["remove"] = lyramilk::script::engine::functional<redis_hmap,&redis_hmap::remove>;
 			fn["exist"] = lyramilk::script::engine::functional<redis_hmap,&redis_hmap::exist>;
 			fn["incr"] = lyramilk::script::engine::functional<redis_hmap,&redis_hmap::incr>;
 			fn["decr"] = lyramilk::script::engine::functional<redis_hmap,&redis_hmap::decr>;
@@ -1444,9 +1469,9 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			return vret;
 		}
 
-		lyramilk::data::var get(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var at(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
-			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_int64);
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_int);
 			lyramilk::data::var::array cmd;
 			cmd.reserve(3);
 			cmd.push_back("lindex");
@@ -1473,8 +1498,8 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			lyramilk::data::uint64 startof = 0;
 			if(args.size() > 0){
 				const lyramilk::data::var& v = args.at(0);
-				if(!v.type_like(lyramilk::data::var::t_uint64)){
-					throw lyramilk::exception(D("参数%d类型不兼容:%s，期待%s",1,v.type_name().c_str(),lyramilk::data::var::type_name(lyramilk::data::var::t_uint64).c_str()));
+				if(!v.type_like(lyramilk::data::var::t_uint)){
+					throw lyramilk::exception(D("参数%d类型不兼容:%s，期待%s",1,v.type_name().c_str(),lyramilk::data::var::type_name(lyramilk::data::var::t_uint).c_str()));
 				}
 				startof = v;
 			}
@@ -1494,8 +1519,8 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			lyramilk::data::uint64 startof = 0;
 			if(args.size() > 0){
 				const lyramilk::data::var& v = args.at(0);
-				if(!v.type_like(lyramilk::data::var::t_uint64)){
-					throw lyramilk::exception(D("参数%d类型不兼容:%s，期待%s",1,v.type_name().c_str(),lyramilk::data::var::type_name(lyramilk::data::var::t_uint64).c_str()));
+				if(!v.type_like(lyramilk::data::var::t_uint)){
+					throw lyramilk::exception(D("参数%d类型不兼容:%s，期待%s",1,v.type_name().c_str(),lyramilk::data::var::type_name(lyramilk::data::var::t_uint).c_str()));
 				}
 				startof = v;
 			}
@@ -1534,7 +1559,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 
 		lyramilk::data::var random(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
-			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_uint64);
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_uint);
 			lyramilk::data::uint64 n = args[0];
 			lyramilk::data::uint64 max = size(args,env);
 
@@ -1556,7 +1581,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 				if(checkr.second){
 					lyramilk::data::var::array ar;
 					ar.push_back(index);
-					lyramilk::data::var v = get(ar,env);
+					lyramilk::data::var v = at(ar,env);
 					if(v.type() == lyramilk::data::var::t_str){
 						lyramilk::data::string str = v.str();
 
@@ -1591,7 +1616,8 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			fn["pop_front"] = lyramilk::script::engine::functional<redis_list,&redis_list::pop_front>;
 			fn["front"] = lyramilk::script::engine::functional<redis_list,&redis_list::front>;
 			fn["back"] = lyramilk::script::engine::functional<redis_list,&redis_list::back>;
-			fn["get"] = lyramilk::script::engine::functional<redis_list,&redis_list::get>;
+			//fn["get"] = lyramilk::script::engine::functional<redis_list,&redis_list::get>;
+			fn["at"] = lyramilk::script::engine::functional<redis_list,&redis_list::at>;
 			fn["size"] = lyramilk::script::engine::functional<redis_list,&redis_list::size>;
 			fn["scan"] = lyramilk::script::engine::functional<redis_list,&redis_list::scan>;
 			fn["rscan"] = lyramilk::script::engine::functional<redis_list,&redis_list::rscan>;

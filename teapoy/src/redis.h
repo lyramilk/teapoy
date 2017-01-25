@@ -24,11 +24,13 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 		}type;
 		redis_client_listener listener;
 		lyramilk::data::string addr;
+		void reconnect();
 	  public:
 		redis_client();
 		virtual ~redis_client();
 
 		virtual bool open(lyramilk::data::string host,lyramilk::data::uint16 port);
+		virtual bool close();
 		/// 设置监听器
 		void set_listener(redis_client_listener lst);
 		/// 登录
@@ -39,6 +41,8 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 		bool async_exec(const lyramilk::data::var::array& cmd,redis_client_watch_handler h,void* args,bool thread_join = true);
 		/// 判断这个redis链接是不是指向一个ssdb数据库。
 		bool is_ssdb();
+
+		bool parse(lyramilk::data::stringstream& is,lyramilk::data::var& v);
 	};
 
 }}}

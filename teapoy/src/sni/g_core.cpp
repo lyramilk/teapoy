@@ -92,6 +92,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			lyramilk::data::inotify_file::status st = iff.check();
 			if(st != lyramilk::data::inotify_file::s_keep){
 				log(lyramilk::log::warning,"task") << D("重新加载%s",ei.filename.c_str()) << std::endl;
+				eng->set("clearonreset",lyramilk::data::var::map());
 				eng->reset();
 				eng->load_file(ei.filename);
 			}

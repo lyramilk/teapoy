@@ -59,7 +59,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		}
 
 		lyramilk::data::string str;
-		for(lyramilk::data::var::array::const_iterator it = args.begin();it!=args.end();++it){
+		for(lyramilk::data::var::array::const_iterator it = args.begin() + 1;it!=args.end();++it){
 			str += it->str();
 		}
 		lyramilk::klog(t,mod) << str << std::endl;
@@ -154,7 +154,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 
 		lyramilk::data::var read(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
-			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_uint32);
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_uint);
 			lyramilk::data::chunk cb((lyramilk::data::uint32)args[0],0);
 			ifs.read((char*)cb.c_str(),cb.size());
 			if(ifs.gcount() < (unsigned int)cb.size()){
@@ -166,7 +166,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		lyramilk::data::var readstr(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			if(args.size() > 0){
-				MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_uint32);
+				MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_uint);
 				lyramilk::data::string cb((lyramilk::data::uint32)args[0],0);
 				ifs.read((char*)cb.c_str(),cb.size());
 				if(ifs.gcount() < (unsigned int)cb.size()){
@@ -186,7 +186,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 
 		lyramilk::data::var write(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
-			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_uint32);
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_uint);
 			lyramilk::data::chunk cb((lyramilk::data::uint32)args[0],0);
 			ifs.read((char*)cb.c_str(),cb.size());
 			if(ifs.gcount() < (unsigned int)cb.size()){

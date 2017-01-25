@@ -327,7 +327,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 				for(lyramilk::data::var::array::const_iterator it = ar.begin();it!=ar.end();++it){
 					if(it->type() == lyramilk::data::var::t_str){
 						real.append(it->str());
-					}else if(it->type_like(lyramilk::data::var::t_int32)){
+					}else if(it->type_like(lyramilk::data::var::t_int)){
 						int qi = *it;
 						int bof = ov[(qi<<1)];
 						int eof = ov[(qi<<1)|1];

@@ -1,6 +1,6 @@
 ﻿#定义工程名及版本
 project(teapoy)
-set(version 1.0.5)
+set(version 1.0.6)
 set(soversion 1.0)
 
 
@@ -26,7 +26,7 @@ include(UsePkgConfig)
 enable_testing()
 
 #定制编译选项
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -Wall")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -Wall --std=c++0x ")
 set(CMAKE_LD_FLAGS "${CMAKE_LD_FLAGS} -g -Wall")
 
 if(release)

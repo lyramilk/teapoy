@@ -152,7 +152,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 
 		lyramilk::data::var sendError(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
-			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_uint32);
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_uint);
 			response_code = args[0];
 			return true;
 		}
@@ -357,6 +357,22 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			return si->req->ssl_peer_certificate_info;
 		}
 
+		lyramilk::data::var getRemoteAddr(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		{
+			lyramilk::data::var::map m;
+			m["host"] = si->req->dest;
+			m["port"] = si->req->dest_port;
+			return m;
+		}
+
+		lyramilk::data::var getLocalAddr(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		{
+			lyramilk::data::var::map m;
+			m["host"] = si->req->source;
+			m["port"] = si->req->source_port;
+			return m;
+		}
+
 		lyramilk::data::var wget(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
@@ -393,6 +409,8 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			fn["getRealPath"] = lyramilk::script::engine::functional<httprequest,&httprequest::getRealPath>;
 			fn["getSession"] = lyramilk::script::engine::functional<httprequest,&httprequest::getSession>;
 			fn["getPeerCertificateInfo"] = lyramilk::script::engine::functional<httprequest,&httprequest::getPeerCertificateInfo>;
+			fn["getRemoteAddr"] = lyramilk::script::engine::functional<httprequest,&httprequest::getRemoteAddr>;
+			fn["getLocalAddr"] = lyramilk::script::engine::functional<httprequest,&httprequest::getLocalAddr>;
 			fn["wget"] = lyramilk::script::engine::functional<httprequest,&httprequest::wget>;
 			p->define("HttpRequest",fn,httprequest::ctr,httprequest::dtr);
 			return 1;

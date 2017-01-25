@@ -173,7 +173,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 
 		lyramilk::data::var key(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
-			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_uint32);
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_uint);
 			lyramilk::data::uint32 u = args[0];
 			std::map<unsigned int,lyramilk::data::var>::iterator it = keys2.find(u);
 			if(it!=keys2.end()){
@@ -202,7 +202,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 				}
 			}
 
-			if(v.type_like(lyramilk::data::var::t_int32)){
+			if(v.type_like(lyramilk::data::var::t_int)){
 				unsigned int index = v;
 				if(index < values.size()){
 					return values[index];
@@ -248,7 +248,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 
 		lyramilk::data::var seek(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
-			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_int64);
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_int);
 			mysql_data_seek(res,args[0]);
 			values.clear();
 			MYSQL_ROW row = mysql_fetch_row(res);
@@ -387,7 +387,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 					host = args[0].str();
 				}
 				if(args.size() > 1){
-					MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_uint32);
+					MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_uint);
 					port = args[1];
 				}
 				if(args.size() > 2){

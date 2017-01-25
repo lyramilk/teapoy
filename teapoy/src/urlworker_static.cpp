@@ -9,6 +9,11 @@
 #include <libmilk/testing.h>
 #include <pcre.h>
 
+/*
+#include<sys/sendfile.h>
+*/
+#include <sys/sendfile.h>
+
 namespace lyramilk{ namespace teapoy { namespace web {
 	class url_worker_static : public url_worker
 	{

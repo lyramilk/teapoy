@@ -8,6 +8,14 @@
 
 namespace lyramilk{ namespace teapoy{ namespace redis{
 	////////////////
+	void redis_client::reconnect()
+	{
+		close();
+		if(open(host,port)){
+			auth(pwd);
+		}
+	}
+
 	redis_client::redis_client()
 	{
 		listener = nullptr;
@@ -22,7 +30,23 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 	{
 		this->host = host;
 		this->port = port;
-		return client::open(host,port);
+		if(client::open(host,port)){
+			lyramilk::data::stringstream ss;
+			lyramilk::netio::netaddress naddr = dest();
+			ss << naddr.ip_str() << ":" << naddr.port;
+			addr = ss.str();
+			return true;
+		}
+		return false;
+	}
+
+	bool redis_client::close()
+	{
+		if(client::close()){
+			addr.clear();
+			return true;
+		}
+		return false;
 	}
 
 	void redis_client::set_listener(redis_client_listener lst)
@@ -32,12 +56,12 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 
 	bool redis_client::auth(lyramilk::data::string password)
 	{
+		pwd = password;
 		lyramilk::data::var::array ar;
 		ar.push_back("auth");
-		ar.push_back(password);
+		ar.push_back(pwd);
 		lyramilk::data::var v;
 		if(exec(ar,v)){
-			this->pwd = pwd;
 			if(v == "OK") type = t_redis;
 			if(v.type() == lyramilk::data::var::t_array && v == "1") type = t_ssdb;
 			return true;
@@ -219,7 +243,7 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 		return current;
 	}
 
-	inline bool parse(lyramilk::data::stringstream& is,lyramilk::data::var& v)
+	bool redis_client::parse(lyramilk::data::stringstream& is,lyramilk::data::var& v)
 	{
 		char c;
 		if(is.get(c)){
@@ -300,24 +324,21 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 
 					/* 断言这个数字恒为非负整数，如果不是需要修改代码。 */
 					v = str;
-					v.type(lyramilk::data::var::t_int64);
+					v.type(lyramilk::data::var::t_int);
 					return true;
 				}
 				break;
 			  default:
-				throw lyramilk::exception(D("redis错误：响应格式错误"));
+				throw lyramilk::exception(D("redis(%s)错误：响应格式错误",addr.c_str()));
 			}
 		}
-		throw lyramilk::exception(D("redis错误：网络错误"));
+		throw lyramilk::exception(D("redis(%s)错误：网络错误",addr.c_str()));
 	}
 
 	bool redis_client::exec(const lyramilk::data::var::array& cmd,lyramilk::data::var& ret)
 	{
-		if(!check_write(300)){
-			close();
-			if(!open(host,port)){
-				throw lyramilk::exception(D("redis错误：网络连接失败。"));
-			}
+		if(!isalive()){
+			reconnect();
 		}
 		lyramilk::data::var::array::const_iterator it = cmd.begin();
 		lyramilk::netio::socket_stream ss(*this);
@@ -328,13 +349,7 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 			ss << str << "\r\n";
 		}
 		ss.flush();
-		bool suc =  parse(ss,ret);
-		if(addr.empty()){
-			lyramilk::data::stringstream ss;
-			lyramilk::netio::netaddress naddr = dest();
-			ss << naddr.ip_str() << ":" << naddr.port;
-			addr = ss.str();
-		}
+		bool suc = parse(ss,ret);
 		if(listener)listener(addr,cmd,suc,ret);
 		return suc;
 	}
@@ -351,7 +366,7 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 		lyramilk::netio::socket_stream ss(*p);
 		while(true){
 			lyramilk::data::var v;
-			if(parse(ss,v)){
+			if(p->parse(ss,v)){
 				if(h && !h(true,v,args)) break;
 			}else{
 				if(h && !h(false,v,args)) break;

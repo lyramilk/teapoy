@@ -37,7 +37,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 
 		lyramilk::data::var open(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
-			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_uint16);
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_int);
 /*
 			proc_master.define("jsx",web::processer_jsx::ctr,web::processer_jsx::dtr);
 			log(lyramilk::log::debug,__FUNCTION__) << D("注册脚本引擎适配器：%s","jsx") << std::endl;

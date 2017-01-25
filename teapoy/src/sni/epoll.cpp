@@ -43,7 +43,7 @@ namespace lyramilk{ namespace teapoy{
 				lyramilk::io::aiopoll::active();
 				log(lyramilk::log::debug,__FUNCTION__) << D("启动了%d个线程",size()) << std::endl;
 			}else{
-				MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_int32);
+				MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_int);
 				int i = args[0];
 				lyramilk::io::aiopoll::active(i);
 				log(lyramilk::log::debug,__FUNCTION__) << D("启动了%d个线程",i) << std::endl;
