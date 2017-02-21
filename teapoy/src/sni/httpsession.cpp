@@ -276,7 +276,6 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			lyramilk::data::var::array ret;
 			int max = this->si->req->getmultipartcount();
 			for(int i=0;i<max;++i){
-
 				mime& m = this->si->req->selectpart(i);
 				lyramilk::data::string disposition = m.get("content-disposition");
 				lyramilk::teapoy::strings fields = lyramilk::teapoy::split(disposition,";");
@@ -293,6 +292,14 @@ namespace lyramilk{ namespace teapoy{ namespace native
 					}
 				}
 
+				lyramilk::data::var::map::iterator eit = fileiteminfo.find("filename");
+				if(eit != fileiteminfo.end()){
+					lyramilk::data::string str = eit->second;
+					if(str.empty()) continue;
+				}else{
+					continue;
+				}
+
 				lyramilk::data::string filepath;
 				lyramilk::data::string filename;
 				int r = 0;
@@ -303,6 +310,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 					filename = ss.str();
 					if(filename.size() < 18) continue;
 					filename = filename.substr(0,18) + fileiteminfo["filename"].str();
+					//filename = filename.substr(0,18) + lyramilk::data::codes::instance()->encode("url",fileiteminfo["filename"].str());
 					filepath = rawdir + filename;
 					r = stat(filepath.c_str(),&st);
 				}while(r == 0);

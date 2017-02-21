@@ -5,6 +5,7 @@
 #include "script.h"
 #include "web.h"
 #include "env.h"
+#include "mime.h"
 #include <sys/stat.h>
 #include <errno.h>
 #include <string.h>
@@ -116,6 +117,18 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			ss->worker = &worker;
 			return ss;
 		}
+		 		
+		static lyramilk::data::var DefineMimeType(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		{
+			lyramilk::log::logss log(lyramilk::klog,"teapoy.server.httpserver");
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_str);
+			lyramilk::data::string extname = args[0];
+			lyramilk::data::string mimetype = args[1];
+			mime::define_mimetype_fileextname(extname,mimetype);
+			return true;
+		}
+
 		
 		static int define(lyramilk::script::engine* p)
 		{
@@ -126,8 +139,12 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			fn["set_ssl_verify_locations"] = lyramilk::script::engine::functional<httpserver,&httpserver::set_ssl_verify_locations>;
 			fn["set_ssl_client_verify"] = lyramilk::script::engine::functional<httpserver,&httpserver::set_ssl_client_verify>;
 			p->define("httpserver",fn,httpserver::ctr,httpserver::dtr);
+			p->define("DefineMimeType",DefineMimeType);
 			return 1;
 		}
+
+
+
 
 		static __attribute__ ((constructor)) void __init()
 		{

@@ -37,6 +37,7 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 			addr = ss.str();
 			return true;
 		}
+		throw lyramilk::exception(D("redis(%s:%d)错误：网络错误",host.c_str(),port));
 		return false;
 	}
 
@@ -62,8 +63,6 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 		ar.push_back(pwd);
 		lyramilk::data::var v;
 		if(exec(ar,v)){
-			if(v == "OK") type = t_redis;
-			if(v.type() == lyramilk::data::var::t_array && v == "1") type = t_ssdb;
 			return true;
 		}
 		return false;
@@ -260,10 +259,13 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 					lyramilk::data::var len = slen;
 					int ilen = len;
 					v.type(lyramilk::data::var::t_array);
+
 					lyramilk::data::var::array& ar = v;
 					ar.resize(ilen);
-					for(int i=0;i<ilen;++i){
-						parse(is,ar[i]);
+
+					lyramilk::data::var* e = ar.data();
+					for(int i=0;i<ilen;++i,++e){
+						parse(is,*e);
 					}
 					return true;
 				}
@@ -436,4 +438,23 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 		}
 		return t_ssdb == type;
 	}
+
+	void redis_client::default_listener(const lyramilk::data::string& addr,const lyramilk::data::var::array& cmd,bool success,const lyramilk::data::var& ret)
+	{
+		lyramilk::data::stringstream ss;
+
+		lyramilk::data::string logcmd;
+		lyramilk::data::var::array::const_iterator it = cmd.begin();
+		for(;it!=cmd.end();++it){
+			logcmd += it->str() + ' ';
+		}
+
+		ss << addr << "执行" << logcmd << (success?"成功：":"失败，原因：") << "返回值" << ret;
+		if(success){
+			lyramilk::klog(lyramilk::log::debug,"teapoy.redis.log") << ss.str() << std::endl;
+		}else{
+			lyramilk::klog(lyramilk::log::error,"teapoy.redis.log") << ss.str() << std::endl;
+		}
+	}
+
 }}}

@@ -26,7 +26,7 @@
 
 namespace lyramilk{ namespace teapoy{ namespace native
 {
-	lyramilk::log::logss log(lyramilk::klog,"lyramilk.teapoy.native.repeater");
+	lyramilk::log::logss static log(lyramilk::klog,"lyramilk.teapoy.native.repeater");
 	struct repeater_args
 	{
 		lyramilk::data::string srcip;
@@ -55,7 +55,6 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		pfd.revents = 0;
 		pfds.push_back(pfd);
 
-COUT << "reapeater begin" << std::endl;
 		while(time(0) < tm_end){
 			int ret = ::poll(pfds.data(),pfds.size(),200);
 			if(ret > 0){
@@ -110,7 +109,6 @@ COUT << "reapeater begin" << std::endl;
 							}
 						}else{
 							int r = (i&1)?i+1:i-1;
-COUT << "i=" << i << ",r=" << r << std::endl;
 						
 							char buf[4096];
 							int bytes = ::recv(pfds[i].fd,buf,sizeof(buf),0);
@@ -127,7 +125,6 @@ COUT << "i=" << i << ",r=" << r << std::endl;
 			}
 		}
 
-COUT << "reapeater end" << std::endl;
 		return 0;
 	}
 

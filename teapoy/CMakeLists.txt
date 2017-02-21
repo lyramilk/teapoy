@@ -1,6 +1,6 @@
 ﻿#定义工程名及版本
 project(teapoy)
-set(version 1.0.6)
+set(version 1.0.7)
 set(soversion 1.0)
 
 
@@ -228,13 +228,13 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/pkg/teapoy.spec.in ${CMAKE_CURRENT_SO
 
 #目标动态库
 add_library(${PROJECT_NAME} SHARED ${src_cpps} ${src_hs})
-#定义安装目标
-install(TARGETS ${PROJECT_NAME} DESTINATION ${install_dir})
+set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME "${PROJECT_NAME}")
+set_target_properties(${PROJECT_NAME} PROPERTIES VERSION ${version} SOVERSION 1.1)
 
 #对libmilk的依赖
 #if(NOT ${LIBMILK_CFLAGS})
-	add_custom_target(milk COMMAND make -C /usr/local/src/libmilk/build)
-	add_dependencies(${PROJECT_NAME} milk)
+#	add_custom_target(milk COMMAND make -C /usr/local/src/libmilk/build)
+#	add_dependencies(${PROJECT_NAME} milk)
 #endif()
 
 
@@ -259,6 +259,11 @@ foreach(var ${src_app})
 	#endif()
 endforeach()
 
+#定义安装目标
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/pkg/${PROJECT_NAME}.pc DESTINATION ${install_dir})
+install(FILES ${src_hs} DESTINATION ${install_dir})
+install(TARGETS ${PROJECT_NAME} DESTINATION ${install_dir})
+install(TARGETS teapoyd DESTINATION ${install_dir})
 
 #单元测试，是否开启内存泄露测试
 if(MEMLEAKTEST)

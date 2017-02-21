@@ -186,6 +186,10 @@ class teapoy_log_logfile:public teapoy_log_base
 {
 	FILE* fp;
 	lyramilk::data::string pidstr;
+	lyramilk::data::string str_debug;
+	lyramilk::data::string str_trace;
+	lyramilk::data::string str_warning;
+	lyramilk::data::string str_error;
   public:
 	teapoy_log_logfile(lyramilk::data::string logfilepath)
 	{
@@ -195,7 +199,10 @@ class teapoy_log_logfile:public teapoy_log_base
 		lyramilk::data::stringstream ss;
 		ss << pid << " ";
 		pidstr = ss.str();
-
+		str_debug = "[" + D("debug") + "] ";
+		str_trace = "[" + D("trace") + "] ";
+		str_warning = "[" + D("warning") + "] ";
+		str_error = "[" + D("error") + "] ";
 	}
 	virtual ~teapoy_log_logfile()
 	{
@@ -215,7 +222,7 @@ class teapoy_log_logfile:public teapoy_log_base
 		  case lyramilk::log::debug:
 			if(!*enable_log_debug)return;
 			cache.append(pidstr);
-			cache.append("[debug] ");
+			cache.append(str_debug);
 			cache.append(strtime(ti));
 			cache.append(" [");
 			cache.append(module);
@@ -227,7 +234,7 @@ class teapoy_log_logfile:public teapoy_log_base
 		  case lyramilk::log::trace:
 			if(!*enable_log_trace)return;
 			cache.append(pidstr);
-			cache.append("[trace] ");
+			cache.append(str_trace);
 			cache.append(strtime(ti));
 			cache.append(" [");
 			cache.append(module);
@@ -239,7 +246,7 @@ class teapoy_log_logfile:public teapoy_log_base
 		  case lyramilk::log::warning:
 			if(!*enable_log_warning)return;
 			cache.append(pidstr);
-			cache.append("[warning] ");
+			cache.append(str_warning);
 			cache.append(strtime(ti));
 			cache.append(" [");
 			cache.append(module);
@@ -251,7 +258,7 @@ class teapoy_log_logfile:public teapoy_log_base
 		  case lyramilk::log::error:
 			if(!*enable_log_error)return;
 			cache.append(pidstr);
-			cache.append("[error] ");
+			cache.append(str_error);
 			cache.append(strtime(ti));
 			cache.append(" [");
 			cache.append(module);
@@ -403,8 +410,9 @@ class teapoy_loader
 
 void useage(lyramilk::data::string selfname)
 {
-	std::cout << gettext("useage:") << selfname << " [-s] <file> -[dtul?] ..." << std::endl;
+	std::cout << gettext("useage:") << selfname << "-[optional] <file>" << std::endl;
 	std::cout << "\t-s <file>\t" << gettext("start by script <file>") << std::endl;
+	std::cout << "\t-e <type>\t" << gettext("use engine type(eg. js,lua,...),default decide by extension name.") << std::endl;
 	std::cout << "\t-d       \t" << gettext("start as daemon") << std::endl;
 	std::cout << "\t-t <file>\t" << gettext("translate string by <file>") << std::endl;
 	std::cout << "\t-u <file>\t" << gettext("which string can't be translate record to <file>") << std::endl;
@@ -427,10 +435,11 @@ lyramilk::data::string get_engine_type(lyramilk::data::string filename)
 int main(int argc,char* argv[])
 {
 	bool isdaemon = false;
+	lyramilk::data::string launcher_script_type;
 	{
 		lyramilk::data::string selfname = argv[0];
 		int oc;
-		while((oc = getopt(argc, argv, "s:dt:u:l:?")) != -1){
+		while((oc = getopt(argc, argv, "s:dt:u:l:e:?")) != -1){
 			switch(oc)
 			{
 			  case 's':
@@ -441,6 +450,9 @@ int main(int argc,char* argv[])
 				break;
 			  case 't':
 				dictfile = optarg;
+				break;
+			  case 'e':
+				launcher_script_type = optarg;
 				break;
 			  case 'u':
 				dictfile_missing = optarg;
@@ -505,7 +517,9 @@ int main(int argc,char* argv[])
 	signal(SIGPIPE, SIG_IGN);
 
 	// 确定启动脚本的类型
-	lyramilk::data::string launcher_script_type = get_engine_type(launcher_script);
+	if(launcher_script_type.empty()){
+		launcher_script_type = get_engine_type(launcher_script);
+	}
 	if(launcher_script_type.empty()){
 		log(lyramilk::log::error) << D("无法确定启动脚本的类型。") << std::endl;
 		return -1;

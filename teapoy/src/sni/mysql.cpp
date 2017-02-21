@@ -4,114 +4,11 @@
 #include <libmilk/multilanguage.h>
 #include <libmilk/factory.h>
 #include <mysql/mysql.h>
+#define MAROC_MYSQL MYSQL
+#include "dbconnpool.h"
 
 namespace lyramilk{ namespace teapoy{ namespace native{
-
-
 	static lyramilk::log::logss log(lyramilk::klog,"teapoy.native.mysql");
-
-
-	struct mysql_client
-	{
-		MYSQL* _db_ptr;
-		mysql_client()
-		{
-			_db_ptr = nullptr;
-		}
-
-		~mysql_client()
-		{
-			mysql_close(_db_ptr);
-		}
-	};
-
-	class mysql_clients:public lyramilk::threading::exclusive::list<lyramilk::teapoy::native::mysql_client>
-	{
-		lyramilk::data::var cfg;
-	  public:
-		mysql_clients(const lyramilk::data::var& cfg)
-		{
-			this->cfg = cfg;
-		}
-
-		virtual ~mysql_clients()
-		{
-		}
-
-		virtual lyramilk::teapoy::native::mysql_client* underflow()
-		{
-			lyramilk::teapoy::native::mysql_client* p = new lyramilk::teapoy::native::mysql_client();
-			if(!p) return nullptr;
-
-			p->_db_ptr = mysql_init(nullptr);
-			my_bool my_true= true;
-			mysql_options(p->_db_ptr, MYSQL_OPT_RECONNECT, &my_true);
-
-			lyramilk::data::var::array& ar = cfg["opt"];
-			for(lyramilk::data::var::array::iterator it = ar.begin();it!=ar.end();++it){
-				lyramilk::data::string opt = it->str();
-				int ret = mysql_options(p->_db_ptr,MYSQL_INIT_COMMAND, opt.c_str());
-				if(ret != 0){
-					log(lyramilk::log::warning,__FUNCTION__) << D("设置Mysql配置(%s)失败：%s",opt.c_str(),mysql_error(p->_db_ptr)) << std::endl;
-					delete p;
-					return nullptr;
-				}
-			}
-
-			lyramilk::data::string cnf = cfg.path("/cnf/file");
-			
-			int ret = mysql_options(p->_db_ptr,MYSQL_READ_DEFAULT_FILE, cnf.c_str());
-			if(ret == 0){
-				log(__FUNCTION__) << D("设置Mysql配置文件[%s]成功",cnf.c_str()) << std::endl;
-			}else{
-				log(lyramilk::log::warning,__FUNCTION__) << D("设置Mysql配置文件[%s]失败：%s",cnf.c_str(),mysql_error(p->_db_ptr)) << std::endl;
-				delete p;
-				return nullptr;
-			}
-
-			lyramilk::data::var group = cfg.path("/cnf/group");
-			if(group.type_like(lyramilk::data::var::t_str)){
-				lyramilk::data::string strgroup = group.str();
-				ret = mysql_options(p->_db_ptr,MYSQL_READ_DEFAULT_GROUP, strgroup.c_str());
-				if(ret == 0){
-					log(__FUNCTION__) << D("设置Mysql配置组[%s]成功",strgroup.c_str()) << std::endl;
-				}else{
-					log(lyramilk::log::warning,__FUNCTION__) << D("设置Mysql配置组[%s]失败：%s",strgroup.c_str(),mysql_error(p->_db_ptr)) << std::endl;
-					return false;
-				}
-			}
-
-			if(nullptr == mysql_real_connect(p->_db_ptr,nullptr,nullptr,nullptr,nullptr,0,nullptr,0)){
-				return nullptr;
-			}
-			return p;
-		}
-	};
-
-	class mysql_clients_multiton:public lyramilk::util::multiton_factory<mysql_clients>
-	{
-		lyramilk::threading::mutex_spin lock;
-	  public:
-		static mysql_clients_multiton* instance()
-		{
-			static mysql_clients_multiton _mm;
-			return &_mm;
-		}
-
-		virtual mysql_clients::ptr getobj(lyramilk::data::string id,const lyramilk::data::var& cfg)
-		{
-			lyramilk::data::string token = id;
-			mysql_clients* c = get(token);
-			if(c == nullptr){
-				lyramilk::threading::mutex_sync _(lock);
-				define(token,new mysql_clients(cfg));
-				c = get(token);
-			}
-			if(c == nullptr) return nullptr;
-			return c->get();
-		}
-	};
-
 
 	class smysql_iterator
 	{
@@ -290,13 +187,21 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 		lyramilk::data::string user;
 		lyramilk::data::string passwd;
 
-		mysql_clients::ptr ptrdb;
+		mysql_clients::ptr pp;
 	  public:
 		static void* ctr(const lyramilk::data::var::array& args)
 		{
 			if(args.size() == 1){
 				const void* p = args[0].userdata("__mysql_client");
-				if(p) return new smysql((mysql_clients::ptr*)p);
+				if(p){
+					mysql_clients::ptr* pp = (mysql_clients::ptr*)p;
+					mysql_clients::ptr ppr = *pp;
+					if(ppr){
+						return new smysql(ppr);	
+					}
+				}
+				throw lyramilk::exception(D("mysql错误： 无法从池中获取到命名对象。"));
+				return nullptr;
 			}
 			return new smysql;
 		}
@@ -312,15 +217,15 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			mysql_options(_db_ptr, MYSQL_OPT_RECONNECT, &my_true);
 		}
 
-		smysql(mysql_clients::ptr* ptr):log(lyramilk::klog,"teapoy.native.mysql")
+		smysql(mysql_clients::ptr ptr):log(lyramilk::klog,"teapoy.native.mysql")
 		{
-			ptrdb = *ptr;
-			_db_ptr = ptrdb->_db_ptr;
+			pp = ptr;
+			_db_ptr = pp->_db_ptr;
 		}
 
 		virtual ~smysql()
 		{
-			if(!ptrdb){
+			if(!pp){
 				mysql_close( _db_ptr );
 				_db_ptr = nullptr;
 			}
@@ -524,32 +429,17 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 				fn["ok"] = lyramilk::script::engine::functional<smysql,&smysql::ok>;
 				fn["execute"] = lyramilk::script::engine::functional<smysql,&smysql::execute>;
 				fn["query"] = lyramilk::script::engine::functional<smysql,&smysql::query>;
-				p->define("mysql",fn,smysql::ctr,smysql::dtr);
+				p->define("Mysql",fn,smysql::ctr,smysql::dtr);
 			}
 			return 2;
 		}
 	};
-
-	lyramilk::data::var GetMysqlByConfig(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
-	{
-		MILK_CHECK_SCRIPT_ARGS(args,0,lyramilk::data::var::t_str);
-		const lyramilk::data::var& cfg = env::get_config("config");
-		const lyramilk::data::var& v = cfg.path(args[0]);
-
-		mysql_clients::ptr p = mysql_clients_multiton::instance()->getobj(v["id"],v);
-		lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_user_engineptr());
-		lyramilk::data::var::array ar;
-		lyramilk::data::var ariv("__mysql_client",&p);
-		ar.push_back(ariv);
-		return e->createobject("mysql",ar);
-	}
 
 	static int define(lyramilk::script::engine* p)
 	{
 		int i = 0;
 		i+= smysql::define(p);
 		i+= smysql_iterator::define(p);
-		p->define("GetMysqlByConfig",GetMysqlByConfig),++i;
 		return i;
 	}
 

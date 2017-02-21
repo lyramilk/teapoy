@@ -11,16 +11,17 @@ namespace lyramilk{ namespace teapoy{ namespace native
 
 	lyramilk::data::var test(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 	{
-		return true;
+		return "test";
 	}
 
 	lyramilk::data::var echo(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 	{
 		lyramilk::data::string str;
+		str.reserve(4096);
 		for(lyramilk::data::var::array::const_iterator it = args.begin();it!=args.end();++it){
 			str += it->str();
 		}
-		printf("%s\n",str.c_str());
+		std::cout << str << std::endl;
 		return true;
 	}
 
@@ -30,6 +31,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		lyramilk::data::string mod = "s=" + e->filename();
 
 		lyramilk::data::string str;
+		str.reserve(4096);
 		for(lyramilk::data::var::array::const_iterator it = args.begin();it!=args.end();++it){
 			str += it->str();
 		}

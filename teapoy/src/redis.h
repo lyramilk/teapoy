@@ -43,6 +43,8 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 		bool is_ssdb();
 
 		bool parse(lyramilk::data::stringstream& is,lyramilk::data::var& v);
+
+		void static default_listener(const lyramilk::data::string& addr,const lyramilk::data::var::array& cmd,bool success,const lyramilk::data::var& ret);
 	};
 
 }}}

@@ -16,6 +16,8 @@
 
 #include <sys/stat.h>
 
+#include <time.h>  
+
 namespace lyramilk{ namespace teapoy{ namespace native
 {
 	static lyramilk::log::logss log(lyramilk::klog,"teapoy.native");
@@ -123,6 +125,13 @@ namespace lyramilk{ namespace teapoy{ namespace native
 	{
 		::daemon(1,0);
 		return true;
+	}
+
+	lyramilk::data::var msleep(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+	{
+		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_int);
+		unsigned long long usecond = args[0];
+		return usleep(usecond * 1000);
 	}
 
 	lyramilk::data::var su(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
@@ -375,6 +384,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			p->define("require",teapoy_import);++i;
 			p->define("task",task);++i;
 			p->define("daemon",daemon);++i;
+			p->define("msleep",msleep);++i;
 			p->define("su",su);++i;
 			p->define("add_require_dir",add_require_dir);++i;
 			p->define("serialize",serialize);++i;

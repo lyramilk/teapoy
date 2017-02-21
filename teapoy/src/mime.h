@@ -64,6 +64,7 @@ namespace lyramilk{ namespace teapoy {
 		static lyramilk::data::string getmimetype_byname(lyramilk::data::string filename);
 		static lyramilk::data::string getmimetype_bydata(lyramilk::data::string filedata);
 		static lyramilk::data::string getmimetype_byfile(lyramilk::data::string filepathname);
+		static void define_mimetype_fileextname(lyramilk::data::string extname,lyramilk::data::string mimetype);
 	};
 
 }}
