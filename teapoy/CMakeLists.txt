@@ -1,6 +1,6 @@
 ﻿#定义工程名及版本
 project(teapoy)
-set(version 1.0.7)
+set(version 1.0.8)
 set(soversion 1.0)
 
 
@@ -26,7 +26,7 @@ include(UsePkgConfig)
 enable_testing()
 
 #定制编译选项
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -Wall --std=c++0x ")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -Wall")
 set(CMAKE_LD_FLAGS "${CMAKE_LD_FLAGS} -g -Wall")
 
 if(release)
@@ -229,13 +229,13 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/pkg/teapoy.spec.in ${CMAKE_CURRENT_SO
 #目标动态库
 add_library(${PROJECT_NAME} SHARED ${src_cpps} ${src_hs})
 set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME "${PROJECT_NAME}")
-set_target_properties(${PROJECT_NAME} PROPERTIES VERSION ${version} SOVERSION 1.1)
+set_target_properties(${PROJECT_NAME} PROPERTIES VERSION ${version} SOVERSION ${soversion})
 
 #对libmilk的依赖
-#if(NOT ${LIBMILK_CFLAGS})
-#	add_custom_target(milk COMMAND make -C /usr/local/src/libmilk/build)
-#	add_dependencies(${PROJECT_NAME} milk)
-#endif()
+if(NOT ${LIBMILK_CFLAGS})
+	add_custom_target(milk COMMAND make -C /usr/local/src/libmilk/build)
+	add_dependencies(${PROJECT_NAME} milk)
+endif()
 
 
 #链接库

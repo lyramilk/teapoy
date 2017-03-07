@@ -15,9 +15,9 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 		lyramilk::log::logss log;
 		MYSQL_RES* res;
 		MYSQL* _db_ptr;
-		lyramilk::data::var::array values;
-		lyramilk::data::var::map keys;
-		std::map<unsigned int,lyramilk::data::var> keys2;
+		lyramilk::data::strings values;
+		lyramilk::data::strings keys2;
+		std::map<lyramilk::data::string,unsigned int> keys;
 	  public:
 		static void* ctr(const lyramilk::data::var::array& args)
 		{
@@ -41,7 +41,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 					fname = field->name;
 				}
 				keys[fname] = i;
-				keys2[i] = fname;
+				keys2.push_back(fname);
 			}
 			this->_db_ptr = _db_ptr;
 		}
@@ -72,11 +72,8 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_uint);
 			lyramilk::data::uint32 u = args[0];
-			std::map<unsigned int,lyramilk::data::var>::iterator it = keys2.find(u);
-			if(it!=keys2.end()){
-				return it->second;
-			}
-			return lyramilk::data::var::nil;
+			if(u >= keys2.size()) throw lyramilk::exception(D("索引数值过大：%u(表宽为%u)",u,keys2.size()));
+			return keys2[u];
 		}
 
 		lyramilk::data::var value(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
@@ -106,7 +103,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 				}
 				return lyramilk::data::var::nil;
 			}else{
-				lyramilk::data::var::map::iterator it = keys.find(v.str());
+				std::map<lyramilk::data::string,unsigned int>::iterator it = keys.find(v.str());
 				if(it == keys.end()) return lyramilk::data::var::nil;
 				unsigned int index = it->second;
 				if(index < values.size()){
@@ -162,6 +159,19 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return true;
 		}
 
+		lyramilk::data::var to_object(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		{
+			lyramilk::data::var::map m;
+			if(values.empty()) return m;
+			if(values.size() != keys2.size()){
+				throw lyramilk::exception(D("数据库错误：表宽度(%u)与数据行宽度(%u)不一致",keys2.size(),values.size()));
+			}
+			for(unsigned int i = 0;i<values.size();i++){
+				m[keys2[i]] = values[i];
+			}
+			return m;
+		}
+
 		static int define(lyramilk::script::engine* p)
 		{
 			lyramilk::script::engine::functional_map fn;
@@ -172,6 +182,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			fn["size"] = lyramilk::script::engine::functional<smysql_iterator,&smysql_iterator::size>;
 			fn["columncount"] = lyramilk::script::engine::functional<smysql_iterator,&smysql_iterator::columncount>;
 			fn["seek"] = lyramilk::script::engine::functional<smysql_iterator,&smysql_iterator::seek>;
+			fn["to_object"] = lyramilk::script::engine::functional<smysql_iterator,&smysql_iterator::to_object>;
 			p->define("mysql.iterator",fn,smysql_iterator::ctr,smysql_iterator::dtr);
 			return 1;
 		}

@@ -27,6 +27,7 @@
 class teapoy_log_base;
 
 bool ondaemon = false;
+bool g_no_exit;
 teapoy_log_base* logger = nullptr;
 lyramilk::script::engine* eng_main = nullptr;
 lyramilk::data::string logfile;
@@ -406,6 +407,14 @@ class teapoy_loader
 		}
 		return true;
 	}
+
+	lyramilk::data::var noexit(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+	{
+		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_bool);
+		g_no_exit = args[0];
+		return g_no_exit;
+	}
+
 };
 
 void useage(lyramilk::data::string selfname)
@@ -538,11 +547,18 @@ int main(int argc,char* argv[])
 		fn["loadso"] = lyramilk::script::engine::functional<teapoy_loader,&teapoy_loader::loadso>;
 		fn["enable_log"] = lyramilk::script::engine::functional<teapoy_loader,&teapoy_loader::enable_log>;
 		fn["set_log_file"] = lyramilk::script::engine::functional<teapoy_loader,&teapoy_loader::set_log_file>;
+		fn["noexit"] = lyramilk::script::engine::functional<teapoy_loader,&teapoy_loader::noexit>;
 		eng_main->define("teapoy",fn,teapoy_loader::ctr,teapoy_loader::dtr);
 	}
 
 	lyramilk::teapoy::script2native::instance()->fill(eng_main);
 	eng_main->load_file(launcher_script);
-	log(lyramilk::log::trace) << "执行完毕。" << std::endl;
+	if(g_no_exit){
+		log(lyramilk::log::trace) << D("设置了noexit标志，程序将不会随主脚本返回而退出。") << std::endl;
+		while(g_no_exit){
+			sleep(3600);
+		}
+	}
+	log(lyramilk::log::trace) << D("执行完毕。") << std::endl;
 	return 0;
 }

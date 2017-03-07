@@ -1,12 +1,16 @@
 #include <libmilk/var.h>
 #include <libmilk/log.h>
 #include <libmilk/multilanguage.h>
-#include <stdlib.h>
 #include <libmilk/codes.h>
+#include <libmilk/md5.h>
+
+#include <stdlib.h>
+
 #include "script.h"
 #include "stringutil.h"
 #include "http.h"
 #include "web.h"
+
 #include <sys/stat.h>
 #include <errno.h>
 #include <fstream>
@@ -300,6 +304,17 @@ namespace lyramilk{ namespace teapoy{ namespace native
 					continue;
 				}
 
+
+				lyramilk::data::string rawname = fileiteminfo["filename"].str();
+				lyramilk::data::string extname;
+				{
+					std::size_t pos = rawname.rfind(".");
+					if(pos != rawname.npos){
+						if(rawname.find('/',pos) == rawname.npos){
+							extname = rawname.substr(pos);
+						}
+					}
+				}
 				lyramilk::data::string filepath;
 				lyramilk::data::string filename;
 				int r = 0;
@@ -309,8 +324,11 @@ namespace lyramilk{ namespace teapoy{ namespace native
 					ss << rand() << rand() << rand();
 					filename = ss.str();
 					if(filename.size() < 18) continue;
-					filename = filename.substr(0,18) + fileiteminfo["filename"].str();
-					//filename = filename.substr(0,18) + lyramilk::data::codes::instance()->encode("url",fileiteminfo["filename"].str());
+					lyramilk::cryptology::md5 c1;
+					c1 << filename;
+
+					filename = c1.get_key().str16() + filename + extname;
+
 					filepath = rawdir + filename;
 					r = stat(filepath.c_str(),&st);
 				}while(r == 0);
@@ -368,16 +386,16 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		lyramilk::data::var getRemoteAddr(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			lyramilk::data::var::map m;
-			m["host"] = si->req->dest;
-			m["port"] = si->req->dest_port;
+			m["host"] = si->req->dest();
+			m["port"] = si->req->dest_port();
 			return m;
 		}
 
 		lyramilk::data::var getLocalAddr(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			lyramilk::data::var::map m;
-			m["host"] = si->req->source;
-			m["port"] = si->req->source_port;
+			m["host"] = si->req->source();
+			m["port"] = si->req->source_port();
 			return m;
 		}
 

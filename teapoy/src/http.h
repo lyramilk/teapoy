@@ -2,6 +2,7 @@
 #define _lyramilk_teapoy_http_h_
 
 #include <libmilk/var.h>
+#include <libmilk/netaio.h>
 #include "mime.h"
 
 namespace lyramilk{ namespace teapoy {namespace http{
@@ -19,6 +20,11 @@ namespace lyramilk{ namespace teapoy {namespace http{
 
 		char parse_status;
 	  public:
+		lyramilk::data::string _source;
+		lyramilk::data::string _dest;
+		lyramilk::data::uint16 _source_port;
+		lyramilk::data::uint16 _dest_port;
+
 		lyramilk::data::string method;
 		lyramilk::data::string url;
 		lyramilk::data::string url_pure;
@@ -32,10 +38,12 @@ namespace lyramilk{ namespace teapoy {namespace http{
 			int minor;
 		}ver;
 
-		lyramilk::data::string source;
-		lyramilk::data::string dest;
-		lyramilk::data::uint16 source_port;
-		lyramilk::data::uint16 dest_port;
+		lyramilk::data::string source();
+		lyramilk::data::string dest();
+		lyramilk::data::uint16 source_port();
+		lyramilk::data::uint16 dest_port();
+
+		lyramilk::io::native_filedescriptor_type fd;
 
 		request();
 		virtual ~request();

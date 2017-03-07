@@ -1,3 +1,5 @@
+//#define _FILE_OFFSET_BITS 64
+//#define _LARGE_FILE
 #include "web.h"
 #include "stringutil.h"
 #include "env.h"
@@ -8,11 +10,15 @@
 #include <libmilk/multilanguage.h>
 #include <libmilk/testing.h>
 #include <pcre.h>
+//#define NOSENDIFLE
 
-/*
-#include<sys/sendfile.h>
-*/
-#include <sys/sendfile.h>
+#include <unistd.h>
+
+#ifndef NOSENDIFLE
+	#include <sys/sendfile.h>
+	#include <fcntl.h>
+	#include <string.h>
+#endif
 
 namespace lyramilk{ namespace teapoy { namespace web {
 	class url_worker_static : public url_worker
@@ -93,17 +99,11 @@ namespace lyramilk{ namespace teapoy { namespace web {
 				}
 			}
 
-			std::ifstream ifs;
-			ifs.open(rawfile.c_str(),std::ifstream::binary|std::ifstream::in);
-			if(!ifs.is_open()){
-				lyramilk::teapoy::http::make_response_header(os,"404 Not Found",true,req->ver.major,req->ver.minor);
-				return false;
-			}
-
-			ifs.seekg(0,std::ifstream::end);
-			lyramilk::data::uint64 filesize = ifs.tellg();
+			lyramilk::data::uint64 filesize = st.st_size;
 			lyramilk::data::uint64 datacount = filesize;
+
 			if(is_range){
+				//b
 				if(!has_range_start && !has_range_end){
 					lyramilk::teapoy::http::make_response_header(os,"500 Internal Server Error",true,req->ver.major,req->ver.minor);
 					return false;
@@ -117,12 +117,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 					//从range_start到最后
 					range_end = filesize;
 				}
-				ifs.seekg(range_start,std::ifstream::beg);
-			}else{
-				ifs.seekg(0,std::ifstream::beg);
-			}
-
-			if(is_range){
+				//e
 				datacount = range_end-range_start;
 			}
 
@@ -211,6 +206,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 
 				ss <<		"Expires: "<< buff_time2 << "\r\n";
 				ss <<		"Cache-Control: max-age=60\r\n";
+				ss <<		"Age: 60\r\n";
 			}
 			if(!lastmodified.empty()){
 				ss <<		"Last-Modified: " << lastmodified << "\r\n";
@@ -227,9 +223,19 @@ namespace lyramilk{ namespace teapoy { namespace web {
 			ss <<		"\r\n";
 
 			os << ss.str();
-			char buff[4096];
+#ifdef NOSENDIFLE
+			std::ifstream ifs;
+			ifs.open(rawfile.c_str(),std::ifstream::binary|std::ifstream::in);
+			if(!ifs.is_open()){
+				lyramilk::teapoy::http::make_response_header(os,"404 Not Found",true,req->ver.major,req->ver.minor);
+				return false;
+			}
+			if(is_range){
+				ifs.seekg(range_start,std::ifstream::beg);
+			}
+			char buff[65536];
 			for(;ifs && datacount > 0;){
-				ifs.read(buff,4096);
+				ifs.read(buff,sizeof(buff));
 				lyramilk::data::int64 gcount = ifs.gcount();
 				if(gcount > 0){
 					datacount -= gcount;
@@ -240,6 +246,32 @@ namespace lyramilk{ namespace teapoy { namespace web {
 				}
 			}
 			ifs.close();
+#else
+			int filefd = open(rawfile.c_str(),O_RDONLY);
+			if(filefd < 1){
+				lyramilk::teapoy::http::make_response_header(os,"404 Not Found",true,req->ver.major,req->ver.minor);
+				return false;
+			}
+			off_t ptroff = range_start;
+			while(datacount>0){
+				size_t bc = 1*1024*1024*1024;
+				if(bc > datacount){
+					bc = datacount;
+				}
+				ssize_t sz = sendfile(req->fd,filefd,&ptroff,bc);
+				if(sz == -1 && errno == EAGAIN){
+					usleep(3000);
+					continue;
+				}
+				if(sz > 0 && (lyramilk::data::uint64)sz <= datacount){
+					datacount -= sz;
+				}else{
+					::close(filefd);
+					return false;
+				}
+			}
+			::close(filefd);
+#endif
 			return true;
 		}
 
@@ -293,6 +325,8 @@ namespace lyramilk{ namespace teapoy { namespace web {
 					}
 				}
 			}
+			lyramilk::data::uint64 filesize = st.st_size;
+			lyramilk::data::uint64 datacount = filesize;
 
 			lyramilk::data::var v = req->get("Range");
 			lyramilk::data::int64 range_start = 0;
@@ -318,17 +352,8 @@ namespace lyramilk{ namespace teapoy { namespace web {
 				}
 			}
 
-			std::ifstream ifs;
-			ifs.open(rawfile.c_str(),std::ifstream::binary|std::ifstream::in);
-			if(!ifs.is_open()){
-				lyramilk::teapoy::http::make_response_header(os,"404 Not Found",true,req->ver.major,req->ver.minor);
-				return false;
-			}
-
-			ifs.seekg(0,std::ifstream::end);
-			lyramilk::data::uint64 filesize = ifs.tellg();
-			lyramilk::data::uint64 datacount = filesize;
 			if(is_range){
+				//b
 				if(!has_range_start && !has_range_end){
 					lyramilk::teapoy::http::make_response_header(os,"500 Internal Server Error",true,req->ver.major,req->ver.minor);
 					return false;
@@ -342,12 +367,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 					//从range_start到最后
 					range_end = filesize;
 				}
-				ifs.seekg(range_start,std::ifstream::beg);
-			}else{
-				ifs.seekg(0,std::ifstream::beg);
-			}
-
-			if(is_range){
+				//e
 				datacount = range_end-range_start;
 			}
 
@@ -429,13 +449,14 @@ namespace lyramilk{ namespace teapoy { namespace web {
 				ss <<		"Date: " << buff_time << "\r\n";
 
 				//建议客户端缓存60秒。
-				t_now += 60;
+				t_now += 60000;
 				struct tm* gmt_expires = gmtime(&t_now);
 				char buff_time2[100] = {0};
 				strftime(buff_time2,sizeof(buff_time2),"%a, %0e %h %Y %T GMT",gmt_expires);
 
 				ss <<		"Expires: "<< buff_time2 << "\r\n";
-				ss <<		"Cache-Control: max-age=60\r\n";
+				ss <<		"Cache-Control: max-age=60000\r\n";
+				ss <<		"Age: 60000\r\n";
 			}
 			if(!lastmodified.empty()){
 				ss <<		"Last-Modified: " << lastmodified << "\r\n";
@@ -452,9 +473,19 @@ namespace lyramilk{ namespace teapoy { namespace web {
 			ss <<		"\r\n";
 
 			os << ss.str();
-			char buff[4096];
+#ifdef NOSENDIFLE
+			std::ifstream ifs;
+			ifs.open(rawfile.c_str(),std::ifstream::binary|std::ifstream::in);
+			if(!ifs.is_open()){
+				lyramilk::teapoy::http::make_response_header(os,"404 Not Found",true,req->ver.major,req->ver.minor);
+				return false;
+			}
+			if(is_range){
+				ifs.seekg(range_start,std::ifstream::beg);
+			}
+			char buff[65536];
 			for(;ifs && datacount > 0;){
-				ifs.read(buff,4096);
+				ifs.read(buff,sizeof(buff));
 				lyramilk::data::int64 gcount = ifs.gcount();
 				if(gcount > 0){
 					datacount -= gcount;
@@ -465,6 +496,32 @@ namespace lyramilk{ namespace teapoy { namespace web {
 				}
 			}
 			ifs.close();
+#else
+			int filefd = open(rawfile.c_str(),O_RDONLY);
+			if(filefd < 1){
+				lyramilk::teapoy::http::make_response_header(os,"404 Not Found",true,req->ver.major,req->ver.minor);
+				return false;
+			}
+			off_t ptroff = range_start;
+			while(datacount>0){
+				size_t bc = 1*1024*1024*1024;
+				if(bc > datacount){
+					bc = datacount;
+				}
+				ssize_t sz = sendfile(req->fd,filefd,&ptroff,bc);
+				if(sz == -1 && errno == EAGAIN){
+					usleep(3000);
+					continue;
+				}
+				if(sz > 0 && (lyramilk::data::uint64)sz <= datacount){
+					datacount -= sz;
+				}else{
+					::close(filefd);
+					return false;
+				}
+			}
+			::close(filefd);
+#endif
 			return true;
 		}
 

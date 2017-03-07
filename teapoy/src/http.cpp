@@ -6,6 +6,13 @@
 #include <libmilk/multilanguage.h>
 #include <libmilk/codes.h>
 #include <stdlib.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+
+#include <iostream>
+#include <streambuf>
+
+
 
 #define PARSE_STATUS_URL_PARAM	0x1
 #define PARSE_STATUS_BODY_PARAM	0x2
@@ -13,8 +20,55 @@
 
 namespace lyramilk{ namespace teapoy {namespace http{
 
+	lyramilk::data::string request::source()
+	{
+		if(!_source.empty()) return _source;
+		sockaddr_in addr;
+		socklen_t size = sizeof addr;
+		if(getsockname(fd,(sockaddr*)&addr,&size) !=0 ) return _source;
+		_source_port = ntohs(addr.sin_port);
+		_source = inet_ntoa(addr.sin_addr);
+		return _source;
+	}
+
+	lyramilk::data::string request::dest()
+	{
+		if(!_dest.empty()) return _dest;
+		sockaddr_in addr;
+		socklen_t size = sizeof addr;
+		if(getpeername(fd,(sockaddr*)&addr,&size) !=0 ) return _dest;
+		_dest_port = ntohs(addr.sin_port);
+		_dest = inet_ntoa(addr.sin_addr);
+		return _dest;
+	}
+
+	lyramilk::data::uint16 request::source_port()
+	{
+		if(_source_port) return _source_port;
+		sockaddr_in addr;
+		socklen_t size = sizeof addr;
+		if(getsockname(fd,(sockaddr*)&addr,&size) !=0 ) return _source_port;
+		_source_port = ntohs(addr.sin_port);
+		_source = inet_ntoa(addr.sin_addr);
+		return _source_port;
+	}
+
+	lyramilk::data::uint16 request::dest_port()
+	{
+		if(_dest_port) return _dest_port;
+		sockaddr_in addr;
+		socklen_t size = sizeof addr;
+		if(getpeername(fd,(sockaddr*)&addr,&size) !=0 ) return _dest_port;
+		_dest_port = ntohs(addr.sin_port);
+		_dest = inet_ntoa(addr.sin_addr);
+		return _dest_port;
+	}
+
 	request::request()
 	{
+		fd = 0;
+		_source_port = 0;
+		_dest_port = 0;
 		reset();
 	}
 

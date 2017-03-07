@@ -28,7 +28,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 		~url_worker_lua_loger()
 		{
 			long long des = td.diff();
-			loger(lyramilk::log::trace) << D("%s:%u-->%s 耗时：%lld(纳秒)",req->dest.c_str(),req->dest_port,req->url.c_str(),des) << std::endl;
+			loger(lyramilk::log::trace) << D("%s:%u-->%s 耗时：%lld(纳秒)",req->dest().c_str(),req->dest_port(),req->url.c_str(),des) << std::endl;
 		}
 	};
 

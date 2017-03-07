@@ -1,24 +1,25 @@
-var basedir = "/root/teapoy";
-var webdir = "/mnt/xvdb/webroot/www.lyramilk.com";
+var basedir = "/mnt/xvdb/webroot/www.lyramilk.com";
+var webdir = "/mnt/xvdb/webroot/www.lyramilk.com/html";
 
 var url_mapping = [
 	{
 		type:"jsx",
-		pattern: "^(.*)[\\.]jssp([\\?].*)?$",
-		module: webdir + "/html/${0}",
-		/*auth:{
-			type:"js",
-			module:webdir + "/auth.js",
-		}*/
+		method:"GET,POST",
+		pattern: "^.*$",
+		module: webdir + "${0}",
 	},
 	{
-		type:"jsx",
-		pattern: "^.*[\\.]jsx([\\?].*)?$",
-		module: webdir + "/html/${0}",
-		/*auth:{
-			type:"js",
-			module:webdir + "/auth.js",
-		}*/
+		type:"static",
+		method:"GET,POST",
+		pattern: "^.*$",
+		module: webdir + "${0}",
+		index:[
+			"index.html",
+			"index.htm",
+			"index.jsx",
+			"default.html",
+			"default.htm",
+		],
 	},
 ];
 
@@ -39,22 +40,36 @@ var conf = {
 	}
 }
 
+conf.self.logtype = {
+	trace:true,
+	warning:true,
+	debug:true,
+	error:true,
+}
+
+var master = new teapoy();
+
 set_config(conf);
 var self = conf.self;
+//	日志
+if(self.logfile){
+	master.set_log_file(self.logfile);
+}
+if(self.logtype){
+	var l = self.logtype;
+	for(var k in l){
+		master.enable_log(k,l[k]);
+	}
+}
+
+
+
+
 
 //	HTTP网站
 var srv = new httpserver();
 srv.open(self.port);
 srv.bind_url(url_mapping);
-srv.set_root(webdir + "/html");
-
-srv.set_defaultpage([
-	"index.jsx",
-	"index.html",
-	"index.htm",
-	"index.js",
-	"index.jssp",
-]);
 
 //	HTTPS网站
 var srv_https = new httpserver();
@@ -68,19 +83,10 @@ srv_https.set_ssl_verify_locations([
 						"/root/ssl-keygen/other/client/ca.crt",
 					]);
 srv_https.set_ssl_client_verify(false);
-srv_https.set_root(webdir + "/html");
-
-srv_https.set_defaultpage([
-	"index.jsx",
-	"index.html",
-	"index.htm",
-	"index.js",
-	"index.jssp",
-]);
 
 //	异步IO模型
 var epfd = new epoll();
-//epfd.add(srv);
+epfd.add(srv);
 epfd.add(srv_https);
 epfd.active(self.threadscount);
 
@@ -88,7 +94,7 @@ epfd.active(self.threadscount);
 //su("duck");
 
 //	设置包含目录
-env("js.require",webdir + "/require");
+env("js.require",basedir + "/require");
 
 //	任务
 for(var i in self.task){
@@ -97,7 +103,10 @@ for(var i in self.task){
 	trace("启动[" + type + "]任务" + filename);
 	task(type,filename);
 }
-epfd.wait();
+
+
+
+master.noexit(true);
 
 /*
 var master = new teapoy();

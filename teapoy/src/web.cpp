@@ -159,12 +159,12 @@ namespace lyramilk{ namespace teapoy { namespace web {
 
 	lyramilk::data::var& session_info::get(const lyramilk::data::string& key)
 	{
-		return lyramilk::teapoy::web::sessions::instance()->get(req->dest + getsid(),key);
+		return lyramilk::teapoy::web::sessions::instance()->get(req->dest() + getsid(),key);
 	}
 
 	void session_info::set(const lyramilk::data::string& key,const lyramilk::data::var& value)
 	{
-		lyramilk::teapoy::web::sessions::instance()->set(req->dest + getsid(),key,value);
+		lyramilk::teapoy::web::sessions::instance()->set(req->dest() + getsid(),key,value);
 	}
 	/**************** url_worker ********************/
 	url_worker::url_worker()
@@ -424,29 +424,31 @@ namespace lyramilk{ namespace teapoy { namespace web {
 
 	bool aiohttpsession::oninit(std::ostream& os)
 	{
+
 		lyramilk::netio::netaddress addr_dest = dest();
 		lyramilk::netio::netaddress addr_source = source();
 
-		req.source = addr_source.ip_str();
-		req.source_port = addr_dest.port;
+		req._source = addr_source.ip_str();
+		req._source_port = addr_dest.port;
 
-		req.dest = addr_dest.ip_str();
-		req.dest_port = addr_dest.port;
+		req._dest = addr_dest.ip_str();
+		req._dest_port = addr_dest.port;
+		req.fd = getfd();
 		return true;
 	}
 
 	bool aiohttpsession::onrequest(const char* cache,int size,std::ostream& os)
 	{
-//std::cout.write(cache,size) << std::endl;
+/*
+		lyramilk::data::string k = D(" ");
+		lyramilk::debug::nsecdiff td;
+		lyramilk::debug::clocktester _d(td,lyramilk::klog(lyramilk::log::debug),k);
+//std::cout.write(cache,size) << std::endl;*/
 		int remain = 0;
 		if(!req.parse(cache,size,&remain)){
 			return true;
 		}
-		/*
-		lyramilk::data::string k = D("%s ",req.url.c_str());
-		lyramilk::debug::nsecdiff td;
-		lyramilk::debug::clocktester _d(td,lyramilk::klog(lyramilk::log::debug),k);
-*/
+
 		if(req.bad()){
 			lyramilk::teapoy::http::make_response_header(os,"400 Bad Request",true);
 			return false;
