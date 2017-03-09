@@ -194,7 +194,7 @@ class teapoy_log_logfile:public teapoy_log_base
   public:
 	teapoy_log_logfile(lyramilk::data::string logfilepath)
 	{
-		fp = fopen(logfilepath.c_str(),"ab");
+		fp = fopen(logfilepath.c_str(),"a");
 		assert(fp);
 		pid_t pid = getpid();
 		lyramilk::data::stringstream ss;

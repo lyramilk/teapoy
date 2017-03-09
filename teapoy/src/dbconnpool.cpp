@@ -2,6 +2,7 @@
 #include <libmilk/multilanguage.h>
 #include <libmilk/factory.h>
 #include <libmilk/exception.h>
+#include <stdio.h>
 
 #include <mysql/mysql.h>
 #define MAROC_MYSQL MYSQL
@@ -192,4 +193,49 @@ namespace lyramilk{ namespace teapoy {
 		return lyramilk::data::var::nil;
 	}
 
+
+	///////////////////////////////////////////////////////////
+	filelogers::filelogers(const lyramilk::data::var& cfg)
+	{
+		filepath = cfg["file"].str();
+		fp = fopen(filepath.c_str(),"ab");
+	}
+
+	filelogers::~filelogers()
+	{
+	}
+
+	filelogers_multiton* filelogers_multiton::instance()
+	{
+		static filelogers_multiton _mm;
+		return &_mm;
+	}
+
+	filelogers* filelogers_multiton::getobj(lyramilk::data::string id)
+	{
+		lyramilk::data::string token = id;
+		filelogers* c = get(token);
+		if(c == nullptr){
+			const lyramilk::data::var& cfg = get_config(token);
+			if(cfg.type() == lyramilk::data::var::t_invalid) return nullptr;
+			lyramilk::threading::mutex_sync _(lock);
+			define(token,new filelogers(cfg));
+			c = get(token);
+		}
+		return c;
+	}
+
+	void filelogers_multiton::add_config(lyramilk::data::string id,const lyramilk::data::var& cfg)
+	{
+		cfgmap[id] = cfg;
+	}
+
+	const lyramilk::data::var& filelogers_multiton::get_config(lyramilk::data::string id)
+	{
+		lyramilk::data::var::map::const_iterator it = cfgmap.find(id);
+		if(it != cfgmap.end()){
+			return it->second;
+		}
+		return lyramilk::data::var::nil;
+	}
 }}

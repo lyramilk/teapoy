@@ -2,6 +2,7 @@
 #include <libmilk/log.h>
 #include <libmilk/multilanguage.h>
 #include "script.h"
+#include "dbconnpool.h"
 #include <fstream>
 #include <sys/stat.h>
 
@@ -67,27 +68,6 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		lyramilk::klog(t,mod) << str << std::endl;
 		return true;
 	}
-
-	class binarychunk
-	{
-		static void* ctr(const lyramilk::data::var::array& args)
-		{
-			return new lyramilk::data::chunk();
-		}
-		static void dtr(void* p)
-		{
-			delete (lyramilk::data::chunk*)p;
-		}
-	  public:
-		static int define(lyramilk::script::engine* p)
-		{
-			{
-				lyramilk::script::engine::functional_map fn;
-				p->define("BinaryData",fn,binarychunk::ctr,binarychunk::dtr);
-			}
-			return 1;
-		}
-	};
 
 	class file
 	{
@@ -214,6 +194,65 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		}
 	};
 
+
+	class logfile
+	{
+		FILE* fp;
+	  public:
+		static void* ctr(const lyramilk::data::var::array& args)
+		{
+			if(args.size() == 1){
+				const void* p = args[0].userdata("__loger_filepointer");
+				if(p){
+					filelogers* pp = (filelogers*)p;
+					return new logfile(pp->fp);
+				}
+				throw lyramilk::exception(D("loger错误： 无法从池中获取到命名对象。"));
+			}
+			throw lyramilk::exception(D("loger错误： 无法从池中获取到命名对象。"));
+		}
+		static void dtr(void* p)
+		{
+			delete (logfile*)p;
+		}
+
+		logfile(FILE* argfp)
+		{
+			fp = argfp;
+		}
+
+		~logfile()
+		{
+		}
+
+		lyramilk::data::var log(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		{
+			lyramilk::data::string str;
+			str.reserve(4096);
+			for(lyramilk::data::var::array::const_iterator it = args.begin();it!=args.end();++it){
+				str += it->str();
+			}
+			str += "\n";
+			if(1 == fwrite(str.c_str(),str.size(),1,fp)){
+				fflush(fp);
+				return true;
+			}
+			return false;
+		}
+
+	  public:
+		static int define(lyramilk::script::engine* p)
+		{
+			{
+				lyramilk::script::engine::functional_map fn;
+				fn["log"] = lyramilk::script::engine::functional<logfile,&logfile::log>;
+				p->define("Logfile",fn,logfile::ctr,logfile::dtr);
+			}
+			return 1;
+		}
+	};
+
+
 	static int define(lyramilk::script::engine* p)
 	{
 		int i = 0;
@@ -223,7 +262,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			p->define("echo",echo);++i;
 			p->define("log",slog);++i;
 			i += file::define(p);
-			i += binarychunk::define(p);
+			i += logfile::define(p);
 		}
 		return i;
 	}

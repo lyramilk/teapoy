@@ -68,6 +68,28 @@ namespace lyramilk{ namespace teapoy {
 		virtual void add_config(lyramilk::data::string id,const lyramilk::data::var& cfg);
 		virtual const lyramilk::data::var& get_config(lyramilk::data::string id);
 	};
+	///////////////////////////////////////////////////////////
+	class filelogers
+	{
+		lyramilk::data::string filepath;
+	  public:
+		FILE* fp;
+
+		filelogers(const lyramilk::data::var& cfg);
+		virtual ~filelogers();
+	};
+
+	class filelogers_multiton:public lyramilk::util::multiton_factory<filelogers>
+	{
+		lyramilk::threading::mutex_spin lock;
+
+		lyramilk::data::var::map cfgmap;
+	  public:
+		static filelogers_multiton* instance();
+		virtual filelogers* getobj(lyramilk::data::string id);
+		virtual void add_config(lyramilk::data::string id,const lyramilk::data::var& cfg);
+		virtual const lyramilk::data::var& get_config(lyramilk::data::string id);
+	};
 }}
 
 #endif

@@ -443,7 +443,8 @@ namespace lyramilk{ namespace teapoy { namespace web {
 		lyramilk::data::string k = D(" ");
 		lyramilk::debug::nsecdiff td;
 		lyramilk::debug::clocktester _d(td,lyramilk::klog(lyramilk::log::debug),k);
-//std::cout.write(cache,size) << std::endl;*/
+*/
+//std::cout.write(cache,size) << std::endl;
 		int remain = 0;
 		if(!req.parse(cache,size,&remain)){
 			return true;

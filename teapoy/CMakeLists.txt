@@ -1,6 +1,6 @@
 ﻿#定义工程名及版本
 project(teapoy)
-set(version 1.0.8)
+set(version 1.0.9)
 set(soversion 1.0)
 
 
@@ -64,6 +64,7 @@ if(UNIX)
 	pkg_check_modules(LEVELDB leveldb)
 	pkg_check_modules(LIBCURL libcurl)
 	pkg_check_modules(PCRE libpcre)
+	pkg_check_modules(ZLIB zlib)
 	pkg_check_modules(FFMPEG libavcodec)
 	pkg_check_modules(FFMPEG_AVDEVICE libavdevice)
 	pkg_check_modules(FFMPEG_AVFILTER libavfilter)
@@ -173,6 +174,13 @@ if(PCRE_FOUND)
 	list(APPEND CONFIG_MACROS PCRE_FOUND)
 endif()
 
+if(ZLIB_FOUND)
+	list(APPEND BUILD_DEPENDS zlib)
+	list(APPEND RUN_DEPENDS zlib-devel)
+	list(APPEND LIBS_DEPENDS ${ZLIB_LDFLAGS})
+	list(APPEND INCS_DEPENDS ${ZLIB_CFLAGS})
+	list(APPEND CONFIG_MACROS ZLIB_FOUND)
+endif()
 
 if(Z_HAVE_LIBJPEG)
 	list(APPEND BUILD_DEPENDS libjpeg-turbo)

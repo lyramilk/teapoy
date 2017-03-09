@@ -48,6 +48,18 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		return e->createobject("Mysql",ar);
 	}
 
+	lyramilk::data::var GetLoger(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+	{
+		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
+
+		filelogers* p = filelogers_multiton::instance()->getobj(args[0].str());
+		lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_user_engineptr());
+		lyramilk::data::var::array ar;
+		lyramilk::data::var ariv("__loger_filepointer",p);
+		ar.push_back(ariv);
+		return e->createobject("Logfile",ar);
+	}
+
 
 	lyramilk::data::var DefineDataBase(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 	{
@@ -62,6 +74,9 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		}else if(type == "mysql"){
 			mysql_clients_multiton::instance()->add_config(args[1].str(),args[2]);
 			return true;
+		}else if(type == "loger"){
+			filelogers_multiton::instance()->add_config(args[1].str(),args[2]);
+			return true;
 		}
 		return false;
 	}
@@ -71,6 +86,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 	{
 		p->define("GetRedis",GetRedis);
 		p->define("GetMysql",GetMysql);
+		p->define("GetLoger",GetLoger);
 		p->define("DefineDataBase",DefineDataBase);
 		return 3;
 	}
