@@ -72,11 +72,14 @@ namespace lyramilk{ namespace teapoy {
 	class filelogers
 	{
 		lyramilk::data::string filepath;
-	  public:
 		FILE* fp;
-
+		mutable tm daytime;
+		mutable lyramilk::threading::mutex_os lock;
+	  public:
 		filelogers(const lyramilk::data::var& cfg);
 		virtual ~filelogers();
+
+		bool write(const char* str,std::size_t sz);
 	};
 
 	class filelogers_multiton:public lyramilk::util::multiton_factory<filelogers>

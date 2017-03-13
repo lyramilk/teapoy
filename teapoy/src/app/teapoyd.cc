@@ -185,17 +185,21 @@ class teapoy_log_stdio:public teapoy_log_base
 
 class teapoy_log_logfile:public teapoy_log_base
 {
-	FILE* fp;
+	mutable FILE* fp;
+	lyramilk::data::string logfilepath;
 	lyramilk::data::string pidstr;
 	lyramilk::data::string str_debug;
 	lyramilk::data::string str_trace;
 	lyramilk::data::string str_warning;
 	lyramilk::data::string str_error;
+	mutable lyramilk::threading::mutex_os lock;
+	mutable tm daytime;
   public:
 	teapoy_log_logfile(lyramilk::data::string logfilepath)
 	{
+		this->logfilepath = logfilepath;
 		fp = fopen(logfilepath.c_str(),"a");
-		assert(fp);
+		if(!fp) fp = stdout;
 		pid_t pid = getpid();
 		lyramilk::data::stringstream ss;
 		ss << pid << " ";
@@ -204,10 +208,13 @@ class teapoy_log_logfile:public teapoy_log_base
 		str_trace = "[" + D("trace") + "] ";
 		str_warning = "[" + D("warning") + "] ";
 		str_error = "[" + D("error") + "] ";
+
+		time_t stime = time(0);
+		daytime = *localtime(&stime);
 	}
 	virtual ~teapoy_log_logfile()
 	{
-		fclose(fp);
+		if(fp != stdout) fclose(fp);
 	}
 
 	virtual bool ok()
@@ -217,6 +224,45 @@ class teapoy_log_logfile:public teapoy_log_base
 
 	virtual void log(time_t ti,lyramilk::log::type ty,lyramilk::data::string usr,lyramilk::data::string app,lyramilk::data::string module,lyramilk::data::string str) const
 	{
+		tm* t = localtime(&ti);
+#if 1
+		if(daytime.tm_year != t->tm_year || daytime.tm_mon != t->tm_mon || daytime.tm_mday != t->tm_mday){
+			lyramilk::threading::mutex_sync _(lock);
+			if(daytime.tm_year != t->tm_year || daytime.tm_mon != t->tm_mon || daytime.tm_mday != t->tm_mday){
+				daytime = *t;
+				char buff[64];
+				snprintf(buff,sizeof(buff),".%04d%02d%02d",(1900 + daytime.tm_year),(daytime.tm_mon + 1),daytime.tm_mday);
+				lyramilk::data::string destfilename = logfilepath;
+				destfilename.append(buff);
+				rename(logfilepath.c_str(),destfilename.c_str());
+				FILE* newfp = fopen(logfilepath.c_str(),"a");
+				if(newfp){
+					FILE* oldfp = fp;
+					fp = newfp;
+					if(oldfp && oldfp != stdout) fclose(oldfp);
+				}
+			}
+		}
+#else
+		if(daytime.tm_year != t->tm_year || daytime.tm_mon != t->tm_mon || daytime.tm_mday != t->tm_mday || daytime.tm_hour != t->tm_hour || daytime.tm_min != t->tm_min || daytime.tm_sec != t->tm_sec){
+			lyramilk::threading::mutex_sync _(lock);
+			if(daytime.tm_year != t->tm_year || daytime.tm_mon != t->tm_mon || daytime.tm_mday != t->tm_mday || daytime.tm_hour != t->tm_hour || daytime.tm_min != t->tm_min || daytime.tm_sec != t->tm_sec){
+				daytime = *t;
+				char buff[64];
+				snprintf(buff,sizeof(buff),".%04d%02d%02d%02d%02d%02d",(1900 + daytime.tm_year),(daytime.tm_mon + 1),daytime.tm_mday,daytime.tm_hour,daytime.tm_min,daytime.tm_sec);
+				lyramilk::data::string destfilename = logfilepath;
+				destfilename.append(buff);
+				rename(logfilepath.c_str(),destfilename.c_str());
+				FILE* newfp = fopen(logfilepath.c_str(),"a");
+				if(newfp){
+					FILE* oldfp = fp;
+					fp = newfp;
+					if(oldfp && oldfp != stdout) fclose(oldfp);
+				}
+			}
+		}
+#endif
+
 		lyramilk::data::string cache;
 		cache.reserve(1024);
 		switch(ty){

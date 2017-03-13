@@ -198,11 +198,41 @@ namespace lyramilk{ namespace teapoy {
 	filelogers::filelogers(const lyramilk::data::var& cfg)
 	{
 		filepath = cfg["file"].str();
-		fp = fopen(filepath.c_str(),"ab");
+		fp = fopen(filepath.c_str(),"a");
+		time_t stime = time(0);
+		daytime = *localtime(&stime);
 	}
 
 	filelogers::~filelogers()
 	{
+	}
+
+	bool filelogers::write(const char* str,std::size_t sz)
+	{
+		time_t nowtime = time(0);
+		tm* t = localtime(&nowtime);
+		if(daytime.tm_year != t->tm_year || daytime.tm_mon != t->tm_mon || daytime.tm_mday != t->tm_mday){
+			lyramilk::threading::mutex_sync _(lock);
+			if(daytime.tm_year != t->tm_year || daytime.tm_mon != t->tm_mon || daytime.tm_mday != t->tm_mday){
+				daytime = *t;
+				char buff[64];
+				snprintf(buff,sizeof(buff),".%04d%02d%02d",(1900 + daytime.tm_year),(daytime.tm_mon + 1),daytime.tm_mday);
+				lyramilk::data::string destfilename = filepath;
+				destfilename.append(buff);
+				rename(filepath.c_str(),destfilename.c_str());
+				FILE* newfp = fopen(filepath.c_str(),"a");
+				if(newfp){
+					FILE* oldfp = fp;
+					fp = newfp;
+					if(oldfp)fclose(oldfp);
+				}
+			}
+		}
+		if(fwrite(str,sz,1,fp) == 1){
+			fflush(fp);
+			return true;
+		}
+		return false;
 	}
 
 	filelogers_multiton* filelogers_multiton::instance()

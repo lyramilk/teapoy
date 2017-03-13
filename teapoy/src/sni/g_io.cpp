@@ -197,7 +197,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 
 	class logfile
 	{
-		FILE* fp;
+		filelogers* fpm;
 	  public:
 		static void* ctr(const lyramilk::data::var::array& args)
 		{
@@ -205,7 +205,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 				const void* p = args[0].userdata("__loger_filepointer");
 				if(p){
 					filelogers* pp = (filelogers*)p;
-					return new logfile(pp->fp);
+					return new logfile(pp);
 				}
 				throw lyramilk::exception(D("loger错误： 无法从池中获取到命名对象。"));
 			}
@@ -216,9 +216,9 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			delete (logfile*)p;
 		}
 
-		logfile(FILE* argfp)
+		logfile(filelogers* argfpm)
 		{
-			fp = argfp;
+			fpm = argfpm;
 		}
 
 		~logfile()
@@ -233,11 +233,8 @@ namespace lyramilk{ namespace teapoy{ namespace native
 				str += it->str();
 			}
 			str += "\n";
-			if(1 == fwrite(str.c_str(),str.size(),1,fp)){
-				fflush(fp);
-				return true;
-			}
-			return false;
+
+			return fpm->write(str.c_str(),str.size());
 		}
 
 	  public:
