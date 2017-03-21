@@ -118,10 +118,28 @@ namespace lyramilk{ namespace teapoy {
 
 	redis_clients::redis_clients(const lyramilk::data::var& cfg)
 	{
-
-		host = cfg["host"].str();
-		port = cfg["port"];
-		pwd = cfg["password"].str();
+		{
+			const lyramilk::data::var& v = cfg["host"];
+			if(v.type_like(lyramilk::data::var::t_str)){
+				host = v.str();
+			}else{
+				host = "127.0.0.1";
+			}
+		}
+		{
+			const lyramilk::data::var& v = cfg["port"];
+			if(v.type_like(lyramilk::data::var::t_int)){
+				port = v;
+			}else{
+				port = 6379;
+			}
+		}
+		{
+			const lyramilk::data::var& v = cfg["password"];
+			if(v.type_like(lyramilk::data::var::t_str)){
+				pwd = v.str();
+			}
+		}
 
 		const lyramilk::data::var &vrdonly = cfg["readonly"];
 		if(vrdonly.type_like(lyramilk::data::var::t_bool)){
@@ -192,7 +210,103 @@ namespace lyramilk{ namespace teapoy {
 		}
 		return lyramilk::data::var::nil;
 	}
+	///////////////////////////////////////////////////////////
+	mongo_client::mongo_client()
+	{
+	}
 
+	mongo_client::~mongo_client()
+	{
+	}
+
+	mongo_clients::mongo_clients(const lyramilk::data::var& cfg)
+	{
+		{
+			const lyramilk::data::var& v = cfg["host"];
+			if(v.type_like(lyramilk::data::var::t_str)){
+				host = v.str();
+			}else{
+				host = "127.0.0.1";
+			}
+		}
+		{
+			const lyramilk::data::var& v = cfg["port"];
+			if(v.type_like(lyramilk::data::var::t_int)){
+				port = v;
+			}else{
+				port = 27017;
+			}
+		}
+		{
+			const lyramilk::data::var& v = cfg["password"];
+			if(v.type_like(lyramilk::data::var::t_str)){
+				pwd = v.str();
+			}
+		}
+		{
+			const lyramilk::data::var& v = cfg["user"];
+			if(v.type() == lyramilk::data::var::t_str){
+				user = v.str();
+			}
+		}
+	}
+
+	mongo_clients::~mongo_clients()
+	{
+	}
+
+	lyramilk::teapoy::mongo_client* mongo_clients::underflow()
+	{
+		lyramilk::teapoy::mongo_client* p = new lyramilk::teapoy::mongo_client();
+		if(!p) return nullptr;
+
+		::mongo::HostAndPort hap(host.c_str(),port);
+		std::string errmsg;
+		if(!p->c.connect(hap,errmsg)){
+			log(lyramilk::log::error,"underflow") << D("Mongo(%s:%d)初始化失败：%s",host.c_str(),port,errmsg.c_str()) << std::endl;
+			delete p;
+			return nullptr;
+		}
+		p->user = user;
+		p->pwd = pwd;
+		return p;
+	}
+
+	mongo_clients_multiton* mongo_clients_multiton::instance()
+	{
+		static mongo_clients_multiton _mm;
+		return &_mm;
+	}
+
+	mongo_clients::ptr mongo_clients_multiton::getobj(lyramilk::data::string id)
+	{
+		lyramilk::data::string token = id;
+		mongo_clients* c = get(token);
+		if(c == nullptr){
+			const lyramilk::data::var& cfg = get_config(token);
+			if(cfg.type() == lyramilk::data::var::t_invalid) return nullptr;
+
+			lyramilk::threading::mutex_sync _(lock);
+			define(token,new mongo_clients(cfg));
+			c = get(token);
+		}
+		if(c == nullptr) return nullptr;
+		return c->get();
+	}
+
+	void mongo_clients_multiton::add_config(lyramilk::data::string id,const lyramilk::data::var& cfg)
+	{
+		cfgmap[id] = cfg;
+	}
+
+	const lyramilk::data::var& mongo_clients_multiton::get_config(lyramilk::data::string id)
+	{
+		lyramilk::data::var::map::const_iterator it = cfgmap.find(id);
+		if(it != cfgmap.end()){
+			return it->second;
+		}
+		return lyramilk::data::var::nil;
+	}
 
 	///////////////////////////////////////////////////////////
 	filelogers::filelogers(const lyramilk::data::var& cfg)
@@ -200,7 +314,7 @@ namespace lyramilk{ namespace teapoy {
 		filepath = cfg["file"].str();
 		fp = fopen(filepath.c_str(),"a");
 		time_t stime = time(0);
-		daytime = *localtime(&stime);
+		localtime_r(&stime,&daytime);
 	}
 
 	filelogers::~filelogers()
@@ -210,13 +324,14 @@ namespace lyramilk{ namespace teapoy {
 	bool filelogers::write(const char* str,std::size_t sz)
 	{
 		time_t nowtime = time(0);
-		tm* t = localtime(&nowtime);
+		tm curtime;
+		tm* t = localtime_r(&nowtime,&curtime);
 		if(daytime.tm_year != t->tm_year || daytime.tm_mon != t->tm_mon || daytime.tm_mday != t->tm_mday){
 			lyramilk::threading::mutex_sync _(lock);
 			if(daytime.tm_year != t->tm_year || daytime.tm_mon != t->tm_mon || daytime.tm_mday != t->tm_mday){
-				daytime = *t;
 				char buff[64];
 				snprintf(buff,sizeof(buff),".%04d%02d%02d",(1900 + daytime.tm_year),(daytime.tm_mon + 1),daytime.tm_mday);
+				daytime = *t;
 				lyramilk::data::string destfilename = filepath;
 				destfilename.append(buff);
 				rename(filepath.c_str(),destfilename.c_str());

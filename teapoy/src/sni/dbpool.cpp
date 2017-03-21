@@ -48,6 +48,18 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		return e->createobject("Mysql",ar);
 	}
 
+	lyramilk::data::var GetMongo(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+	{
+		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
+
+		mongo_clients::ptr p = mongo_clients_multiton::instance()->getobj(args[0].str());
+		lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_user_engineptr());
+		lyramilk::data::var::array ar;
+		lyramilk::data::var ariv("__mongo_client",&p);
+		ar.push_back(ariv);
+		return e->createobject("Mongo",ar);
+	}
+
 	lyramilk::data::var GetLoger(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
@@ -68,11 +80,15 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,2,lyramilk::data::var::t_map);
 
 		lyramilk::data::string type = args[0].str();
+		lyramilk::klog(lyramilk::log::debug,"teapoy.native.DefineDataBase") << D("定义%s数据库%s(%s)",type.c_str(),args[2].str().c_str(),args[3].str().c_str()) << std::endl;
 		if(type == "redis"){
 			redis_clients_multiton::instance()->add_config(args[1].str(),args[2]);
 			return true;
 		}else if(type == "mysql"){
 			mysql_clients_multiton::instance()->add_config(args[1].str(),args[2]);
+			return true;
+		}else if(type == "mongo"){
+			mongo_clients_multiton::instance()->add_config(args[1].str(),args[2]);
 			return true;
 		}else if(type == "loger"){
 			filelogers_multiton::instance()->add_config(args[1].str(),args[2]);
@@ -86,6 +102,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 	{
 		p->define("GetRedis",GetRedis);
 		p->define("GetMysql",GetMysql);
+		p->define("GetMongo",GetMongo);
 		p->define("GetLoger",GetLoger);
 		p->define("DefineDataBase",DefineDataBase);
 		return 3;

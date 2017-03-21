@@ -224,14 +224,15 @@ class teapoy_log_logfile:public teapoy_log_base
 
 	virtual void log(time_t ti,lyramilk::log::type ty,lyramilk::data::string usr,lyramilk::data::string app,lyramilk::data::string module,lyramilk::data::string str) const
 	{
-		tm* t = localtime(&ti);
+		tm t;
+		localtime_r(&ti,&t);
 #if 1
-		if(daytime.tm_year != t->tm_year || daytime.tm_mon != t->tm_mon || daytime.tm_mday != t->tm_mday){
+		if(daytime.tm_year != t.tm_year || daytime.tm_mon != t.tm_mon || daytime.tm_mday != t.tm_mday){
 			lyramilk::threading::mutex_sync _(lock);
-			if(daytime.tm_year != t->tm_year || daytime.tm_mon != t->tm_mon || daytime.tm_mday != t->tm_mday){
-				daytime = *t;
+			if(daytime.tm_year != t.tm_year || daytime.tm_mon != t.tm_mon || daytime.tm_mday != t.tm_mday){
 				char buff[64];
 				snprintf(buff,sizeof(buff),".%04d%02d%02d",(1900 + daytime.tm_year),(daytime.tm_mon + 1),daytime.tm_mday);
+				daytime = t;
 				lyramilk::data::string destfilename = logfilepath;
 				destfilename.append(buff);
 				rename(logfilepath.c_str(),destfilename.c_str());
@@ -244,12 +245,12 @@ class teapoy_log_logfile:public teapoy_log_base
 			}
 		}
 #else
-		if(daytime.tm_year != t->tm_year || daytime.tm_mon != t->tm_mon || daytime.tm_mday != t->tm_mday || daytime.tm_hour != t->tm_hour || daytime.tm_min != t->tm_min || daytime.tm_sec != t->tm_sec){
+		if(daytime.tm_year != t.tm_year || daytime.tm_mon != t.tm_mon || daytime.tm_mday != t.tm_mday || daytime.tm_hour != t.tm_hour || daytime.tm_min != t.tm_min){
 			lyramilk::threading::mutex_sync _(lock);
-			if(daytime.tm_year != t->tm_year || daytime.tm_mon != t->tm_mon || daytime.tm_mday != t->tm_mday || daytime.tm_hour != t->tm_hour || daytime.tm_min != t->tm_min || daytime.tm_sec != t->tm_sec){
-				daytime = *t;
+			if(daytime.tm_year != t.tm_year || daytime.tm_mon != t.tm_mon || daytime.tm_mday != t.tm_mday || daytime.tm_hour != t.tm_hour || daytime.tm_min != t.tm_min){
 				char buff[64];
-				snprintf(buff,sizeof(buff),".%04d%02d%02d%02d%02d%02d",(1900 + daytime.tm_year),(daytime.tm_mon + 1),daytime.tm_mday,daytime.tm_hour,daytime.tm_min,daytime.tm_sec);
+				snprintf(buff,sizeof(buff),".%04d%02d%02d%02d%02d",(1900 + daytime.tm_year),(daytime.tm_mon + 1),daytime.tm_mday,daytime.tm_hour,daytime.tm_min);
+				daytime = t;
 				lyramilk::data::string destfilename = logfilepath;
 				destfilename.append(buff);
 				rename(logfilepath.c_str(),destfilename.c_str());

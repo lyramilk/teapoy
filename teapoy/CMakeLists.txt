@@ -1,6 +1,6 @@
 ﻿#定义工程名及版本
 project(teapoy)
-set(version 1.0.10)
+set(version 1.0.11)
 set(soversion 1.0)
 
 
@@ -77,6 +77,7 @@ if(UNIX)
 	check_include_file_cxx(mysql/mysql.h Z_HAVE_MYSQLDEVEL)
 	check_include_file_cxx(jpeglib.h Z_HAVE_LIBJPEG)
 	check_include_file_cxx(mongo/version.h Z_HAVE_MONGODB)
+	check_include_file_cxx(mongo/client/connpool.h Z_HAVE_LIBMONGO)
 endif()
 
 #if(NOT Z_HAVE_FILEDEVEL)
@@ -196,6 +197,11 @@ if(Z_HAVE_MONGODB)
 	list(APPEND RUN_DEPENDS mongo-cxx-driver-devel)
 	list(APPEND LIBS_DEPENDS -lmongoclient)
 	list(APPEND CONFIG_MACROS Z_HAVE_MONGODB)
+elseif(Z_HAVE_LIBMONGO)
+	list(APPEND BUILD_DEPENDS libmongodb)
+	list(APPEND RUN_DEPENDS libmongodb-devel)
+	list(APPEND LIBS_DEPENDS -lmongoclient)
+	list(APPEND CONFIG_MACROS Z_HAVE_LIBMONGO)
 else()
 	list(REMOVE_ITEM src_cpps src/sni/mongodb.cpp)
 endif()

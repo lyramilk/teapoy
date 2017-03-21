@@ -356,6 +356,11 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			return lyramilk::data::codes::instance()->decode("urlcomponent",si->req->url);
 		}
 
+		lyramilk::data::var getRequestBody(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		{
+			return lyramilk::data::chunk((const unsigned char*)si->req->getbodyptr(),si->req->getbodylength());
+		}
+
 		lyramilk::data::var getRealPath(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			return si->real;
@@ -432,6 +437,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			fn["getParameterValues"] = lyramilk::script::engine::functional<httprequest,&httprequest::getParameterValues>;
 			fn["getFiles"] = lyramilk::script::engine::functional<httprequest,&httprequest::getFiles>;
 			fn["getRequestURL"] = lyramilk::script::engine::functional<httprequest,&httprequest::getRequestURL>;
+			fn["getRequestBody"] = lyramilk::script::engine::functional<httprequest,&httprequest::getRequestBody>;
 			fn["getRealPath"] = lyramilk::script::engine::functional<httprequest,&httprequest::getRealPath>;
 			fn["getSession"] = lyramilk::script::engine::functional<httprequest,&httprequest::getSession>;
 			fn["getPeerCertificateInfo"] = lyramilk::script::engine::functional<httprequest,&httprequest::getPeerCertificateInfo>;

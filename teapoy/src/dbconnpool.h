@@ -5,6 +5,7 @@
 #include "redis.h"
 #include <libmilk/factory.h>
 #include <libmilk/atom.h>
+#include <mongo/client/dbclient.h>
 #include <map>
 
 #ifndef MAROC_MYSQL
@@ -65,6 +66,41 @@ namespace lyramilk{ namespace teapoy {
 	  public:
 		static redis_clients_multiton* instance();
 		virtual redis_clients::ptr getobj(lyramilk::data::string id);
+		virtual void add_config(lyramilk::data::string id,const lyramilk::data::var& cfg);
+		virtual const lyramilk::data::var& get_config(lyramilk::data::string id);
+	};
+	///////////////////////////////////////////////////////////
+	class mongo_client
+	{
+	  public:
+		lyramilk::data::string user;
+		lyramilk::data::string pwd;
+		::mongo::DBClientConnection c;
+		mongo_client();
+		virtual ~mongo_client();
+	};
+
+
+	class mongo_clients:public lyramilk::threading::exclusive::list<lyramilk::teapoy::mongo_client>
+	{
+		lyramilk::data::string host;
+		lyramilk::data::uint16 port;
+		lyramilk::data::string user;
+		lyramilk::data::string pwd;
+	  public:
+		mongo_clients(const lyramilk::data::var& cfg);
+		virtual ~mongo_clients();
+		virtual lyramilk::teapoy::mongo_client* underflow();
+	};
+
+	class mongo_clients_multiton:public lyramilk::util::multiton_factory<mongo_clients>
+	{
+		lyramilk::threading::mutex_spin lock;
+
+		lyramilk::data::var::map cfgmap;
+	  public:
+		static mongo_clients_multiton* instance();
+		virtual mongo_clients::ptr getobj(lyramilk::data::string id);
 		virtual void add_config(lyramilk::data::string id,const lyramilk::data::var& cfg);
 		virtual const lyramilk::data::var& get_config(lyramilk::data::string id);
 	};

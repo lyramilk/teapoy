@@ -250,12 +250,12 @@ namespace lyramilk{ namespace teapoy { namespace web {
 										}
 										ifs.close();
 										ofs.close();
-										deflateEnd(&strm);
 
 										gzipmode = CACHED_GZIP;
 										rawfile = cachedgzip;
 										::stat(rawfile.c_str(),&st);
 									}
+									deflateEnd(&strm);
 								}
 							}else{
 								if(req->ver.major <= 1 && req->ver.minor < 1){
@@ -488,6 +488,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 				std::ifstream ifs;
 				ifs.open(rawfile.c_str(),std::ifstream::binary|std::ifstream::in);
 				if(!ifs.is_open()){
+					deflateEnd(&strm);
 					return false;
 				}
 				if(is_range){
@@ -533,7 +534,6 @@ namespace lyramilk{ namespace teapoy { namespace web {
 				}
 				ifs.close();
 				deflateEnd(&strm);
-
 
 				lyramilk::data::string str = "0\r\n\r\n";
 				os.write(str.c_str(),str.size());

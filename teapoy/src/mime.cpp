@@ -108,6 +108,8 @@ namespace lyramilk{ namespace teapoy {
 
 	bool mime::parsebodydata(const char* buf,int size)
 	{
+		ptr_part = ptr_body = buf;
+		len_part = size;
 		if(!boundary.empty() && ismultipart){
 			lyramilk::data::string boundary1;
 			boundary1.reserve(boundary.size()+2);
