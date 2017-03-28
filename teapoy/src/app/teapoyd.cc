@@ -27,7 +27,8 @@
 class teapoy_log_base;
 
 bool ondaemon = false;
-bool g_no_exit;
+bool enable_console_logredirect = false;
+bool no_exit_mode;
 teapoy_log_base* logger = nullptr;
 lyramilk::script::engine* eng_main = nullptr;
 lyramilk::data::string logfile;
@@ -434,9 +435,11 @@ class teapoy_loader
 
 	lyramilk::data::var set_log_file(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 	{
-		if(!ondaemon){
-			log(lyramilk::log::debug,__FUNCTION__) << D("控制台模式，自动忽略日志文件。") << std::endl;
-			return false;
+		if(!enable_console_logredirect){
+			if(!ondaemon){
+				log(lyramilk::log::debug,__FUNCTION__) << D("控制台模式，自动忽略日志文件。") << std::endl;
+				return false;
+			}
 		}
 		if(!logfile.empty()){
 			return false;
@@ -458,8 +461,8 @@ class teapoy_loader
 	lyramilk::data::var noexit(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_bool);
-		g_no_exit = args[0];
-		return g_no_exit;
+		no_exit_mode = args[0];
+		return no_exit_mode;
 	}
 
 };
@@ -470,6 +473,7 @@ void useage(lyramilk::data::string selfname)
 	std::cout << "\t-s <file>\t" << gettext("start by script <file>") << std::endl;
 	std::cout << "\t-e <type>\t" << gettext("use engine type(eg. js,lua,...),default decide by extension name.") << std::endl;
 	std::cout << "\t-d       \t" << gettext("start as daemon") << std::endl;
+	std::cout << "\t-c       \t" << gettext("enable console mode use log redirect") << std::endl;
 	std::cout << "\t-t <file>\t" << gettext("translate string by <file>") << std::endl;
 	std::cout << "\t-u <file>\t" << gettext("which string can't be translate record to <file>") << std::endl;
 	std::cout << "\t-l <file>\t" << gettext("record log to <file>") << std::endl;
@@ -491,11 +495,12 @@ lyramilk::data::string get_engine_type(lyramilk::data::string filename)
 int main(int argc,char* argv[])
 {
 	bool isdaemon = false;
+
 	lyramilk::data::string launcher_script_type;
 	{
 		lyramilk::data::string selfname = argv[0];
 		int oc;
-		while((oc = getopt(argc, argv, "s:dt:u:l:e:?")) != -1){
+		while((oc = getopt(argc, argv, "s:dct:u:l:e:?")) != -1){
 			switch(oc)
 			{
 			  case 's':
@@ -503,6 +508,9 @@ int main(int argc,char* argv[])
 				break;
 			  case 'd':
 				isdaemon = true;
+				break;
+			  case 'c':
+				enable_console_logredirect = true;
 				break;
 			  case 't':
 				dictfile = optarg;
@@ -566,7 +574,7 @@ int main(int argc,char* argv[])
 				log(lyramilk::log::error,__FUNCTION__) << D("切换日志失败:%s",logfile.c_str()) << std::endl;
 			}
 		}
-	}else{
+	}else if(!enable_console_logredirect){
 		log(lyramilk::log::debug,__FUNCTION__) << D("控制台模式，自动忽略日志文件。") << std::endl;
 	}
 
@@ -600,9 +608,9 @@ int main(int argc,char* argv[])
 
 	lyramilk::teapoy::script2native::instance()->fill(eng_main);
 	eng_main->load_file(launcher_script);
-	if(g_no_exit){
+	if(no_exit_mode){
 		log(lyramilk::log::trace) << D("设置了noexit标志，程序将不会随主脚本返回而退出。") << std::endl;
-		while(g_no_exit){
+		while(no_exit_mode){
 			sleep(3600);
 		}
 	}

@@ -80,7 +80,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,2,lyramilk::data::var::t_map);
 
 		lyramilk::data::string type = args[0].str();
-		lyramilk::klog(lyramilk::log::debug,"teapoy.native.DefineDataBase") << D("定义%s数据库%s(%s)",type.c_str(),args[2].str().c_str(),args[3].str().c_str()) << std::endl;
+		lyramilk::klog(lyramilk::log::debug,"teapoy.native.DefineDataBase") << D("定义%s数据库%s(%s)",type.c_str(),args[1].str().c_str(),args[2].str().c_str()) << std::endl;
 		if(type == "redis"){
 			redis_clients_multiton::instance()->add_config(args[1].str(),args[2]);
 			return true;
