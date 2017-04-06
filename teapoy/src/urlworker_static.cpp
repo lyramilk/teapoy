@@ -385,7 +385,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 				}
 
 			}
-			lyramilk::data::stringstream ss(lyramilk::data::string(1024,0));
+			lyramilk::data::stringstream ss;
 			if(is_range){
 				ss <<			"HTTP/1.1 206 Partial Content\r\nServer: " TEAPOY_VERSION "\r\n";
 			}else{
