@@ -204,70 +204,73 @@ namespace lyramilk{ namespace teapoy { namespace web {
 				DYNAMIC_GZIP,
 			}gzipmode = NO_GZIP;
 #ifdef ZLIB_FOUND
-			if(st.st_size > 16384){
+			if(st.st_size > this->threshold){
 				//支持gzip
 				lyramilk::data::var v = req->get("Accept-Encoding");
 				if(v.type() == lyramilk::data::var::t_str){
 					lyramilk::data::string stracc = v.str();
-					if(stracc.find("gzip")!= stracc.npos){
-						lyramilk::data::string cachedgzip = rawfile + ".gzipcache";
+					if(stracc.find(compress_type)!= stracc.npos){
+						if(this->usegzipcache){
+							lyramilk::data::string cachedgzip = rawfile + ".gzipcache";
 
-						if(::stat(cachedgzip.c_str(),&st) != 0){
-							std::ofstream ofs(cachedgzip.c_str(),std::ofstream::binary|std::ofstream::out);
-							if(ofs.is_open()){
-								z_stream strm;
-								memset(&strm,0,sizeof(strm));
-								strm.zalloc = NULL;
-								strm.zfree = NULL;
-								strm.opaque = NULL;
-								if(deflateInit2(&strm, Z_DEFAULT_COMPRESSION, Z_DEFLATED,MAX_WBITS + 16, 8, Z_DEFAULT_STRATEGY) == Z_OK){
-									std::ifstream ifs;
-									ifs.open(rawfile.c_str(),std::ifstream::binary|std::ifstream::in);
-									if(ifs.is_open()){
-										char buff[16384] = {0};
-										while(ifs){
-											ifs.read(buff,sizeof(buff));
-											lyramilk::data::int64 gcount = ifs.gcount();
-											char buff_chunkbody[16384] = {0};
-											strm.next_in = (Bytef*)buff;
-											strm.avail_in = gcount;
-											do{
-												strm.next_out = (Bytef*)buff_chunkbody;
-												strm.avail_out = sizeof(buff_chunkbody);
-												if(gcount < (lyramilk::data::int64)sizeof(buff)){
-													deflate(&strm, Z_FINISH);
-												}else{
-													deflate(&strm, Z_NO_FLUSH);
+							if(::stat(cachedgzip.c_str(),&st) != 0){
+								std::ofstream ofs(cachedgzip.c_str(),std::ofstream::binary|std::ofstream::out);
+								if(ofs.is_open()){
+									z_stream strm = {0};
+									strm.zalloc = NULL;
+									strm.zfree = NULL;
+									strm.opaque = NULL;
+									if(deflateInit2(&strm, Z_DEFAULT_COMPRESSION, Z_DEFLATED,MAX_WBITS + 16, 8, Z_DEFAULT_STRATEGY) == Z_OK){
+										std::ifstream ifs;
+										ifs.open(rawfile.c_str(),std::ifstream::binary|std::ifstream::in);
+										if(ifs.is_open()){
+											char buff[16384] = {0};
+											while(ifs){
+												ifs.read(buff,sizeof(buff));
+												lyramilk::data::int64 gcount = ifs.gcount();
+												char buff_chunkbody[16384] = {0};
+												strm.next_in = (Bytef*)buff;
+												strm.avail_in = gcount;
+												do{
+													strm.next_out = (Bytef*)buff_chunkbody;
+													strm.avail_out = sizeof(buff_chunkbody);
+													if(gcount < (lyramilk::data::int64)sizeof(buff)){
+														deflate(&strm, Z_FINISH);
+													}else{
+														deflate(&strm, Z_NO_FLUSH);
+													}
+													unsigned int sz = sizeof(buff_chunkbody) - strm.avail_out;
+													if(sz > 0){
+														ofs.write(buff_chunkbody,sz);
+													}
+												}while(strm.avail_out == 0);
+												if(strm.avail_in > 0){
+													ifs.seekg(0 - strm.avail_in,std::ifstream::cur);
 												}
-												unsigned int sz = sizeof(buff_chunkbody) - strm.avail_out;
-												if(sz > 0){
-													ofs.write(buff_chunkbody,sz);
-												}
-											}while(strm.avail_out == 0);
-											if(strm.avail_in > 0){
-												ifs.seekg(0 - strm.avail_in,std::ifstream::cur);
 											}
-										}
-										ifs.close();
-										ofs.close();
+											ifs.close();
+											ofs.close();
 
-										gzipmode = CACHED_GZIP;
-										rawfile = cachedgzip;
-										::stat(rawfile.c_str(),&st);
+											gzipmode = CACHED_GZIP;
+											rawfile = cachedgzip;
+											::stat(rawfile.c_str(),&st);
+										}
+										deflateEnd(&strm);
 									}
-									deflateEnd(&strm);
-								}
-							}else{
-								if(req->ver.major <= 1 && req->ver.minor < 1){
+								}else if(req->ver.major <= 1 && req->ver.minor < 1){
 									gzipmode = NO_GZIP;
 								}else{
 									gzipmode = DYNAMIC_GZIP;
 								}
+							}else{
+								gzipmode = CACHED_GZIP;
+								rawfile = cachedgzip;
+								::stat(rawfile.c_str(),&st);
 							}
+						}else if(req->ver.major <= 1 && req->ver.minor < 1){
+							gzipmode = NO_GZIP;
 						}else{
-							gzipmode = CACHED_GZIP;
-							rawfile = cachedgzip;
-							::stat(rawfile.c_str(),&st);
+							gzipmode = DYNAMIC_GZIP;
 						}
 					}
 				}
@@ -319,9 +322,16 @@ namespace lyramilk{ namespace teapoy { namespace web {
 				}
 			}
 
+			bool needcache = true;
+			if(nocache){
+				needcache = false;
+			}else if(datacount < 1024){
+				needcache = false;
+			}
+
 			lyramilk::data::string lastmodified;
 			lyramilk::data::string etag;
-			{
+			if(needcache){
 				//取得上次修改时间和ETag
 				lyramilk::data::var vifmodified = req->get("If-Modified-Since");
 				lyramilk::data::var vifetagnotmatch = req->get("If-None-Match");
@@ -340,12 +350,14 @@ namespace lyramilk{ namespace teapoy { namespace web {
 				}
 
 				if(vifetagnotmatch.type() != lyramilk::data::var::t_invalid && vifetagnotmatch == etag){
-					lyramilk::teapoy::http::make_response_header(os,"304 Not Modified",true,req->ver.major,req->ver.minor);
+					lyramilk::teapoy::http::make_response_header(os,"304 Not Modified",false,req->ver.major,req->ver.minor);
+					os << "Cache-Control: max-age=3600,public\r\n\r\n";
 					return true;
 				}
 
 				if(vifmodified.type() != lyramilk::data::var::t_invalid && vifmodified == lastmodified){
-					lyramilk::teapoy::http::make_response_header(os,"304 Not Modified",true,req->ver.major,req->ver.minor);
+					lyramilk::teapoy::http::make_response_header(os,"304 Not Modified",false,req->ver.major,req->ver.minor);
+					os << "Cache-Control: max-age=3600,public\r\n\r\n";
 					return true;
 				}
 			}
@@ -373,56 +385,55 @@ namespace lyramilk{ namespace teapoy { namespace web {
 				}
 
 			}
-			lyramilk::data::stringstream ss;
+			lyramilk::data::stringstream ss(lyramilk::data::string(1024,0));
 			if(is_range){
-				ss <<	"HTTP/1.1 206 Partial Content\r\n";
+				ss <<			"HTTP/1.1 206 Partial Content\r\nServer: " TEAPOY_VERSION "\r\n";
 			}else{
-				ss <<	"HTTP/1.1 200 OK\r\n";
+				ss <<			"HTTP/1.1 200 OK\r\nServer: " TEAPOY_VERSION "\r\n";
 			}
 			if(!mimetype.empty()){
-				ss <<	"Content-Type: " << mimetype << "\r\n";
+				ss <<			"Content-Type: " << mimetype << "\r\n";
 			}
 
-			ss <<		"Server: " TEAPOY_VERSION "\r\n";
 			if(gzipmode != DYNAMIC_GZIP){
 				if(gzipmode != NO_GZIP){
 					ss <<		"Content-Encoding: gzip\r\n";
 				}
-				ss <<		"Accept-Ranges: bytes\r\n";
-				{
+				ss <<			"Accept-Ranges: bytes\r\n";
+				if(needcache){
 					time_t t_now = time(nullptr);
 					struct tm* gmt_now = gmtime(&t_now);
 					char buff_time[100] = {0};
 					strftime(buff_time,sizeof(buff_time),"%a, %0e %h %Y %T GMT",gmt_now);
 					ss <<		"Date: " << buff_time << "\r\n";
 
-					//建议客户端缓存60秒。
-					t_now += 60000;
+					//建议客户端缓存3600秒。
+					t_now += 3600;
 					struct tm* gmt_expires = gmtime(&t_now);
 					char buff_time2[100] = {0};
 					strftime(buff_time2,sizeof(buff_time2),"%a, %0e %h %Y %T GMT",gmt_expires);
 
-					ss <<		"Expires: "<< buff_time2 << "\r\n";
-					ss <<		"Cache-Control: max-age=60000\r\n";
-					ss <<		"Age: 60000\r\n";
+					ss <<		"Expires: "<< buff_time2 << "\r\nCache-Control: max-age=3600,public\r\n";
+
+					if(!lastmodified.empty()){
+						ss <<	"Last-Modified: " << lastmodified << "\r\n";
+					}
+					if(!etag.empty()){
+						ss <<	"ETag: " << etag << "\r\n";
+					}
+				}else if(nocache){
+					ss <<		"Cache-Control: no-cache\r\npragma: no-cache\r\n";
+				}else{
+					ss <<		"Cache-Control: max-age=3600,public\r\n";
 				}
-				if(!lastmodified.empty()){
-					ss <<		"Last-Modified: " << lastmodified << "\r\n";
-				}
-				if(!etag.empty()){
-					ss <<		"ETag: " << etag << "\r\n";
-				}
-				ss <<		"Content-Length: " << datacount << "\r\n";
+				ss <<			"Content-Length: " << datacount << "\r\n";
 				if(is_range){
-					ss <<	"Content-Range: " << range_start << "-" << range_end << "/" << filesize << "\r\n";
+					ss <<		"Content-Range: " << range_start << "-" << range_end << "/" << filesize << "\r\n";
 				}
 			}else{
-				ss <<		"Content-Encoding: gzip\r\n";
-				ss <<		"Transfer-Encoding: chunked\r\n";
+				ss <<			"Content-Encoding: gzip\r\nTransfer-Encoding: chunked\r\n";
 			}
-			ss <<		"Access-Control-Allow-Origin: *\r\n";
-			ss <<		"Access-Control-Allow-Methods: *\r\n";
-			ss <<		"\r\n";
+			ss <<				"Access-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: *\r\n\r\n";
 
 			os << ss.str();
 #ifndef NOSENDFILE
@@ -476,8 +487,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 				}
 				ifs.close();
 			}else{
-				z_stream strm;
-				memset(&strm,0,sizeof(strm));
+				z_stream strm = {0};
 				strm.zalloc = NULL;
 				strm.zfree = NULL;
 				strm.opaque = NULL;
@@ -541,7 +551,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 			return true;
 		}
 
-		bool call(lyramilk::teapoy::http::request* req,std::ostream& os,lyramilk::data::string real,website_worker& w) const
+		virtual bool call(lyramilk::teapoy::http::request* req,std::ostream& os,lyramilk::data::string real,website_worker& w) const
 		{
 			if(req->method == "GET") return onget(req,os,real);
 			if(req->method == "POST") return onpost(req,os,real);
@@ -549,6 +559,49 @@ namespace lyramilk{ namespace teapoy { namespace web {
 			lyramilk::teapoy::http::make_response_header(os,"405 Method Not Allowed",false,req->ver.major,req->ver.minor);
 			os << "Allow: GET,POST\r\n\r\n";
 			return false;
+		}
+
+		virtual bool init_extra(const lyramilk::data::var& extra)
+		{
+			const lyramilk::data::var& compress = extra["compress"];
+
+			if(compress.type() == lyramilk::data::var::t_map){
+				const lyramilk::data::var& crawtype = compress["type"];
+				if(crawtype.type_like(lyramilk::data::var::t_str)){
+					compress_type = crawtype.str();
+				}else{
+					compress_type = "gzip";
+				}
+
+				const lyramilk::data::var& crawthreshold = compress["threshold"];
+				if(crawthreshold.type_like(lyramilk::data::var::t_int)){
+					threshold = crawthreshold;
+				}
+
+				const lyramilk::data::var& crawcache = compress["cache"];
+				if(crawcache.type_like(lyramilk::data::var::t_int)){
+					usegzipcache = crawcache;
+				}
+			}
+			const lyramilk::data::var& nocache = extra["nocache"];
+			if(nocache.type_like(lyramilk::data::var::t_bool)){
+				this->nocache = nocache;
+			}
+			return true;
+		}
+
+		lyramilk::data::string compress_type;
+		lyramilk::data::int64 threshold;
+		bool usegzipcache;
+		bool nocache;
+		url_worker_static()
+		{
+			threshold = 0;
+			usegzipcache = false;
+			nocache = false;
+		}
+		virtual ~url_worker_static()
+		{
 		}
 	  public:
 		static url_worker* ctr(void*)

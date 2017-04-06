@@ -67,7 +67,8 @@ namespace lyramilk{ namespace teapoy{ namespace native
 				lyramilk::data::string type = it->at("type");
 				lyramilk::data::string pattern = it->at("pattern");
 				lyramilk::data::string module = it->at("module");
-				lyramilk::data::var auth = it->at("auth");
+				const lyramilk::data::var& auth = it->at("auth");
+
 				lyramilk::data::var::array index;
 
 				{
@@ -80,6 +81,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 				web::url_worker *w = web::url_worker_master::instance()->create(type);
 				if(w){
 					w->init(method,pattern,module,index);
+					w->init_extra(*it);
 					if(auth.type() == lyramilk::data::var::t_map){
 						w->init_auth(auth["type"],auth["module"]);
 					}

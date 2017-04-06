@@ -22,6 +22,8 @@ namespace lyramilk{ namespace teapoy { namespace web {
 		lyramilk::data::string authscript;
 		lyramilk::data::strings index;
 	  protected:
+		lyramilk::data::var extra;
+	  protected:
 		virtual bool call(lyramilk::teapoy::http::request* req,std::ostream& os,lyramilk::data::string real,website_worker& w) const = 0;
 		virtual bool test(lyramilk::teapoy::http::request* req,std::ostream& os,lyramilk::data::string& real,website_worker& w) const;
 	  public:
@@ -30,6 +32,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 		lyramilk::data::string get_method();
 		virtual bool init(lyramilk::data::string method,lyramilk::data::string pattern,lyramilk::data::string real,lyramilk::data::var::array index);
 		virtual bool init_auth(lyramilk::data::string enginetype,lyramilk::data::string authscript);
+		virtual bool init_extra(const lyramilk::data::var& extra);
 		virtual bool check_auth(lyramilk::teapoy::http::request* req,std::ostream& os,website_worker& w,bool* ret) const;
 		virtual bool try_call(lyramilk::teapoy::http::request* req,std::ostream& os,website_worker& w,bool* ret) const;
 	};

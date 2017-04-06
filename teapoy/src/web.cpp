@@ -233,12 +233,18 @@ namespace lyramilk{ namespace teapoy { namespace web {
 	{
 		authtype = enginetype;
 		this->authscript = authscript;
-		return false;
+		return true;
+	}
+
+	bool url_worker::init_extra(const lyramilk::data::var& extra)
+	{
+		this->extra = extra;
+		return true;
 	}
 
 	bool url_worker::check_auth(lyramilk::teapoy::http::request* req,std::ostream& os,website_worker& w,bool* ret) const
 	{
-		if(authtype.empty()) return true;
+		if(authtype.empty()) return true; 
 
 		req->parse_cookies();
 
