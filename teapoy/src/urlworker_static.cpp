@@ -79,20 +79,18 @@ namespace lyramilk{ namespace teapoy { namespace web {
 			lyramilk::data::string mimetype = mime::getmimetype_byname(rawfile);
 			if(mimetype.empty()){
 				mimetype = mime::getmimetype_byfile(rawfile);
+				if(mimetype.empty()){
+					mimetype = "application/octet-stream";
+				}
 			}
 
 			lyramilk::data::uint64 datacount = st.st_size;
 
 			lyramilk::data::stringstream ss;
-			ss <<	"HTTP/1.1 200 OK\r\n";
-			if(!mimetype.empty()){
-				ss <<	"Content-Type: " << mimetype << "\r\n";
-			}
-			ss <<		"Server: " TEAPOY_VERSION "\r\n";
-			ss <<		"Content-Length: " << datacount << "\r\n";
-			ss <<		"Access-Control-Allow-Origin: *\r\n";
-			ss <<		"Access-Control-Allow-Methods: *\r\n";
-			ss <<		"\r\n";
+			ss <<	"HTTP/1.1 200 OK\r\nServer: " TEAPOY_VERSION "\r\n";
+			ss <<	"Content-Type: " << mimetype << "\r\n";
+			ss <<	"Content-Length: " << datacount << "\r\n";
+			ss <<	"Access-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: *\r\n\r\n";
 
 			os << ss.str();
 #ifdef NOSENDFILE
@@ -194,9 +192,41 @@ namespace lyramilk{ namespace teapoy { namespace web {
 					}
 				}
 			}
+
+			//现在 st是原始文件的信息。
+
+			bool needcache = true;
+			if(nocache){
+				needcache = false;
+			}else if(st.st_size < 1024){
+				needcache = false;
+			}
+
+			lyramilk::data::string etag;
+			if(needcache){
+				//取得ETag
+				{
+					char buff_etag[100];
+					long long unsigned filemtime = st.st_mtime;
+					long long unsigned filesize = st.st_size;
+					sprintf(buff_etag,"%llx-%llx",filemtime,filesize);
+					etag = buff_etag;
+				}
+
+				lyramilk::data::var vifetagnotmatch = req->get("If-None-Match");
+				if(vifetagnotmatch.type() != lyramilk::data::var::t_invalid && vifetagnotmatch == etag){
+					lyramilk::teapoy::http::make_response_header(os,"304 Not Modified",false,req->ver.major,req->ver.minor);
+					os << "Cache-Control: max-age=3600,public\r\n\r\n";
+					return true;
+				}
+			}
+
 			lyramilk::data::string mimetype = mime::getmimetype_byname(rawfile);
 			if(mimetype.empty()){
 				mimetype = mime::getmimetype_byfile(rawfile);
+				if(mimetype.empty()){
+					mimetype = "application/octet-stream";
+				}
 			}
 			enum {
 				NO_GZIP,
@@ -204,7 +234,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 				DYNAMIC_GZIP,
 			}gzipmode = NO_GZIP;
 #ifdef ZLIB_FOUND
-			if(st.st_size > this->threshold){
+			if(threshold > 0 && st.st_size > this->threshold){
 				//支持gzip
 				lyramilk::data::var v = req->get("Accept-Encoding");
 				if(v.type() == lyramilk::data::var::t_str){
@@ -276,6 +306,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 				}
 			}
 #endif
+			//此时 st有可能是gzip缓存文件的信息。
 			lyramilk::data::uint64 filesize = st.st_size;
 			lyramilk::data::uint64 datacount = filesize;
 			lyramilk::data::int64 range_start = 0;
@@ -322,59 +353,13 @@ namespace lyramilk{ namespace teapoy { namespace web {
 				}
 			}
 
-			bool needcache = true;
-			if(nocache){
-				needcache = false;
-			}else if(datacount < 1024){
-				needcache = false;
-			}
-
-			lyramilk::data::string lastmodified;
-			lyramilk::data::string etag;
-			if(needcache){
-				//取得上次修改时间和ETag
-				lyramilk::data::var vifmodified = req->get("If-Modified-Since");
-				lyramilk::data::var vifetagnotmatch = req->get("If-None-Match");
-				{
-					{
-						struct tm* gmt_mtime = gmtime(&st.st_mtime);
-						char buff_time[100];
-						strftime(buff_time,sizeof(buff_time),"%a, %0e %h %Y %T GMT",gmt_mtime);
-						lastmodified = buff_time;
-					}
-					{
-						char buff_etag[100];
-						sprintf(buff_etag,"%lx-%llx",st.st_mtime,filesize);
-						etag = buff_etag;
-					}
-				}
-
-				if(vifetagnotmatch.type() != lyramilk::data::var::t_invalid && vifetagnotmatch == etag){
-					lyramilk::teapoy::http::make_response_header(os,"304 Not Modified",false,req->ver.major,req->ver.minor);
-					os << "Cache-Control: max-age=3600,public\r\n\r\n";
-					return true;
-				}
-
-				if(vifmodified.type() != lyramilk::data::var::t_invalid && vifmodified == lastmodified){
-					lyramilk::teapoy::http::make_response_header(os,"304 Not Modified",false,req->ver.major,req->ver.minor);
-					os << "Cache-Control: max-age=3600,public\r\n\r\n";
-					return true;
-				}
-			}
-
 
 			if(is_range){
 				//判断分断下载是否因原文件修改而失效。
 				lyramilk::data::var vifrange = req->get("If-Range");
-				lyramilk::data::var vifunmodified = req->get("If-Unmodified-Since");
 				lyramilk::data::var vifmatch = req->get("If-Match");
 
-				if(vifrange.type() != lyramilk::data::var::t_invalid && (vifrange != etag) && (vifrange != lastmodified)){
-					//Range失效
-					is_range = false;
-				}
-
-				if(vifunmodified.type() != lyramilk::data::var::t_invalid && vifunmodified != lastmodified){
+				if(vifrange.type() != lyramilk::data::var::t_invalid && (vifrange != etag)){
 					//Range失效
 					is_range = false;
 				}
@@ -391,47 +376,26 @@ namespace lyramilk{ namespace teapoy { namespace web {
 			}else{
 				ss <<			"HTTP/1.1 200 OK\r\nServer: " TEAPOY_VERSION "\r\n";
 			}
-			if(!mimetype.empty()){
-				ss <<			"Content-Type: " << mimetype << "\r\n";
-			}
+			ss <<				"Content-Type: " << mimetype << "\r\n";
 
 			if(gzipmode != DYNAMIC_GZIP){
 				if(gzipmode != NO_GZIP){
 					ss <<		"Content-Encoding: gzip\r\n";
 				}
-				ss <<			"Accept-Ranges: bytes\r\n";
-				if(needcache){
-					time_t t_now = time(nullptr);
-					struct tm* gmt_now = gmtime(&t_now);
-					char buff_time[100] = {0};
-					strftime(buff_time,sizeof(buff_time),"%a, %0e %h %Y %T GMT",gmt_now);
-					ss <<		"Date: " << buff_time << "\r\n";
-
-					//建议客户端缓存3600秒。
-					t_now += 3600;
-					struct tm* gmt_expires = gmtime(&t_now);
-					char buff_time2[100] = {0};
-					strftime(buff_time2,sizeof(buff_time2),"%a, %0e %h %Y %T GMT",gmt_expires);
-
-					ss <<		"Expires: "<< buff_time2 << "\r\nCache-Control: max-age=3600,public\r\n";
-
-					if(!lastmodified.empty()){
-						ss <<	"Last-Modified: " << lastmodified << "\r\n";
-					}
-					if(!etag.empty()){
-						ss <<	"ETag: " << etag << "\r\n";
-					}
-				}else if(nocache){
-					ss <<		"Cache-Control: no-cache\r\npragma: no-cache\r\n";
-				}else{
-					ss <<		"Cache-Control: max-age=3600,public\r\n";
-				}
-				ss <<			"Content-Length: " << datacount << "\r\n";
+				ss <<			"Content-Length: " << datacount << "\r\nAccept-Ranges: bytes\r\n";
 				if(is_range){
 					ss <<		"Content-Range: " << range_start << "-" << range_end << "/" << filesize << "\r\n";
 				}
 			}else{
 				ss <<			"Content-Encoding: gzip\r\nTransfer-Encoding: chunked\r\n";
+			}
+
+			if(nocache){
+				ss <<			"Cache-Control: no-cache\r\npragma: no-cache\r\n";
+			}else if(!etag.empty()){
+				ss <<			"Cache-Control: max-age=3600,public\r\nETag: " << etag << "\r\n";
+			}else{
+				ss <<			"Cache-Control: max-age=3600,public\r\n";
 			}
 			ss <<				"Access-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: *\r\n\r\n";
 
@@ -596,7 +560,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 		bool nocache;
 		url_worker_static()
 		{
-			threshold = 0;
+			threshold = -1;
 			usegzipcache = false;
 			nocache = false;
 		}
