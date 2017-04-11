@@ -3,6 +3,7 @@
 
 #include "config.h"
 #include "http.h"
+#include "session.h"
 #include <libmilk/netaio.h>
 #include <libmilk/factory.h>
 #include <map>
@@ -33,7 +34,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 		virtual bool init(lyramilk::data::string method,lyramilk::data::string pattern,lyramilk::data::string real,lyramilk::data::var::array index);
 		virtual bool init_auth(lyramilk::data::string enginetype,lyramilk::data::string authscript);
 		virtual bool init_extra(const lyramilk::data::var& extra);
-		virtual bool check_auth(lyramilk::teapoy::http::request* req,std::ostream& os,website_worker& w,bool* ret) const;
+		virtual bool check_auth(lyramilk::teapoy::http::request* req,std::ostream& os,lyramilk::data::string real,website_worker& w,bool* ret) const;
 		virtual bool try_call(lyramilk::teapoy::http::request* req,std::ostream& os,website_worker& w,bool* ret) const;
 	};
 
@@ -66,7 +67,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 		session_info(lyramilk::data::string realfile,lyramilk::teapoy::http::request* req,std::ostream& os,website_worker& w);
 		~session_info();
 
-		const lyramilk::data::string& getsid();
+		lyramilk::data::string getsid();
 
 
 		lyramilk::data::var& get(const lyramilk::data::string& key);
@@ -75,9 +76,10 @@ namespace lyramilk{ namespace teapoy { namespace web {
 
 	class aiohttpsession:public lyramilk::netio::aiosession2
 	{
-		lyramilk::teapoy::http::request req;
 	  public:
+		lyramilk::teapoy::http::request req;
 		website_worker* worker;
+
 		aiohttpsession();
 		virtual ~aiohttpsession();
 

@@ -284,13 +284,13 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 		};
 
 
-		lyramilk::teapoy::strings static split_redis_string(lyramilk::data::string str)
+		lyramilk::data::strings static split_redis_string(lyramilk::data::string str)
 		{
 			const char *p = str.c_str();
 			std::size_t sz = str.size();
 			const char *e = p + sz + 1;
 
-			lyramilk::teapoy::strings ret;
+			lyramilk::data::strings ret;
 			lyramilk::data::string current;
 			current.reserve(sz);
 			enum {
@@ -358,7 +358,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			if(v.type() != lyramilk::data::var::t_str){
 				throw lyramilk::exception(D("监听错误"));
 			}
-			lyramilk::teapoy::strings rets = split_redis_string(v.str());
+			lyramilk::data::strings rets = split_redis_string(v.str());
 
 			if(rets.size() < 4) return true;
 
@@ -373,7 +373,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			lyramilk::data::var::array cmds;
 			cmds.reserve(rets.size() - 3);
 			cmds.push_back(cmd);
-			for(lyramilk::teapoy::strings::iterator it = rets.begin()+4;it!=rets.end();++it){
+			for(lyramilk::data::strings::iterator it = rets.begin()+4;it!=rets.end();++it){
 				cmds.push_back(*it);
 			}
 			ar.push_back(time);

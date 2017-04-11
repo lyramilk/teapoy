@@ -28,7 +28,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 		~url_worker_js_loger()
 		{
 			long long des = td.diff();
-			loger(lyramilk::log::trace) << D("%s:%u-->%s 耗时：%lld(纳秒)",req->dest().c_str(),req->dest_port(),req->url.c_str(),des) << std::endl;
+			loger(lyramilk::log::trace) << D("%s:%u-->%s 耗时：%lld(纳秒)",req->dest().c_str(),req->dest_port(),req->header->uri.c_str(),des) << std::endl;
 		}
 	};
 
@@ -39,10 +39,6 @@ namespace lyramilk{ namespace teapoy { namespace web {
 		bool call(lyramilk::teapoy::http::request* req,std::ostream& os,lyramilk::data::string real,website_worker& worker) const
 		{
 			url_worker_js_loger _(log,req);
-
-			req->parse_cookies();
-			req->parse_body_param();
-			req->parse_url();
 
 			lyramilk::script::engines::ptr p = pool->get();
 			if(!p->load_file(real)){
@@ -101,32 +97,32 @@ namespace lyramilk{ namespace teapoy { namespace web {
 			struct stat statbuf[2];
 			if(-1==stat (real.c_str(), &statbuf[0])){
 				if(errno == ENOENT){
-					lyramilk::teapoy::http::make_response_header(os,"404 Not Found",true,req->ver.major,req->ver.minor);
+					lyramilk::teapoy::http::make_response_header(os,"404 Not Found",true,req->header->major,req->header->minor);
 					return false;
 				}
 				if(errno == EACCES){
-					lyramilk::teapoy::http::make_response_header(os,"403 Forbidden",true,req->ver.major,req->ver.minor);
+					lyramilk::teapoy::http::make_response_header(os,"403 Forbidden",true,req->header->major,req->header->minor);
 					return false;
 				}
 				if(errno == ENAMETOOLONG){
-					lyramilk::teapoy::http::make_response_header(os,"400 Bad Request",true,req->ver.major,req->ver.minor);
+					lyramilk::teapoy::http::make_response_header(os,"400 Bad Request",true,req->header->major,req->header->minor);
 					return false;
 				}
-				lyramilk::teapoy::http::make_response_header(os,"500 Internal Server Error",true,req->ver.major,req->ver.minor);
+				lyramilk::teapoy::http::make_response_header(os,"500 Internal Server Error",true,req->header->major,req->header->minor);
 				return false;
 			}
 
 			if(-1==stat (jsx_jsfile.c_str(), &statbuf[1])){
 				if(errno == EACCES){
-					lyramilk::teapoy::http::make_response_header(os,"403 Forbidden",true,req->ver.major,req->ver.minor);
+					lyramilk::teapoy::http::make_response_header(os,"403 Forbidden",true,req->header->major,req->header->minor);
 					return false;
 				}
 				if(errno == ENAMETOOLONG){
-					lyramilk::teapoy::http::make_response_header(os,"400 Bad Request",true,req->ver.major,req->ver.minor);
+					lyramilk::teapoy::http::make_response_header(os,"400 Bad Request",true,req->header->major,req->header->minor);
 					return false;
 				}
 				if(errno != ENOENT){
-					lyramilk::teapoy::http::make_response_header(os,"500 Internal Server Error",true,req->ver.major,req->ver.minor);
+					lyramilk::teapoy::http::make_response_header(os,"500 Internal Server Error",true,req->header->major,req->header->minor);
 					return false;
 				}
 			}
@@ -185,10 +181,6 @@ namespace lyramilk{ namespace teapoy { namespace web {
 				tv.modtime = statbuf[0].st_mtime;
 				utime(jsx_jsfile.c_str(),&tv);
 			}
-
-			req->parse_cookies();
-			req->parse_body_param();
-			req->parse_url();
 
 			lyramilk::script::engines::ptr p = pool->get();
 			if(!p->load_file(jsx_jsfile)){

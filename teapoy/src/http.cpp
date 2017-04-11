@@ -1,22 +1,9 @@
 #include "config.h"
 #include "http.h"
-#include "stringutil.h"
-#include <strings.h>
-#include <libmilk/exception.h>
-#include <libmilk/multilanguage.h>
-#include <libmilk/codes.h>
-#include <stdlib.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
-
-#include <iostream>
-#include <streambuf>
-
-
-
-#define PARSE_STATUS_URL_PARAM	0x1
-#define PARSE_STATUS_BODY_PARAM	0x2
-#define PARSE_STATUS_COOKIE	0x4
+#include "stringutil.h"
+#include <stdlib.h>
 
 namespace lyramilk{ namespace teapoy {namespace http{
 
@@ -25,7 +12,7 @@ namespace lyramilk{ namespace teapoy {namespace http{
 		if(!_source.empty()) return _source;
 		sockaddr_in addr;
 		socklen_t size = sizeof addr;
-		if(getsockname(fd,(sockaddr*)&addr,&size) !=0 ) return _source;
+		if(getsockname(sockfd,(sockaddr*)&addr,&size) !=0 ) return _source;
 		_source_port = ntohs(addr.sin_port);
 		_source = inet_ntoa(addr.sin_addr);
 		return _source;
@@ -36,7 +23,7 @@ namespace lyramilk{ namespace teapoy {namespace http{
 		if(!_dest.empty()) return _dest;
 		sockaddr_in addr;
 		socklen_t size = sizeof addr;
-		if(getpeername(fd,(sockaddr*)&addr,&size) !=0 ) return _dest;
+		if(getpeername(sockfd,(sockaddr*)&addr,&size) !=0 ) return _dest;
 		_dest_port = ntohs(addr.sin_port);
 		_dest = inet_ntoa(addr.sin_addr);
 		return _dest;
@@ -47,7 +34,7 @@ namespace lyramilk{ namespace teapoy {namespace http{
 		if(_source_port) return _source_port;
 		sockaddr_in addr;
 		socklen_t size = sizeof addr;
-		if(getsockname(fd,(sockaddr*)&addr,&size) !=0 ) return _source_port;
+		if(getsockname(sockfd,(sockaddr*)&addr,&size) !=0 ) return _source_port;
 		_source_port = ntohs(addr.sin_port);
 		_source = inet_ntoa(addr.sin_addr);
 		return _source_port;
@@ -58,7 +45,7 @@ namespace lyramilk{ namespace teapoy {namespace http{
 		if(_dest_port) return _dest_port;
 		sockaddr_in addr;
 		socklen_t size = sizeof addr;
-		if(getpeername(fd,(sockaddr*)&addr,&size) !=0 ) return _dest_port;
+		if(getpeername(sockfd,(sockaddr*)&addr,&size) !=0 ) return _dest_port;
 		_dest_port = ntohs(addr.sin_port);
 		_dest = inet_ntoa(addr.sin_addr);
 		return _dest_port;
@@ -66,9 +53,11 @@ namespace lyramilk{ namespace teapoy {namespace http{
 
 	request::request()
 	{
-		fd = 0;
+		sockfd = 0;
 		_source_port = 0;
 		_dest_port = 0;
+		sessionmgr = nullptr;
+		header = nullptr;
 		reset();
 	}
 
@@ -76,179 +65,60 @@ namespace lyramilk{ namespace teapoy {namespace http{
 	{
 	}
 
-	bool request::parse(const char* buf,int size,int* remain)
+	void request::init(lyramilk::io::native_filedescriptor_type fd)
 	{
-		if(s == s0){
-			httpheader.append(buf,size);
-			std::size_t pos_captioneof = httpheader.find("\r\n");
-			if(pos_captioneof == httpheader.npos) return false;
-			lyramilk::data::string caption = httpheader.substr(0,pos_captioneof);
-			lyramilk::data::string mimeheader = httpheader.substr(pos_captioneof+2);
-			lyramilk::teapoy::strings fields = lyramilk::teapoy::split(caption," ");
-
-			if(fields.size() != 3){
-				s = sbad;
-				return true;
-			}
-			method = fields[0];
-			url  = fields[1];
-			std::size_t pos = url.find("?");
-			if(pos != url.npos && pos < url.size()){
-				url_pure = lyramilk::data::codes::instance()->decode("url",url.substr(0,pos));
-			}else{
-				url_pure = lyramilk::data::codes::instance()->decode("url",url);
-			}
-
-			lyramilk::data::string verstr = fields[2];
-			if(verstr.compare(0,5,"HTTP/") != 0){
-				s = sbad;
-				return true;
-			}
-			verstr = verstr.substr(5);
-			std::size_t pos_verdot = verstr.find('.');
-			if(pos_verdot == verstr.npos){
-				ver.major = atoi(verstr.c_str());
-				ver.minor = 0;
-			}else{
-				ver.major = atoi(verstr.substr(0,pos_verdot).c_str());
-				ver.minor = atoi(verstr.substr(pos_verdot+1).c_str());
-			}
-			s = smime;
-			return mime::parse(mimeheader.c_str(),mimeheader.size(),remain);
-		}
-		return mime::parse(buf,size,remain);
+		sockfd = fd;
 	}
 
-	bool request::bad()
+	bool request::parse(const char* buf,unsigned int size,unsigned int* remain)
 	{
-		if(mime::bad()){
+		if(s == s0){
+			httpheaderstr.append(buf,size);
+			std::size_t pos_headereof = httpheaderstr.find("\r\n\r\n");
+			if(pos_headereof == httpheaderstr.npos) return false;
+			pos_headereof += 4;
+
+			header = new http_frame(this);
+			if(!header->parse(httpheaderstr.c_str(),pos_headereof)){
+				s = sbad;
+				return true;
+			}
+
+			s = smime;
+
+			if(header->get("Transfer-Encoding") == "chunked"){
+				header->body = new http_chunkbody();
+			}else{
+				lyramilk::data::string cl_str = header->get("Content-Length");
+				if(cl_str.empty()){
+					s = sok;
+					return true;
+				}
+				header->body = new http_lengthedbody(strtoll(cl_str.c_str(),nullptr,10));
+			}
+			unsigned int des = httpheaderstr.size() - pos_headereof;
+			if(des > 0 && header->body->write(httpheaderstr.c_str() + pos_headereof,des,remain)){
+				s = sok;
+				return true;
+			}
+		}else if(header->body->write(buf,size,remain)){
+			s = sok;
 			return true;
 		}
-		return s == sbad;
+		return false;
+	}
+
+	bool request::ok()
+	{
+		return s != sbad;
 	}
 
 	void request::reset()
 	{
 		s = s0;
-		parse_status = 0;
-		httpheader.clear();
-		ver.major = 0;
-		ver.minor = 0;
-		method.clear();
-		url.clear();
-		parameter.clear();
-		cookies.clear();
-
-
-		mime::reset();
-	}
-
-	bool request::parse_url()
-	{
-		if(parse_status&PARSE_STATUS_URL_PARAM) return true;
-		std::size_t pos = url.find("?");
-		lyramilk::data::string urlparams;
-		if(pos != url.npos && pos < url.size()){
-			lyramilk::data::string url1 = url.substr(0,pos);
-			urlparams = url.substr(pos + 1);
-		}
-
-		lyramilk::teapoy::strings param_fields = lyramilk::teapoy::split(urlparams,"&");
-		lyramilk::teapoy::strings::iterator it = param_fields.begin();
-
-		lyramilk::data::coding* urlcoder = lyramilk::data::codes::instance()->getcoder("urlcomponent");
-		for(;it!=param_fields.end();++it){
-			std::size_t pos_eq = it->find("=");
-			if(pos_eq == it->npos || pos_eq == it->size()) continue;
-			lyramilk::data::string k = it->substr(0,pos_eq);
-			lyramilk::data::string v = it->substr(pos_eq + 1);
-			if(urlcoder){
-				k = urlcoder->decode(k);
-				v = urlcoder->decode(v);
-			}
-
-			lyramilk::data::var& parameters_of_key = parameter[k];
-			parameters_of_key.type(lyramilk::data::var::t_array);
-			lyramilk::data::var::array& ar = parameters_of_key;
-			ar.push_back(v);
-		}
-		parse_status |= PARSE_STATUS_URL_PARAM;
-		return true;
-	}
-
-	bool request::parse_body_param()
-	{
-		if(parse_status&PARSE_STATUS_BODY_PARAM) return true;
-		lyramilk::data::var vmimetype = get("Content-Type");
-		lyramilk::data::string urlparams;
-		//解析请求正文中的参数
-		if(vmimetype.type_like(lyramilk::data::var::t_str)){
-			lyramilk::data::string str = vmimetype;
-			lyramilk::data::string charset;
-			if(body_length > 0 && str.find("www-form-urlencoded") != str.npos){
-				std::size_t pos_charset = str.find("charset=");
-				if(pos_charset!= str.npos){
-					std::size_t pos_charset_bof = pos_charset + 8;
-					std::size_t pos_charset_eof = str.find(";",pos_charset_bof);
-					if(pos_charset_eof != str.npos){
-						charset = str.substr(pos_charset_bof,pos_charset_eof - pos_charset_bof);
-					}else{
-						charset = str.substr(pos_charset_bof);
-					}
-				}
-
-				lyramilk::data::string paramurl((const char*)offset_body,body_length);
-				if(charset.find_first_not_of("UuTtFf-8") != charset.npos){
-					paramurl = lyramilk::data::codes::instance()->decode(charset,paramurl);
-				}
-				if(!urlparams.empty()){
-					urlparams.push_back('&');
-				}
-				urlparams += paramurl;
-			}
-		}
-
-		lyramilk::teapoy::strings param_fields = lyramilk::teapoy::split(urlparams,"&");
-		lyramilk::teapoy::strings::iterator it = param_fields.begin();
-
-		lyramilk::data::coding* urlcoder = lyramilk::data::codes::instance()->getcoder("urlcomponent");
-		for(;it!=param_fields.end();++it){
-			std::size_t pos_eq = it->find("=");
-			if(pos_eq == it->npos || pos_eq == it->size()) continue;
-			lyramilk::data::string k = it->substr(0,pos_eq);
-			lyramilk::data::string v = it->substr(pos_eq + 1);
-			if(urlcoder){
-				k = urlcoder->decode(k);
-				v = urlcoder->decode(v);
-			}
-
-			lyramilk::data::var& parameters_of_key = parameter[k];
-			parameters_of_key.type(lyramilk::data::var::t_array);
-			lyramilk::data::var::array& ar = parameters_of_key;
-			ar.push_back(v);
-		}
-
-		parse_status |= PARSE_STATUS_BODY_PARAM;
-		return true;
-	}
-
-	bool request::parse_cookies()
-	{
-		if(parse_status&PARSE_STATUS_COOKIE) return true;
-		lyramilk::data::string cookiestr = get("cookie");
-
-		lyramilk::teapoy::strings vheader = lyramilk::teapoy::split(cookiestr,";");
-		lyramilk::teapoy::strings::iterator it = vheader.begin();
-		for(;it!=vheader.end();++it){
-			std::size_t pos = it->find_first_of("=");
-			if(pos != it->npos){
-				lyramilk::data::string key = lyramilk::teapoy::trim(it->substr(0,pos)," \t\r\n");
-				lyramilk::data::string value = lyramilk::teapoy::trim(it->substr(pos + 1));
-				cookies[key] = value;
-			}
-		}
-		parse_status |= PARSE_STATUS_COOKIE;
-		return true;
+		httpheaderstr.clear();
+		if(header) delete header;
+		header = nullptr;
 	}
 
 	static std::map<int,lyramilk::data::string> __init_code_map()

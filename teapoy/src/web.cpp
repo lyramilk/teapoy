@@ -10,118 +10,6 @@
 #include <pcre.h>
 
 namespace lyramilk{ namespace teapoy { namespace web {
-
-	/********** sessions ***********/
-
-	class sessions
-	{
-		struct timedmap
-		{
-			lyramilk::data::var::map m;
-			time_t tm;
-			timedmap();
-		};
-		time_t st;
-		std::map<lyramilk::data::string,timedmap> k;
-	  public:
-		sessions();
-		virtual ~sessions();
-		lyramilk::data::var& get(const lyramilk::data::string& sid,const lyramilk::data::string& key);
-		void gc();
-		void set(const lyramilk::data::string& sid,const lyramilk::data::string& key,const lyramilk::data::var& value);
-		lyramilk::data::string newid();
-
-		static sessions* instance();
-	};
-
-	sessions::timedmap::timedmap()
-	{
-		tm = time(0);
-	}
-
-	sessions::sessions()
-	{
-		st = time(0);
-	}
-
-	sessions::~sessions()
-	{}
-
-	lyramilk::data::var& sessions::get(const lyramilk::data::string& sid,const lyramilk::data::string& key)
-	{
-		gc();
-		timedmap& t = k[sid];
-		t.tm = time(0);
-		return t.m[key];
-	}
-
-	void sessions::gc()
-	{
-		time_t now = time(0);
-		if(st < now){
-			//每60秒触发一次gc。
-			st = now + 10;
-			//会话时间为600秒。
-			time_t q = now - 600;
-			for(std::map<lyramilk::data::string,timedmap>::iterator it = k.begin();it!=k.end();++it){
-				if(it->second.tm < q){
-					k.erase(it);
-				}
-			}
-		}
-	}
-
-	void sessions::set(const lyramilk::data::string& sid,const lyramilk::data::string& key,const lyramilk::data::var& value)
-	{
-		gc();
-		timedmap& t = k[sid];
-		t.tm = time(0);
-		t.m[key] = value;
-	}
-
-	static lyramilk::data::string makeid()
-	{
-		union{
-			int i[4];
-			char c[1];
-		}u;
-		u.i[0] = rand();
-		u.i[1] = rand();
-		u.i[2] = rand();
-		u.i[3] = rand();
-		int size = sizeof(u);
-		lyramilk::data::string str;
-		str.reserve(size);
-		for(int i=0;i<size;++i){
-			unsigned char c = u.c[i];
-			unsigned char q = c % 36;
-			if(q <10){
-				str.push_back(q + '0');
-			}else{
-				str.push_back(q - 10 + 'A');
-			}
-		}
-		return str;
-	}
-
-	lyramilk::data::string sessions::newid()
-	{
-		srand(time(0));
-		std::map<lyramilk::data::string,lyramilk::data::var::map>::iterator it;
-		while(true){
-			lyramilk::data::string id = makeid();
-			if(k.find(id) == k.end()){
-				return id;
-			}
-		}
-	}
-
-	sessions* sessions::instance()
-	{
-		static sessions _mm;
-		return &_mm;
-	}
-
 	/**************** session_info ********************/
 	session_info::session_info(lyramilk::data::string realfile,lyramilk::teapoy::http::request* req,std::ostream& argos,website_worker& w):os(argos),worker(w)
 	{
@@ -133,13 +21,12 @@ namespace lyramilk{ namespace teapoy { namespace web {
 	{
 	}
 
-	const lyramilk::data::string& session_info::getsid()
+	lyramilk::data::string session_info::getsid()
 	{
-		if(!sid.empty()) return sid;
+		lyramilk::data::var::map& cookies = req->header->cookies();
+		lyramilk::data::var::map::iterator it = cookies.find("TeapoyId");
 
-		lyramilk::data::var::map::iterator it = req->cookies.find("TeapoyId");
-
-		if(it!=req->cookies.end()){
+		if(it!=cookies.end()){
 			if(it->second.type() == lyramilk::data::var::t_map){
 				sid = it->second.at("value").str();
 			}
@@ -148,24 +35,25 @@ namespace lyramilk{ namespace teapoy { namespace web {
 			}
 		}
 		if(sid.empty()){
-			sid = lyramilk::teapoy::web::sessions::instance()->newid();
+			sid = req->sessionmgr->newid();
 			lyramilk::data::var v;
 			v.type(lyramilk::data::var::t_map);
 			v["value"] = sid;
-			req->cookies["TeapoyId"] = v;
+			cookies["TeapoyId"] = v;
 		}
 		return sid;
 	}
 
 	lyramilk::data::var& session_info::get(const lyramilk::data::string& key)
 	{
-		return lyramilk::teapoy::web::sessions::instance()->get(req->dest() + getsid(),key);
+		return req->sessionmgr->get(sid,key);
 	}
 
 	void session_info::set(const lyramilk::data::string& key,const lyramilk::data::var& value)
 	{
-		lyramilk::teapoy::web::sessions::instance()->set(req->dest() + getsid(),key,value);
+		return req->sessionmgr->set(sid,key,value);
 	}
+
 	/**************** url_worker ********************/
 	url_worker::url_worker()
 	{
@@ -242,23 +130,20 @@ namespace lyramilk{ namespace teapoy { namespace web {
 		return true;
 	}
 
-	bool url_worker::check_auth(lyramilk::teapoy::http::request* req,std::ostream& os,website_worker& w,bool* ret) const
+	bool url_worker::check_auth(lyramilk::teapoy::http::request* req,std::ostream& os,lyramilk::data::string real,website_worker& w,bool* ret) const
 	{
 		if(authtype.empty()) return true; 
 
-		req->parse_cookies();
-
-		session_info si("",req,os,w);
+		session_info si(real,req,os,w);
 		lyramilk::data::var v = si.get("http.digest.user");
 		if(v.type() == lyramilk::data::var::t_str){
 			return true;
 		}
 
-		lyramilk::data::var::array ar;
-		lyramilk::data::string authorization_str = req->get("authorization");
-		lyramilk::teapoy::strings strs = lyramilk::teapoy::split(authorization_str,",");
+		lyramilk::data::string authorization_str = req->header->get("authorization");
+		lyramilk::data::strings strs = lyramilk::teapoy::split(authorization_str,",");
 		lyramilk::data::var::map logininfo;
-		lyramilk::teapoy::strings::iterator it = strs.begin();
+		lyramilk::data::strings::iterator it = strs.begin();
 		for(;it!=strs.end();++it){
 			std::size_t pos = it->find('=');
 			if(pos != it->npos){
@@ -268,24 +153,35 @@ namespace lyramilk{ namespace teapoy { namespace web {
 			}
 		}
 
-		logininfo["method"] = req->method;
+		logininfo["method"] = req->header->method;
 		//不使用客户端传过来的nonce，因为这个值有可能是伪造的。
 		logininfo["nonce"] = si.get("http.digest.nonce");
 
-		ar.push_back(logininfo);
 		lyramilk::script::engines::ptr eng = engine_pool::instance()->get("js")->get();
 		if(!eng->load_file(authscript)){
-			lyramilk::teapoy::http::make_response_header(os,"500 Internal Server Error",true,req->ver.major,req->ver.minor);
+			lyramilk::teapoy::http::make_response_header(os,"500 Internal Server Error",true,req->header->major,req->header->minor);
 			if(ret)*ret = false;
 			return false;
 		}
+
+		lyramilk::data::var::array ar;
+		{
+			lyramilk::data::var var_processer_args("__http_session_info",&si);
+
+			lyramilk::data::var::array args;
+			args.push_back(var_processer_args);
+
+			ar.push_back(eng->createobject("HttpRequest",args));
+		}
+		ar.push_back(logininfo);
+
 		lyramilk::data::var vret = eng->call("auth",ar);
-		if(vret == true){
+		if(vret.type() == lyramilk::data::var::t_bool && vret == true){
 			si.set("http.digest.user",logininfo["Digest username"]);
 			return true;
 		}
 		if(vret.type() != lyramilk::data::var::t_map){
-			lyramilk::teapoy::http::make_response_header(os,"500 Internal Server Error",true,req->ver.major,req->ver.minor);
+			lyramilk::teapoy::http::make_response_header(os,"500 Internal Server Error",true,req->header->major,req->header->minor);
 			if(ret)*ret = false;
 			return false;
 		}
@@ -302,7 +198,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 
 		lyramilk::data::stringstream ss;
 
-		lyramilk::teapoy::http::make_response_header(ss,"401 Authorization Required",false,req->ver.major,req->ver.minor);
+		lyramilk::teapoy::http::make_response_header(ss,"401 Authorization Required",false,req->header->major,req->header->minor);
 		ss <<	"Connection: Keep-alive\r\n"
 				"Content-Length: 0\r\n"
 				"WWW-Authenticate: Digest username=\"" << digest << "\", realm=\"" << realm << "\", nonce=\"" << nonce << "\", algorithm=\"" << algorithm << "\", nc=" << nc << ", qop=\"auth\"\r\n"
@@ -315,7 +211,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 
 	bool url_worker::test(lyramilk::teapoy::http::request* req,std::ostream& os,lyramilk::data::string& real,website_worker& w) const
 	{
-		lyramilk::data::string url = req->url_pure;
+		lyramilk::data::string url = req->header->url;
 		if(!matcher_regex) return false;
 		int ov[256] = {0};
 		int rc = pcre_exec((const pcre*)matcher_regex,nullptr,url.c_str(),url.size(),0,0,ov,256);
@@ -378,7 +274,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 			}
 		}
 
-		if(!check_auth(req,os,w,ret)){
+		if(!check_auth(req,os,real,w,ret)){
 			return true;
 		}
 
@@ -411,7 +307,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 		std::vector<url_worker*>::const_iterator it = lst.begin();
 		for(;it!=lst.end();++it){
 			lyramilk::data::string method = it[0]->get_method();
-			if(method.find(req->method) != method.npos && it[0]->try_call(req,os,w,ret)) return true;
+			if(method.find(req->header->method) != method.npos && it[0]->try_call(req,os,w,ret)) return true;
 		}
 		return false;
 	}
@@ -430,16 +326,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 
 	bool aiohttpsession::oninit(std::ostream& os)
 	{
-
-		lyramilk::netio::netaddress addr_dest = dest();
-		lyramilk::netio::netaddress addr_source = source();
-
-		req._source = addr_source.ip_str();
-		req._source_port = addr_dest.port;
-
-		req._dest = addr_dest.ip_str();
-		req._dest_port = addr_dest.port;
-		req.fd = getfd();
+		req.init(getfd());
 		return true;
 	}
 
@@ -453,12 +340,12 @@ namespace lyramilk{ namespace teapoy { namespace web {
 
 //std::cout.write(cache,size) << std::endl;
 
-		int remain = 0;
-		if(!req.parse(cache,size,&remain)){
+		unsigned int remain = 0;
+		if(!req.parse(cache,(unsigned int)size,&remain)){
 			return true;
 		}
 
-		if(req.bad()){
+		if(!req.ok()){
 			lyramilk::teapoy::http::make_response_header(os,"400 Bad Request",true);
 			return false;
 		}
@@ -471,20 +358,16 @@ namespace lyramilk{ namespace teapoy { namespace web {
 
 		bool bret = false;
 		if(!worker->try_call(&req,os,*worker,&bret)){
-			lyramilk::teapoy::http::make_response_header(os,"404 Not Found",true,req.ver.major,req.ver.minor);
+			lyramilk::teapoy::http::make_response_header(os,"404 Not Found",true,req.header->major,req.header->minor);
 			return false;
 		}
 
 		if(bret){
-			if(req.ver.major <= 1 && req.ver.minor < 1){
+			if(req.header->major <= 1 && req.header->minor < 1){
 				return false;
 			}
 
-			lyramilk::data::var vconnection = req.get("Connection");
-			lyramilk::data::var strconnection;
-			if(vconnection.type_like(lyramilk::data::var::t_str)){
-				strconnection = lyramilk::teapoy::lowercase(vconnection.str());
-			}
+			lyramilk::data::string strconnection = lyramilk::teapoy::lowercase(req.header->get("Connection"));
 			if(strconnection == "keep-alive"){
 				req.reset();
 				if(remain != 0){

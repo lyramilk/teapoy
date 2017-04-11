@@ -6,6 +6,7 @@
 #include "web.h"
 #include "env.h"
 #include "mime.h"
+#include "session.h"
 #include <sys/stat.h>
 #include <errno.h>
 #include <string.h>
@@ -117,6 +118,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		{
 			lyramilk::teapoy::web::aiohttpsession* ss = lyramilk::netio::aiosession::__tbuilder<lyramilk::teapoy::web::aiohttpsession>();
 			ss->worker = &worker;
+			ss->req.sessionmgr = lyramilk::teapoy::web::sessions::defaultinstance();
 			return ss;
 		}
 		 		

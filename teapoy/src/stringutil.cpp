@@ -2,31 +2,31 @@
 #include <algorithm>
 
 namespace lyramilk{ namespace teapoy{
-	strings split(lyramilk::data::string data,lyramilk::data::string sep)
+	lyramilk::data::strings split(lyramilk::data::string data,lyramilk::data::string sep)
 	{
-		strings lines;
+		lyramilk::data::strings lines;
+		lines.reserve(10);
 		std::size_t posb = 0;
 		do{
 			std::size_t poscrlf = data.find(sep,posb);
 			if(poscrlf == data.npos){
-				lyramilk::data::string newline = data.substr(posb);
+				lines.push_back(data.substr(posb));
 				posb = poscrlf;
-				lines.push_back(newline);
 			}else{
-				lyramilk::data::string newline = data.substr(posb,poscrlf - posb);
+				lines.push_back(data.substr(posb,poscrlf - posb));
 				posb = poscrlf + sep.size();
-				lines.push_back(newline);
 			}
 		}while(posb != data.npos);
 		return lines;
 	}
 
-	strings pathof(lyramilk::data::string path)
+	lyramilk::data::strings pathof(lyramilk::data::string path)
 	{
-		strings ret;
-		strings v = split(path,"/");
-		strings::iterator it = v.begin();
+		lyramilk::data::strings ret;
+		lyramilk::data::strings v = split(path,"/");
+		lyramilk::data::strings::iterator it = v.begin();
 		if(it==v.end()) return ret;
+		ret.reserve(10);
 		ret.push_back(*it);
 		for(++it;it!=v.end();++it){
 			if(*it == ".") continue;
@@ -48,7 +48,9 @@ namespace lyramilk{ namespace teapoy{
 			return "";
 		}
 		pos2++;
-		return data.substr(pos1,pos2-pos1);
+		std::size_t des = pos2-pos1;
+		if(des == data.size()) return data;
+		return data.substr(pos1,des);
 	}
 
 	lyramilk::data::string lowercase(lyramilk::data::string src)
