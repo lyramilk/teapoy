@@ -223,16 +223,40 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 
 		lyramilk::data::var drop(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
-			TODO();
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
+			lyramilk::data::string str = args[0];
+			std::string ns;
+			ns.reserve(dbname.size() + str.size() + 1);
+			ns.append(dbname.c_str(),dbname.size());
+			ns.push_back('.');
+			ns.append(str.c_str(),str.size());
+			if(!p->dropCollection(ns)){
+				return false;
+			}
+			return true;
 		}
 
 		lyramilk::data::var runCommand(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
-			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_map);
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_str);
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,2,lyramilk::data::var::t_map);
 
-			lyramilk::data::var v = args[0];
-			::mongo::BSONObj bsoncmd;
-			var2bson(v,bsoncmd);
+			lyramilk::data::string scmd = args[0];
+			lyramilk::data::string sarg = args[1];
+
+			::mongo::BSONObjBuilder b;
+			b.append(scmd.c_str(),sarg.c_str());
+
+			lyramilk::data::var v = args[2];
+			::mongo::BSONObj bsoninfo;
+			var2bson(v,bsoninfo);
+
+
+			b.appendElements(bsoninfo);
+
+			::mongo::BSONObj bsoncmd = b.obj();
+
 			::mongo::BSONObj bsonresult;
 			p->runCommand(dbname,bsoncmd,bsonresult);
 
@@ -271,16 +295,41 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			ar.push_back(collection);
 			return e->createobject("Mongo.Collection",ar);
 		}
+
+		lyramilk::data::var eval(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		{
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
+			lyramilk::data::string collection = args[0];
+			std::string s_collection(collection.c_str(),collection.size());
+
+
+			::mongo::BSONElement retValue;
+			if(args.size() > 1){
+				::mongo::BSONObj info;
+				::mongo::BSONObj bsonargs;
+				var2bson(args[1],bsonargs);
+				if(!p->eval(dbname,s_collection,info,retValue,&bsonargs)) return lyramilk::data::var::nil;
+
+			}else{
+				::mongo::BSONObj info;
+				if(!p->eval(dbname,s_collection,info,retValue,nullptr)) return lyramilk::data::var::nil;
+			}
+			lyramilk::data::var ret;
+			bson2var(retValue.Obj(),ret);
+			return ret;
+		}
 	  public:
 		static int define(lyramilk::script::engine* p)
 		{
 			lyramilk::script::engine::functional_map fn;
 			fn["login"] = lyramilk::script::engine::functional<mymongo_db,&mymongo_db::login>;
 			fn["logout"] = lyramilk::script::engine::functional<mymongo_db,&mymongo_db::logout>;
-			fn["runCommand"] = lyramilk::script::engine::functional<mymongo_db,&mymongo_db::runCommand>;
+			fn["remove"] = lyramilk::script::engine::functional<mymongo_db,&mymongo_db::drop>;
+			fn["command"] = lyramilk::script::engine::functional<mymongo_db,&mymongo_db::runCommand>;
 			fn["list"] = lyramilk::script::engine::functional<mymongo_db,&mymongo_db::show_collections>;
 			fn["get"] = lyramilk::script::engine::functional<mymongo_db,&mymongo_db::collection>;
 			fn["collection"] = lyramilk::script::engine::functional<mymongo_db,&mymongo_db::collection>;
+			fn["eval"] = lyramilk::script::engine::functional<mymongo_db,&mymongo_db::eval>;
 			p->define("Mongo.Database",fn,mymongo_db::ctr,mymongo_db::dtr);
 			return 1;
 		}
@@ -380,6 +429,64 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return true;
 		}
 
+		lyramilk::data::var mapreduce(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		{
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_str);
+			if(args.size() == 2){
+				lyramilk::data::string mapf = args[0];
+				std::string s_mapf(mapf.c_str(),mapf.size());
+				lyramilk::data::string reducef = args[1];
+				std::string s_reducef(reducef.c_str(),reducef.size());
+
+				::mongo::BSONObj bsonret = p->mapreduce(ns,s_mapf,s_reducef);
+				lyramilk::data::var ret;
+				bson2var(bsonret,ret);
+				return ret;
+
+			}else if(args.size() > 3){
+				MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,2,lyramilk::data::var::t_map);
+				MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,3,lyramilk::data::var::t_map);
+				lyramilk::data::string mapf = args[0];
+				std::string s_mapf(mapf.c_str(),mapf.size());
+				lyramilk::data::string reducef = args[1];
+				std::string s_reducef(reducef.c_str(),reducef.size());
+
+				lyramilk::data::var v2 = args[2];
+				lyramilk::data::json j2(v2);
+				lyramilk::data::string jsonstr2 = j2.str();
+				::mongo::BSONObj query = ::mongo::fromjson(jsonstr2.c_str());
+
+				lyramilk::data::var v3 = args[3];
+				lyramilk::data::json j3(v3);
+				lyramilk::data::string jsonstr3 = j3.str();
+				::mongo::BSONObj bsonoutput = ::mongo::fromjson(jsonstr3.c_str());
+				::mongo::DBClientWithCommands::MROutput output(bsonoutput);
+
+				::mongo::BSONObj bsonret = p->mapreduce(ns,s_mapf,s_reducef,query,output);
+				lyramilk::data::var ret;
+				bson2var(bsonret,ret);
+				return ret;
+			}else if(args.size() > 2){
+				MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,2,lyramilk::data::var::t_str);
+				lyramilk::data::string mapf = args[0];
+				std::string s_mapf(mapf.c_str(),mapf.size());
+				lyramilk::data::string reducef = args[1];
+				std::string s_reducef(reducef.c_str(),reducef.size());
+
+				lyramilk::data::var v2 = args[2];
+				lyramilk::data::json j2(v2);
+				lyramilk::data::string jsonstr2 = j2.str();
+				::mongo::BSONObj query = ::mongo::fromjson(jsonstr2.c_str());
+
+				::mongo::BSONObj bsonret = p->mapreduce(ns,s_mapf,s_reducef,query);
+				lyramilk::data::var ret;
+				bson2var(bsonret,ret);
+				return ret;
+			}
+			return lyramilk::data::var::nil;
+		}
+
 	  public:
 		static int define(lyramilk::script::engine* p)
 		{
@@ -387,6 +494,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			fn["query"] = lyramilk::script::engine::functional<mymongo_collection,&mymongo_collection::query>;
 			fn["add"] = lyramilk::script::engine::functional<mymongo_collection,&mymongo_collection::insert>;
 			fn["adds"] = lyramilk::script::engine::functional<mymongo_collection,&mymongo_collection::insert_many>;
+			fn["mapreduce"] = lyramilk::script::engine::functional<mymongo_collection,&mymongo_collection::mapreduce>;
 			p->define("Mongo.Collection",fn,mymongo_collection::ctr,mymongo_collection::dtr);
 			return 1;
 		}

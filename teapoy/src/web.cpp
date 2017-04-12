@@ -134,77 +134,34 @@ namespace lyramilk{ namespace teapoy { namespace web {
 	{
 		if(authtype.empty()) return true; 
 
-		session_info si(real,req,os,w);
-		lyramilk::data::var v = si.get("http.digest.user");
-		if(v.type() == lyramilk::data::var::t_str){
-			return true;
-		}
+		lyramilk::data::stringstream ss;
+		{
+			lyramilk::script::engines::ptr eng = engine_pool::instance()->get("js")->get();
+			if(!eng->load_file(authscript)){
+				lyramilk::klog(lyramilk::log::warning,"teapoy.web.processer.auth") << D("加载文件%s失败",authscript.c_str()) << std::endl;
+				lyramilk::teapoy::http::make_response_header(os,"500 Internal Server Error",true,req->header->major,req->header->minor);
+				if(ret)*ret = false;
+				return false;
+			}
+			session_info si(real,req,ss,w);
+			lyramilk::data::var::array ar;
+			{
+				lyramilk::data::var var_processer_args("__http_session_info",&si);
 
-		lyramilk::data::string authorization_str = req->header->get("authorization");
-		lyramilk::data::strings strs = lyramilk::teapoy::split(authorization_str,",");
-		lyramilk::data::var::map logininfo;
-		lyramilk::data::strings::iterator it = strs.begin();
-		for(;it!=strs.end();++it){
-			std::size_t pos = it->find('=');
-			if(pos != it->npos){
-				lyramilk::data::string str1 = it->substr(0,pos);
-				lyramilk::data::string str2 = it->substr(pos+1);
-				logininfo[lyramilk::teapoy::trim(str1," \"'")] = lyramilk::teapoy::trim(str2," \"'");
+				lyramilk::data::var::array args;
+				args.push_back(var_processer_args);
+
+				ar.push_back(eng->createobject("HttpRequest",args));
+				ar.push_back(eng->createobject("HttpResponse",args));
+			}
+
+			lyramilk::data::var vret = eng->call("auth",ar);
+			if(vret.type_like(lyramilk::data::var::t_bool) && (bool)vret){
+				return true;
 			}
 		}
-
-		logininfo["method"] = req->header->method;
-		//不使用客户端传过来的nonce，因为这个值有可能是伪造的。
-		logininfo["nonce"] = si.get("http.digest.nonce");
-
-		lyramilk::script::engines::ptr eng = engine_pool::instance()->get("js")->get();
-		if(!eng->load_file(authscript)){
-			lyramilk::teapoy::http::make_response_header(os,"500 Internal Server Error",true,req->header->major,req->header->minor);
-			if(ret)*ret = false;
-			return false;
-		}
-
-		lyramilk::data::var::array ar;
-		{
-			lyramilk::data::var var_processer_args("__http_session_info",&si);
-
-			lyramilk::data::var::array args;
-			args.push_back(var_processer_args);
-
-			ar.push_back(eng->createobject("HttpRequest",args));
-		}
-		ar.push_back(logininfo);
-
-		lyramilk::data::var vret = eng->call("auth",ar);
-		if(vret.type() == lyramilk::data::var::t_bool && vret == true){
-			si.set("http.digest.user",logininfo["Digest username"]);
-			return true;
-		}
-		if(vret.type() != lyramilk::data::var::t_map){
-			lyramilk::teapoy::http::make_response_header(os,"500 Internal Server Error",true,req->header->major,req->header->minor);
-			if(ret)*ret = false;
-			return false;
-		}
-
-		if(logininfo["nc"].type() == lyramilk::data::var::t_invalid){
-			logininfo["nc"] = 0;
-		}
-		lyramilk::data::string digest = vret["digest"];
-		lyramilk::data::string realm = vret["realm"];
-		lyramilk::data::string algorithm = vret["algorithm"];
-		lyramilk::data::string nonce = vret["nonce"].str();
-		lyramilk::data::uint64 nc = logininfo["nc"];
-		si.set("http.digest.nonce",nonce);
-
-		lyramilk::data::stringstream ss;
-
-		lyramilk::teapoy::http::make_response_header(ss,"401 Authorization Required",false,req->header->major,req->header->minor);
-		ss <<	"Connection: Keep-alive\r\n"
-				"Content-Length: 0\r\n"
-				"WWW-Authenticate: Digest username=\"" << digest << "\", realm=\"" << realm << "\", nonce=\"" << nonce << "\", algorithm=\"" << algorithm << "\", nc=" << nc << ", qop=\"auth\"\r\n"
-				"Set-Cookie: TeapoyId=" << si.getsid() << "\r\n"
-				"\r\n";
 		os << ss.str();
+		os.flush();
 		if(ret)*ret = true;
 		return false;
 	}

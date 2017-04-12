@@ -118,11 +118,13 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			lyramilk::data::string str_body;
 			if(response_code == 200){
 				ss_header << "HTTP/1.1 200 OK\r\n";
-				str_body = ss.str();
-				header["Content-Length"] = str_body.size();
 			}else{
 				ss_header << "HTTP/1.1 " << http::get_error_code_desc(response_code) << "\r\n";
 			}
+			str_body = ss.str();
+			header["Content-Length"] = str_body.size();
+
+
 			lyramilk::data::var::map::iterator it = header.begin();
 			for(;it!=header.end();++it){
 				ss_header << it->first << ": " << it->second << "\r\n";
@@ -366,9 +368,14 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			return ret;
 		}
 
-		lyramilk::data::var getRequestURL(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var getURI(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			return lyramilk::data::codes::instance()->decode("urlcomponent",si->req->header->uri);
+		}
+
+		lyramilk::data::var getMethod(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		{
+			return si->req->header->method;
 		}
 
 		lyramilk::data::var getRequestBody(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
@@ -451,7 +458,8 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			fn["getParameterRaw"] = lyramilk::script::engine::functional<httprequest,&httprequest::getParameterRaw>;
 			fn["getParameterValues"] = lyramilk::script::engine::functional<httprequest,&httprequest::getParameterValues>;
 			fn["getFiles"] = lyramilk::script::engine::functional<httprequest,&httprequest::getFiles>;
-			fn["getRequestURL"] = lyramilk::script::engine::functional<httprequest,&httprequest::getRequestURL>;
+			fn["getURI"] = lyramilk::script::engine::functional<httprequest,&httprequest::getURI>;
+			fn["getMethod"] = lyramilk::script::engine::functional<httprequest,&httprequest::getMethod>;
 			fn["getRequestBody"] = lyramilk::script::engine::functional<httprequest,&httprequest::getRequestBody>;
 			fn["getRealPath"] = lyramilk::script::engine::functional<httprequest,&httprequest::getRealPath>;
 			fn["getSession"] = lyramilk::script::engine::functional<httprequest,&httprequest::getSession>;
