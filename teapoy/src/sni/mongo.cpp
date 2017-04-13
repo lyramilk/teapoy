@@ -138,6 +138,8 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 				}
 			}
 
+			p->resetError();
+
 			lyramilk::data::var::array ar;
 			ar.reserve(2);
 			ar.push_back(lyramilk::data::var("mongo",p));
@@ -468,7 +470,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 				bson2var(bsonret,ret);
 				return ret;
 			}else if(args.size() > 2){
-				MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,2,lyramilk::data::var::t_str);
+				MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,2,lyramilk::data::var::t_map);
 				lyramilk::data::string mapf = args[0];
 				std::string s_mapf(mapf.c_str(),mapf.size());
 				lyramilk::data::string reducef = args[1];
@@ -548,6 +550,9 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 		{
 			bof = false;
 			cursor = p->query(std::string(ns.c_str(),ns.size()),mq);
+			if(!cursor.get()){
+				throw lyramilk::exception(D("mongodb获取游标失败"));
+			}
 			if(cursor->more()){
 				currdata.clear();
 				::mongo::BSONObj bsonresult = cursor->nextSafe();

@@ -211,7 +211,7 @@ namespace lyramilk{ namespace teapoy {
 		return lyramilk::data::var::nil;
 	}
 	///////////////////////////////////////////////////////////
-	mongo_client::mongo_client()
+	mongo_client::mongo_client():c(true)
 	{
 	}
 

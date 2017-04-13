@@ -63,6 +63,7 @@ namespace lyramilk{ namespace teapoy {namespace http{
 
 	request::~request()
 	{
+		if(header) delete header;
 	}
 
 	void request::init(lyramilk::io::native_filedescriptor_type fd)
