@@ -1,8 +1,6 @@
 #include "http.h"
 #include "web.h"
 #include "stringutil.h"
-#include <stdlib.h>
-#include <stdio.h>	//test
 #include <string.h>
 #include <libmilk/codes.h>
 #include <algorithm>
@@ -178,12 +176,14 @@ namespace lyramilk{ namespace teapoy {namespace http{
 	long http_resource::childcount()
 	{
 		init_body();
+		if(!pchilds) return 0;
 		return pchilds->size();
 	}
 
 	http_resource* http_resource::child(long index)
 	{
 		init_body();
+		if(!pchilds) return nullptr;
 		return &pchilds->at(index);
 	}
 

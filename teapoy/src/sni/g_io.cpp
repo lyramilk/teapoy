@@ -22,7 +22,17 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		for(lyramilk::data::var::array::const_iterator it = args.begin();it!=args.end();++it){
 			str += it->str();
 		}
-		std::cout << str << std::endl;
+		str.push_back('\n');
+
+		long long sz = str.size();
+		long long cur = 0;
+		while(cur < sz){
+			int wd = fwrite(str.c_str() + cur,1,sz - cur,stdout);
+			if(wd > 0 && (wd + cur) <= sz){
+				cur += wd;
+			}else{
+			}
+		}
 		return true;
 	}
 
