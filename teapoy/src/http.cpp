@@ -95,7 +95,13 @@ namespace lyramilk{ namespace teapoy {namespace http{
 					s = sok;
 					return true;
 				}
-				header->body = new http_lengthedbody(strtoll(cl_str.c_str(),nullptr,10));
+				long long cl = strtoll(cl_str.c_str(),nullptr,10);
+				if(cl > 0){
+					header->body = new http_lengthedbody(cl);
+				}else{
+					s = sok;
+					return true;
+				}
 			}
 			unsigned int des = httpheaderstr.size() - pos_headereof;
 			if(des > 0 && header->body->write(httpheaderstr.c_str() + pos_headereof,des,remain)){
