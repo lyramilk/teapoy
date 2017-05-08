@@ -2,9 +2,13 @@
 #include <libmilk/log.h>
 #include <libmilk/multilanguage.h>
 #include "script.h"
-#include "dbconnpool.h"
 #include <fstream>
 #include <sys/stat.h>
+
+#pragma push_macro("D")
+#undef D
+#include "dbconnpool.h"
+#pragma pop_macro("D")
 
 namespace lyramilk{ namespace teapoy{ namespace native
 {
@@ -82,7 +86,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 	class file
 	{
 		lyramilk::log::logss log;
-		std::ifstream ifs;
+		FILE* fp;
 		lyramilk::data::string filename;
 	  public:
 		static void* ctr(const lyramilk::data::var::array& args)
@@ -93,8 +97,12 @@ namespace lyramilk{ namespace teapoy{ namespace native
 				if(!fp) return nullptr;
 				fp->open(args[0].str().c_str());
 				return fp;
+			}else if(args.size() == 2){
+				file* fp = new file();
+				if(!fp) return nullptr;
+				fp->open(args[0].str().c_str(),args[1].str().c_str());
+				return fp;
 			}
-
 			return nullptr;
 		}
 		static void dtr(void* p)
@@ -103,25 +111,40 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		}
 
 		file():log(lyramilk::klog,"teapoy.native.file")
-		{}
+		{
+			fp = nullptr;
+		}
 
 		~file()
 		{
+			if(fp) fclose(fp);
 		}
 
 		bool open(const char* filename)
 		{
 			this->filename = filename;
-			ifs.open(filename,std::ifstream::in|std::ifstream::binary);
-			return ifs.good();
+			if(fp) fclose(fp);
+			fp = fopen(filename,"r");
+			return fp != nullptr;
 		}
 
 
+		bool open(const char* filename,const char* mode)
+		{
+			this->filename = filename;
+			if(fp) fclose(fp);
+			fp = fopen(filename,mode);
+			return fp != nullptr;
+		}
 
 		lyramilk::data::var open(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
-			return open(args[0].str().c_str());
+			if(args.size() == 1){
+				return open(args[0].str().c_str());
+			}
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_str);
+			return open(args[0].str().c_str(),args[1].str().c_str());
 		}
 
 		lyramilk::data::var isdir(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
@@ -135,56 +158,76 @@ namespace lyramilk{ namespace teapoy{ namespace native
 
 		lyramilk::data::var close(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
-			ifs.close();
+			::fclose(fp);
 			return true;
 		}
 
 		lyramilk::data::var good(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
-			return ifs.good();
+			return fp != nullptr;
 		}
 
 		lyramilk::data::var read(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_uint);
-			lyramilk::data::chunk cb((lyramilk::data::uint32)args[0],0);
-			ifs.read((char*)cb.c_str(),cb.size());
-			if(ifs.gcount() < (unsigned int)cb.size()){
-				cb.erase(cb.begin() + ifs.gcount(),cb.end());
+			if(!fp) throw lyramilk::exception(D("文件未打开"));
+
+			lyramilk::data::uint32 buffsize = args[0];
+			lyramilk::data::chunk cb(buffsize,0);
+
+			lyramilk::data::uint32 r = fread((char*)cb.c_str(),1,buffsize,fp);
+			if(r < buffsize){
+				cb.erase(cb.begin() + r,cb.end());
 			}
 			return cb;
 		}
 
-		lyramilk::data::var readstr(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var reads(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
-			if(args.size() > 0){
-				MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_uint);
-				lyramilk::data::string cb((lyramilk::data::uint32)args[0],0);
-				ifs.read((char*)cb.c_str(),cb.size());
-				if(ifs.gcount() < (unsigned int)cb.size()){
-					cb.erase(cb.begin() + ifs.gcount(),cb.end());
-				}
-				return cb;
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_uint);
+			if(!fp) throw lyramilk::exception(D("文件未打开"));
+
+			lyramilk::data::uint32 buffsize = args[0];
+			lyramilk::data::string cb(buffsize,0);
+
+			lyramilk::data::uint32 r = fread((char*)cb.c_str(),1,buffsize,fp);
+			if(r < buffsize){
+				cb.erase(cb.begin() + r,cb.end());
 			}
-
-			ifs.seekg(0,std::ifstream::end);
-			std::size_t size = ifs.tellg();
-			ifs.seekg(0,std::ifstream::beg);
-
-			lyramilk::data::string cb(size,0);
-			ifs.read((char*)cb.c_str(),cb.size());
 			return cb;
+		}
+
+		lyramilk::data::var readline(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		{
+			if(!fp) throw lyramilk::exception(D("文件未打开"));
+			lyramilk::data::string ret;
+			char* p = nullptr;
+			char buff[4096];
+			do{
+				p = fgets(buff,sizeof(buff),fp);
+				if(p){
+					ret.append(p);
+				}else if(ret.empty()){
+					return lyramilk::data::var::nil;
+				}
+			}while(p && p[sizeof(buff) - 2] == '\n');
+			return ret;
 		}
 
 		lyramilk::data::var write(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
-			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_uint);
-			lyramilk::data::chunk cb((lyramilk::data::uint32)args[0],0);
-			ifs.read((char*)cb.c_str(),cb.size());
-			if(ifs.gcount() < (unsigned int)cb.size()){
-				cb.erase(cb.begin() + ifs.gcount(),cb.end());
-			}
-			return cb;
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_bin);
+			if(!fp) throw lyramilk::exception(D("文件未打开"));
+			lyramilk::data::chunk cb = args[0];
+			return fwrite(cb.c_str(),1,cb.size(),fp);
+		}
+
+		lyramilk::data::var writes(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		{
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
+			if(!fp) throw lyramilk::exception(D("文件未打开"));
+			lyramilk::data::string cb = args[0];
+			return fwrite(cb.c_str(),1,cb.size(),fp);
 		}
 	  public:
 		static int define(lyramilk::script::engine* p)
@@ -196,8 +239,10 @@ namespace lyramilk{ namespace teapoy{ namespace native
 				fn["close"] = lyramilk::script::engine::functional<file,&file::close>;
 				fn["ok"] = lyramilk::script::engine::functional<file,&file::good>;
 				fn["read"] = lyramilk::script::engine::functional<file,&file::read>;
+				fn["reads"] = lyramilk::script::engine::functional<file,&file::reads>;
+				fn["readline"] = lyramilk::script::engine::functional<file,&file::readline>;
 				fn["write"] = lyramilk::script::engine::functional<file,&file::write>;
-				fn["readstr"] = lyramilk::script::engine::functional<file,&file::readstr>;
+				fn["writes"] = lyramilk::script::engine::functional<file,&file::writes>;
 				p->define("File",fn,file::ctr,file::dtr);
 			}
 			return 1;

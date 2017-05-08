@@ -4,7 +4,6 @@
 #include <sys/poll.h>
 #include <arpa/inet.h>
 #include <sys/ioctl.h>
-#include "dbconnpool.h"
 #include "script.h"
 
 #include <unistd.h>
@@ -12,6 +11,11 @@
 
 #include <errno.h>
 #include <string.h>
+
+#pragma push_macro("D")
+#undef D
+#include "dbconnpool.h"
+#pragma pop_macro("D")
 
 namespace lyramilk{ namespace teapoy{ namespace native
 {

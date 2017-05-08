@@ -6,7 +6,11 @@
 
 #include <mysql/mysql.h>
 #define MAROC_MYSQL MYSQL
+
+#pragma push_macro("D")
+#undef D
 #include "dbconnpool.h"
+#pragma pop_macro("D")
 
 namespace lyramilk{ namespace teapoy {
 

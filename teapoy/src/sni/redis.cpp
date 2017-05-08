@@ -10,7 +10,11 @@
 #include <queue>
 #include <sys/socket.h>
 #include <stdlib.h>
+
+#pragma push_macro("D")
+#undef D
 #include "dbconnpool.h"
+#pragma pop_macro("D")
 
 namespace lyramilk{ namespace teapoy{ namespace native {
 	using namespace lyramilk::teapoy::redis;
@@ -1223,6 +1227,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			fn["get"] = lyramilk::script::engine::functional<redis_hmap,&redis_hmap::get>;
 			fn["set"] = lyramilk::script::engine::functional<redis_hmap,&redis_hmap::set>;
 			fn["remove"] = lyramilk::script::engine::functional<redis_hmap,&redis_hmap::remove>;
+			fn["size"] = lyramilk::script::engine::functional<redis_hmap,&redis_hmap::size>;
 			fn["exist"] = lyramilk::script::engine::functional<redis_hmap,&redis_hmap::exist>;
 			fn["incr"] = lyramilk::script::engine::functional<redis_hmap,&redis_hmap::incr>;
 			fn["decr"] = lyramilk::script::engine::functional<redis_hmap,&redis_hmap::decr>;

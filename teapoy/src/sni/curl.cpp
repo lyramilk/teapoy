@@ -70,6 +70,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			lyramilk::data::string postdata = args[0];
 			lyramilk::data::stringstream ss;
 			CURL *c = curl_easy_init();
+			//curl_easy_setopt(c, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_2_0);
 			curl_easy_setopt(c, CURLOPT_URL,url.c_str());
 			curl_easy_setopt(c, CURLOPT_WRITEFUNCTION, curl_writestream_callback);
 			curl_easy_setopt(c, CURLOPT_WRITEDATA, (std::ostream*)&ss);

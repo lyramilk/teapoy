@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <libmilk/thread.h>
 #include <pthread.h>
+#include <unistd.h>
 
 namespace lyramilk{ namespace teapoy { namespace web {
 

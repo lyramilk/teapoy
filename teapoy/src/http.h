@@ -151,6 +151,7 @@ namespace lyramilk{ namespace teapoy {namespace http{
 	  public:
 		http_frame* header;
 		lyramilk::teapoy::web::sessions* sessionmgr;
+		bool hsts;
 
 		lyramilk::data::string ssl_peer_certificate_info;
 
