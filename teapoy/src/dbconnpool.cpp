@@ -77,6 +77,7 @@ namespace lyramilk{ namespace teapoy {
 		}
 
 		if(nullptr == mysql_real_connect(p->_db_ptr,nullptr,nullptr,nullptr,nullptr,0,nullptr,0)){
+			log(lyramilk::log::warning,__FUNCTION__) << D("建立连接失败：%s",mysql_error(p->_db_ptr)) << std::endl;
 			return nullptr;
 		}
 		return p;

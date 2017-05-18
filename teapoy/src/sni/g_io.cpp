@@ -202,7 +202,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			if(!fp) throw lyramilk::exception(D("文件未打开"));
 			lyramilk::data::string ret;
 			char* p = nullptr;
-			char buff[4096];
+			char buff[4096] = {0};
 			do{
 				p = fgets(buff,sizeof(buff),fp);
 				if(p){
@@ -210,7 +210,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 				}else if(ret.empty()){
 					return lyramilk::data::var::nil;
 				}
-			}while(p && p[sizeof(buff) - 2] == '\n');
+			}while(p && (!ret.empty()) && ret[ret.size() - 1] != '\n');
 			return ret;
 		}
 

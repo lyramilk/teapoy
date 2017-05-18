@@ -942,7 +942,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			delete (redis_hmap_iterator*)p;
 		}
 
-		redis_hmap_iterator(redis* pc,lyramilk::data::string redis_key,bool reverse,lyramilk::data::uint64 start):log(lyramilk::klog,"teapoy.native.redis.sorted_set.iterator")
+		redis_hmap_iterator(redis* pc,lyramilk::data::string redis_key,bool reverse,lyramilk::data::uint64 start):log(lyramilk::klog,"teapoy.native.redis.hashmap.iterator")
 		{
 			predis = pc;
 			this->key = redis_key;
@@ -1027,6 +1027,109 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 		}
 	};
 
+	class redis_hmap_hscan_iterator
+	{
+		lyramilk::log::logss log;
+		redis* predis;
+		lyramilk::data::string key;
+		lyramilk::data::uint64 skips;
+		lyramilk::data::uint64 cursor;
+		std::queue<std::pair<lyramilk::data::string,lyramilk::data::string> > smap;
+		bool iscompleted;
+	  public:
+		static void* ctr(const lyramilk::data::var::array& args)
+		{
+			return new redis_hmap_hscan_iterator((redis*)args[0].userdata("redis"),args[1],args[2]);
+		}
+		static void dtr(void* p)
+		{
+			delete (redis_hmap_hscan_iterator*)p;
+		}
+
+		redis_hmap_hscan_iterator(redis* pc,lyramilk::data::string redis_key,lyramilk::data::uint64 start):log(lyramilk::klog,"teapoy.native.redis.hashmap.iterator")
+		{
+			predis = pc;
+			key = redis_key;
+			cursor = 0;
+			iscompleted = false;
+			skips = start;
+		}
+
+		~redis_hmap_hscan_iterator()
+		{
+		}
+
+		bool sync()
+		{
+			do{
+				if(iscompleted) return !smap.empty();
+				if(smap.empty()){
+					lyramilk::data::var::array cmd;
+					cmd.push_back("hscan");
+					cmd.push_back(key);
+					cmd.push_back(cursor);
+					lyramilk::data::var vret;
+					if(!predis->c->exec(cmd,vret)) return false;
+					if(vret.type() != lyramilk::data::var::t_array) return false;
+					lyramilk::data::var::array& ar = vret;
+					cursor = ar[0];
+					if(cursor == 0){
+						iscompleted = true;
+					}
+					lyramilk::data::var::array& data = ar[1];
+
+					if(data.size() % 2 != 0) return false;
+
+					for(std::size_t i=0;i<data.size();i+=2){
+						if(skips == 0){
+							smap.push(std::pair<lyramilk::data::string,lyramilk::data::string>(data[i].str(),data[i+1].str()));
+						}else{
+							--skips;
+						}
+					}
+				}
+				if(!smap.empty()) return true;
+			}while(skips > 0 || (!iscompleted));
+			return false;
+		}
+
+		lyramilk::data::var ok(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		{
+			return sync();
+		}
+
+		lyramilk::data::var next(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		{
+			if(sync()){
+				smap.pop();
+			}
+			return sync();
+		}
+
+		lyramilk::data::var item_key(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		{
+			if(!sync()) return lyramilk::data::var::nil;
+			return smap.front().first;
+		}
+
+		lyramilk::data::var item_value(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		{
+			if(!sync()) return lyramilk::data::var::nil;
+			return smap.front().second;
+		}
+
+		static int define(lyramilk::script::engine* p)
+		{
+			lyramilk::script::engine::functional_map fn;
+			fn["ok"] = lyramilk::script::engine::functional<redis_hmap_hscan_iterator,&redis_hmap_hscan_iterator::ok>;
+			fn["next"] = lyramilk::script::engine::functional<redis_hmap_hscan_iterator,&redis_hmap_hscan_iterator::next>;
+			fn["key"] = lyramilk::script::engine::functional<redis_hmap_hscan_iterator,&redis_hmap_hscan_iterator::item_key>;
+			fn["value"] = lyramilk::script::engine::functional<redis_hmap_hscan_iterator,&redis_hmap_hscan_iterator::item_value>;
+			p->define("redis.hashmap.hscan_iterator",fn,redis_hmap_hscan_iterator::ctr,redis_hmap_hscan_iterator::dtr);
+			return 1;
+		}
+	};
+
 	class redis_hmap
 	{
 		lyramilk::log::logss log;
@@ -1068,33 +1171,21 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 				startof = v;
 			}
 			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_user_engineptr());
-			
+			//if(startof == 0 && !predis->is_ssdb() && predis->c->version() >= "2.8.0"){
+			if(startof == 0 && !predis->is_ssdb() && predis->c->version() >= "2.8.0" && predis->c->testcmd("hscan")){
+				lyramilk::data::var::array ar;
+				ar.reserve(4);
+				ar.push_back(lyramilk::data::var("redis",predis));
+				ar.push_back(key);
+				ar.push_back(startof);
+				return e->createobject("redis.hashmap.hscan_iterator",ar);
+			}
+
 			lyramilk::data::var::array ar;
 			ar.reserve(4);
 			ar.push_back(lyramilk::data::var("redis",predis));
 			ar.push_back(key);
 			ar.push_back(false);
-			ar.push_back(startof);
-			return e->createobject("redis.hashmap.iterator",ar);
-		}
-
-		lyramilk::data::var rscan(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
-		{
-			lyramilk::data::uint64 startof = 0;
-			if(args.size() > 0){
-				const lyramilk::data::var& v = args.at(0);
-				if(!v.type_like(lyramilk::data::var::t_uint)){
-					throw lyramilk::exception(D("参数%d类型不兼容:%s，期待%s",1,v.type_name().c_str(),lyramilk::data::var::type_name(lyramilk::data::var::t_uint).c_str()));
-				}
-				startof = v;
-			}
-			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_user_engineptr());
-			
-			lyramilk::data::var::array ar;
-			ar.reserve(4);
-			ar.push_back(lyramilk::data::var("redis",predis));
-			ar.push_back(key);
-			ar.push_back(true);
 			ar.push_back(startof);
 			return e->createobject("redis.hashmap.iterator",ar);
 		}
@@ -1223,7 +1314,6 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			lyramilk::script::engine::functional_map fn;
 			fn["getkey"] = lyramilk::script::engine::functional<redis_hmap,&redis_hmap::getkey>;
 			fn["scan"] = lyramilk::script::engine::functional<redis_hmap,&redis_hmap::scan>;
-			fn["rscan"] = lyramilk::script::engine::functional<redis_hmap,&redis_hmap::rscan>;
 			fn["get"] = lyramilk::script::engine::functional<redis_hmap,&redis_hmap::get>;
 			fn["set"] = lyramilk::script::engine::functional<redis_hmap,&redis_hmap::set>;
 			fn["remove"] = lyramilk::script::engine::functional<redis_hmap,&redis_hmap::remove>;
@@ -1736,6 +1826,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 		i+= redis_zset_iterator::define(p);
 		i+= redis_hmap::define(p);
 		i+= redis_hmap_iterator::define(p);
+		i+= redis_hmap_hscan_iterator::define(p);
 		i+= redis_list::define(p);
 		i+= redis_list_iterator::define(p);
 		i+= redis_kv::define(p);

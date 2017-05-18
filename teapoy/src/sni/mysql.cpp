@@ -443,6 +443,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 				fn["use"] = lyramilk::script::engine::functional<smysql,&smysql::use>;
 				fn["ok"] = lyramilk::script::engine::functional<smysql,&smysql::ok>;
 				fn["execute"] = lyramilk::script::engine::functional<smysql,&smysql::execute>;
+				fn["exec"] = lyramilk::script::engine::functional<smysql,&smysql::execute>;
 				fn["query"] = lyramilk::script::engine::functional<smysql,&smysql::query>;
 				p->define("Mysql",fn,smysql::ctr,smysql::dtr);
 			}

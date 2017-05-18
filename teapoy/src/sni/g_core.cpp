@@ -195,18 +195,17 @@ namespace lyramilk{ namespace teapoy{ namespace native
 	lyramilk::data::var json_stringify(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 	{
 		if(args.size() < 1)  throw lyramilk::exception(D("%s参数不足",__FUNCTION__));
-		lyramilk::data::var tmpv = args[0];
-		lyramilk::data::json j(tmpv);
-		return j.str();
+		lyramilk::data::string jsonstr;
+		lyramilk::data::var v = args[0];
+		lyramilk::data::json::stringify(v,jsonstr);
+		return jsonstr;
 	}
 
 	lyramilk::data::var json_parse(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
-
 		lyramilk::data::var v;
-		lyramilk::data::json j(v);
-		j.str(args[0]);
+		lyramilk::data::json::parse(args[0],v);
 		return v;
 	}
 

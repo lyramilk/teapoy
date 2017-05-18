@@ -22,9 +22,11 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 			t_redis,
 			t_ssdb,
 		}type;
+		lyramilk::data::string ver;
 		redis_client_listener listener;
 		lyramilk::data::string addr;
 		void reconnect();
+		std::map<lyramilk::data::string,bool> support_cmds;
 	  public:
 		redis_client();
 		virtual ~redis_client();
@@ -41,6 +43,10 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 		bool async_exec(const lyramilk::data::var::array& cmd,redis_client_watch_handler h,void* args,bool thread_join = true);
 		/// 判断这个redis链接是不是指向一个ssdb数据库。
 		bool is_ssdb();
+		/// 判断这个redis链接是否支持指定的命令
+		bool testcmd(lyramilk::data::string cmd);
+		/// 取得版本号。
+		lyramilk::data::string version();
 
 		bool parse(lyramilk::data::stringstream& is,lyramilk::data::var& v);
 

@@ -439,6 +439,55 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 		return t_ssdb == type;
 	}
 
+	bool redis_client::testcmd(lyramilk::data::string cmd)
+	{
+		std::map<lyramilk::data::string,bool>::iterator it = support_cmds.find(cmd);
+		if(it != support_cmds.end()){
+			return it->second;
+		}
+
+		lyramilk::data::var::array ar;
+		ar.push_back(cmd);
+		lyramilk::data::var v;
+		if(exec(ar,v)){
+			support_cmds[cmd] = true;
+			return true;
+		}
+
+		lyramilk::data::string str = v.str();
+		if(str.find("ERR unknown command") == str.npos){
+			support_cmds[cmd] = true;
+			return true;
+		}
+
+		support_cmds[cmd] = false;
+		return false;
+	}
+
+	lyramilk::data::string redis_client::version()
+	{
+		if(!ver.empty()) return ver;
+		lyramilk::data::var::array ar;
+		ar.push_back("info");
+		//ar.push_back("server");
+		lyramilk::data::var v;
+		if(exec(ar,v)){
+			if(v.type() == lyramilk::data::var::t_array && v[0] == "ssdb-server"){
+				type = t_ssdb;
+			}else if(v.type() == lyramilk::data::var::t_str){
+				lyramilk::data::string str = v.str();
+				std::size_t pos_redis_version = str.find("redis_version:");
+				if(pos_redis_version != str.npos){
+					type = t_redis;
+					pos_redis_version += sizeof("redis_version:") - 1;
+					std::size_t pos_redis_version_eof = str.find_first_not_of("1234567890.",pos_redis_version);
+					ver = str.substr(pos_redis_version,pos_redis_version_eof-pos_redis_version);
+				}
+			}
+		}
+		return ver;
+	}
+
 	void redis_client::default_listener(const lyramilk::data::string& addr,const lyramilk::data::var::array& cmd,bool success,const lyramilk::data::var& ret)
 	{
 		lyramilk::data::stringstream ss;
