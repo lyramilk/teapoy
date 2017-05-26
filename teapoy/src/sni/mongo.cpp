@@ -57,8 +57,14 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 						}
 					}
 					throw lyramilk::exception(D("mongo错误： 无法从池中获取到命名对象。"));
-
-				}else{
+				}else if(v.type() == lyramilk::data::var::t_str){
+					mymongo *p = new mymongo(args[0],27017);
+					if(!p->p){
+						delete p;
+						return nullptr;
+					}
+					return p;
+				}else if(v.type() == lyramilk::data::var::t_map){
 					lyramilk::data::string host = v["host"];
 					lyramilk::data::uint16 port = v["port"];
 					mymongo *p = new mymongo(host,port);
@@ -68,6 +74,13 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 					}
 					return p;
 				}
+			}else if(args.size() == 2){
+				mymongo *p = new mymongo(args[0],args[1]);
+				if(!p->p){
+					delete p;
+					return nullptr;
+				}
+				return p;
 			}
 			return nullptr;
 		}

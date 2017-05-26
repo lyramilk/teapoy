@@ -45,7 +45,7 @@ namespace lyramilk{namespace script{namespace js
 			while(true){
 				std::size_t pos_flag1 = line.find("<%",pos_begin);
 				if(pos_flag1 == line.npos){
-					ofs << "response.write(unescape(\"" << lyramilk::data::codes::instance()->encode("js",line.substr(pos_begin)) << "\"));";
+					ofs << "response.write(unescape(\"" << lyramilk::data::codes::instance()->encode("js",line.substr(pos_begin) + '\n') << "\"));";
 					incode = false;
 					break;
 				}

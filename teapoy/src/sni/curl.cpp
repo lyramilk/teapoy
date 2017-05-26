@@ -203,7 +203,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 	}
 
 	lyramilk::log::logss static log_curl(lyramilk::klog,"teapoy.native");
-	lyramilk::data::var curl(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+	lyramilk::data::var curl(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env,void*)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log_curl,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 		lyramilk::data::string url = args[0].str();

@@ -183,7 +183,7 @@ namespace lyramilk{ namespace teapoy {namespace http{
 	void make_response_header(std::ostream& os,const char* retcodemsg,bool has_header_ending,int httpver_major,int httpver_minor)
 	{
 		os <<	"HTTP/" << httpver_major << "." << httpver_minor << " " << retcodemsg << "\r\n"
-				"Server: " TEAPOY_VERSION "\r\n";
+				"Server: teapoy/" TEAPOY_VERSION;
 		if(has_header_ending) os << "\r\n";
 	}
 

@@ -106,7 +106,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		{
 			this->si = si;
 			response_code = 200;
-			header["Server"] = TEAPOY_VERSION;
+			header["Server"] = "teapoy/" TEAPOY_VERSION;
 			header["Content-Type"] = "text/html;charset=utf-8";
 			header["Access-Control-Allow-Origin"] = "*";
 			header["Access-Control-Allow-Methods"] = "*";

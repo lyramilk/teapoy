@@ -1,7 +1,8 @@
 ﻿#ifndef _teapoy_config_h_
 #define _teapoy_config_h_
 
-#define TEAPOY_VERSION "teapoy ${version} with libmilk ${LIBMILK_VERSION}"
+#define TEAPOY_VERSION "${version}"
+#define LIBMILK_VERSION "${LIBMILK_VERSION}"
 
 ${CMAKE_CONFIG_MACROS}
 

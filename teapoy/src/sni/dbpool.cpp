@@ -21,7 +21,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 {
 	static lyramilk::log::logss log(lyramilk::klog,"lyramilk.teapoy.native.dbpool");
 
-	lyramilk::data::var GetRedis(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+	lyramilk::data::var GetRedis(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env,void*)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 		redis_clients::ptr p = redis_clients_multiton::instance()->getobj(args[0].str());
@@ -40,7 +40,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		return e->createobject("Redis",ar);
 	}
 
-	lyramilk::data::var GetMysql(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+	lyramilk::data::var GetMysql(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env,void*)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 
@@ -52,7 +52,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		return e->createobject("Mysql",ar);
 	}
 
-	lyramilk::data::var GetMongo(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+	lyramilk::data::var GetMongo(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env,void*)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 
@@ -64,7 +64,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		return e->createobject("Mongo",ar);
 	}
 
-	lyramilk::data::var GetLoger(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+	lyramilk::data::var GetLoger(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env,void*)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 
@@ -77,7 +77,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 	}
 
 
-	lyramilk::data::var DefineDataBase(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+	lyramilk::data::var DefineDataBase(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env,void*)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_str);

@@ -14,12 +14,56 @@ namespace lyramilk{ namespace teapoy{ namespace native
 {
 	static lyramilk::log::logss log(lyramilk::klog,"teapoy.native");
 
-	lyramilk::data::var test(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+	lyramilk::data::var test(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env,void*)
 	{
+		if(args.size() > 0) return args[0];
 		return "test";
 	}
 
-	lyramilk::data::var echo(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+	class tester
+	{
+	  public:
+		static void* ctr(const lyramilk::data::var::array& args)
+		{
+			return new tester();
+		}
+		static void dtr(void* p)
+		{
+			delete (tester*)p;
+		}
+
+		tester()
+		{
+		}
+
+		~tester()
+		{
+		}
+		lyramilk::data::var test(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		{
+			if(args.size() > 0) return args[0];
+			return "test";
+		}
+		lyramilk::data::var clone(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		{
+			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_user_engineptr());
+			lyramilk::data::var::array ar;
+			return e->createobject("tester",ar);
+		}
+	  public:
+		static int define(lyramilk::script::engine* p)
+		{
+			{
+				lyramilk::script::engine::functional_map fn;
+				fn["test"] = lyramilk::script::engine::functional<tester,&tester::test>;
+				fn["clone"] = lyramilk::script::engine::functional<tester,&tester::clone>;
+				p->define("tester",fn,tester::ctr,tester::dtr);
+			}
+			return 1;
+		}
+	};
+
+	lyramilk::data::var echo(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env,void*)
 	{
 		lyramilk::data::string str;
 		str.reserve(4096);
@@ -40,7 +84,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		return true;
 	}
 
-	lyramilk::data::var trace(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+	lyramilk::data::var trace(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env,void*)
 	{
 		lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_user_engineptr());
 		lyramilk::data::string mod = "s=" + e->filename();
@@ -55,7 +99,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		return true;
 	}
 
-	lyramilk::data::var slog(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+	lyramilk::data::var slog(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env,void*)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 		lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_user_engineptr());
@@ -313,6 +357,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			p->define("trace",trace);++i;
 			p->define("echo",echo);++i;
 			p->define("log",slog);++i;
+			i += tester::define(p);
 			i += file::define(p);
 			i += logfile::define(p);
 		}
