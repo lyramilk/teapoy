@@ -143,7 +143,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			lyramilk::data::string dbname = args[0];
-			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_user_engineptr());
+			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
 
 			if(!user.empty()){
 				if(!p->auth(std::string(dbname.c_str(),dbname.size()),std::string(user.c_str(),user.size()),std::string(pwd.c_str(),pwd.size()),errmsg)){
@@ -301,7 +301,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			lyramilk::data::string collection = args[0];
-			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_user_engineptr());
+			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
 
 			lyramilk::data::var::array ar;
 			ar.reserve(3);
@@ -397,7 +397,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 				jsonstr = j.str();
 			}
 
-			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_user_engineptr());
+			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
 			lyramilk::data::var::array ar;
 			ar.reserve(3);
 			ar.push_back(lyramilk::data::var("mongo",p));
@@ -585,7 +585,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 
 				::mongo::Query myquery = mq.where(std::string(wherestr.c_str(),wherestr.size()),scope);
 
-				lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_user_engineptr());
+				lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
 				lyramilk::data::var::array ar;
 				ar.reserve(3);
 				ar.push_back(lyramilk::data::var("mongo",p));
@@ -596,7 +596,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			}
 			::mongo::Query myquery = mq.where(std::string(wherestr.c_str(),wherestr.size()));
 
-			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_user_engineptr());
+			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
 			lyramilk::data::var::array ar;
 			ar.reserve(3);
 			ar.push_back(lyramilk::data::var("mongo",p));
@@ -613,7 +613,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			var2bson(args[0],sortjson);
 			::mongo::Query myquery = mq.sort(sortjson);
 
-			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_user_engineptr());
+			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
 			lyramilk::data::var::array ar;
 			ar.reserve(3);
 			ar.push_back(lyramilk::data::var("mongo",p));

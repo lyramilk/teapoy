@@ -400,7 +400,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			lyramilk::data::var::array ar;
 			lyramilk::data::var v("__http_session_info",si);
 			ar.push_back(v);
-			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_user_engineptr());
+			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
 			sessionobj = e->createobject("HttpSession",ar);
 			return sessionobj;
 		}

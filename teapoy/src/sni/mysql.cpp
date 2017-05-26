@@ -371,7 +371,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 
 			lyramilk::data::var::array ar;
 			ar.push_back(ud);
-			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_user_engineptr());
+			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
 			return e->createobject("mysql.iterator",ar);
 		}
 

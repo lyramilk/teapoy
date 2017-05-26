@@ -76,7 +76,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 
 		lyramilk::data::var scan(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
-			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_user_engineptr());
+			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
 			lyramilk::data::var::array ar;
 			ar.push_back(lyramilk::data::var("Mpeg",this));
 			return e->createobject("Mpeg.Keyframe",ar);

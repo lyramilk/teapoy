@@ -279,7 +279,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 		{
 			leveldb::ReadOptions ropt;
 			leveldb::Iterator* it = db->NewIterator(ropt);
-			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_user_engineptr());
+			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
 			lyramilk::data::var::array ar;
 			ar.push_back(lyramilk::data::var("iterator",it));
 			return e->createobject("leveldb.iterator",ar);

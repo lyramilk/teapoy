@@ -25,7 +25,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 	lyramilk::data::var teapoy_import(const lyramilk::data::var::array& args,const lyramilk::data::var::map& senv,void*)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
-		lyramilk::script::engine* e = (lyramilk::script::engine*)senv.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_user_engineptr());
+		lyramilk::script::engine* e = (lyramilk::script::engine*)senv.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
 
 		// 在文件所在目录查找包含文件
 		lyramilk::data::string filename = e->filename();

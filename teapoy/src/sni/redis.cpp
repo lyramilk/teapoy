@@ -232,7 +232,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			lyramilk::data::string key = args[0];
-			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_user_engineptr());
+			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
 			
 			lyramilk::data::var::array ar;
 			ar.reserve(2);
@@ -245,7 +245,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			lyramilk::data::string key = args[0];
-			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_user_engineptr());
+			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
 			
 			lyramilk::data::var::array ar;
 			ar.reserve(2);
@@ -258,7 +258,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			lyramilk::data::string key = args[0];
-			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_user_engineptr());
+			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
 			
 			lyramilk::data::var::array ar;
 			ar.reserve(2);
@@ -271,7 +271,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			lyramilk::data::string key = args[0];
-			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_user_engineptr());
+			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
 			
 			lyramilk::data::var::array ar;
 			ar.reserve(2);
@@ -395,7 +395,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			}
 
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_user);
-			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_user_engineptr());
+			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
 			lyramilk::data::var::array ar;
 			ar.push_back("monitor");
 			redis_args rparam = {param:args,eng:e};
@@ -420,7 +420,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_array);
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_user);
-			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_user_engineptr());
+			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
 			const lyramilk::data::var::array& args0 = args[0];
 			lyramilk::data::var::array ar;
 			ar.push_back("subscribe");
@@ -650,7 +650,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 				}
 				unit = v;
 			}
-			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_user_engineptr());
+			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
 			
 			lyramilk::data::var::array ar;
 			ar.reserve(5);
@@ -680,7 +680,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 				}
 				unit = v;
 			}
-			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_user_engineptr());
+			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
 			lyramilk::data::var::array ar;
 			ar.reserve(5);
 			ar.push_back(lyramilk::data::var("redis",predis));
@@ -866,7 +866,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			lyramilk::data::int64 hp = 10;
 			lyramilk::script::engine* e = nullptr;
 			if (args.size() > 1 && args[1].type() == lyramilk::data::var::t_user){
-				e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_user_engineptr());
+				e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
 			}
 
 			while(ret.size() < n && hp > 0){
@@ -1170,7 +1170,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 				}
 				startof = v;
 			}
-			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_user_engineptr());
+			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
 			//if(startof == 0 && !predis->is_ssdb() && predis->c->version() >= "2.8.0"){
 			if(startof == 0 && !predis->is_ssdb() && predis->c->version() >= "2.8.0" && predis->c->testcmd("hscan")){
 				lyramilk::data::var::array ar;
@@ -1587,7 +1587,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 				}
 				startof = v;
 			}
-			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_user_engineptr());
+			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
 			
 			lyramilk::data::var::array ar;
 			ar.reserve(4);
@@ -1608,7 +1608,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 				}
 				startof = v;
 			}
-			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_user_engineptr());
+			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
 			
 			lyramilk::data::var::array ar;
 			ar.reserve(4);
@@ -1656,7 +1656,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			lyramilk::data::int64 hp = 10;
 			lyramilk::script::engine* e = nullptr;
 			if (args.size() > 1 && args[1].type() == lyramilk::data::var::t_user){
-				e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_user_engineptr());
+				e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
 			}
 
 			while(ret.size() < n && hp > 0){
