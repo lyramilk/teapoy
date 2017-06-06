@@ -197,7 +197,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		if(args.size() < 1)  throw lyramilk::exception(D("%s参数不足",__FUNCTION__));
 		lyramilk::data::string jsonstr;
 		lyramilk::data::var v = args[0];
-		lyramilk::data::json::stringify(v,jsonstr);
+		lyramilk::data::json::stringify(v,&jsonstr);
 		return jsonstr;
 	}
 
@@ -205,7 +205,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 		lyramilk::data::var v;
-		lyramilk::data::json::parse(args[0],v);
+		lyramilk::data::json::parse(args[0],&v);
 		return v;
 	}
 
