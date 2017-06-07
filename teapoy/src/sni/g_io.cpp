@@ -14,7 +14,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 {
 	static lyramilk::log::logss log(lyramilk::klog,"teapoy.native");
 
-	lyramilk::data::var test(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env,void*)
+	lyramilk::data::var test(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 	{
 		if(args.size() > 0) return args[0];
 		return "test";
@@ -63,7 +63,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		}
 	};
 
-	lyramilk::data::var echo(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env,void*)
+	lyramilk::data::var echo(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 	{
 		lyramilk::data::string str;
 		str.reserve(4096);
@@ -84,7 +84,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		return true;
 	}
 
-	lyramilk::data::var trace(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env,void*)
+	lyramilk::data::var trace(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 	{
 		lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
 		lyramilk::data::string mod = "s=" + e->filename();
@@ -99,7 +99,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		return true;
 	}
 
-	lyramilk::data::var slog(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env,void*)
+	lyramilk::data::var slog(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 		lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());

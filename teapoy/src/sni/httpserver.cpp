@@ -122,7 +122,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			return ss;
 		}
 		 		
-		static lyramilk::data::var DefineMimeType(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env,void*)
+		static lyramilk::data::var DefineMimeType(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			lyramilk::log::logss log(lyramilk::klog,"teapoy.server.httpserver");
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);

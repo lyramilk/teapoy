@@ -128,7 +128,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		return 0;
 	}
 
-	lyramilk::data::var create_repeater(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env,void*)
+	lyramilk::data::var create_repeater(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_uint);	//监听端口
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_str);		//源ip
