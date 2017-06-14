@@ -1,48 +1,21 @@
 #include "web.h"
 #include "script.h"
-#include <fstream>
-#include <sys/stat.h>
-#include <errno.h>
 #include <libmilk/log.h>
 #include <libmilk/multilanguage.h>
-#include <libmilk/testing.h>
-#include <pcre.h>
-#include <libmilk/codes.h>
-#include <utime.h>
 
 namespace lyramilk{ namespace teapoy { namespace web {
-
-
-	struct url_worker_lua_loger
-	{
-		lyramilk::debug::nsecdiff td;
-		const lyramilk::log::logss& loger;
-		lyramilk::teapoy::http::request* req;
-
-		url_worker_lua_loger(const lyramilk::log::logss& _log,lyramilk::teapoy::http::request* req):loger(_log)
-		{
-			td.mark();
-			this->req = req;
-		}
-
-		~url_worker_lua_loger()
-		{
-			long long des = td.diff();
-			loger(lyramilk::log::trace) << D("%s:%u-->%s 耗时：%lld(纳秒)",req->dest().c_str(),req->dest_port(),req->header->uri.c_str(),des) << std::endl;
-		}
-	};
 
 	class url_worker_lua : public url_worker
 	{
 		lyramilk::script::engines* pool;
-		lyramilk::log::logss log;
 		bool call(lyramilk::teapoy::http::request* req,std::ostream& os,lyramilk::data::string real,website_worker& worker) const
 		{
-			url_worker_lua_loger _(log,req);
+			url_worker_loger _("teapoy.web.lua",req);
 
 			lyramilk::script::engines::ptr p = pool->get();
 			if(!p->load_file(real)){
-				log(lyramilk::log::warning,__FUNCTION__) << D("加载文件%s失败",real.c_str()) << std::endl;
+				lyramilk::klog(lyramilk::log::warning,"teapoy.web.lua") << D("加载文件%s失败",real.c_str()) << std::endl;
+				return false;
 			}
 
 			session_info si(real,req,os,worker);
@@ -65,7 +38,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 			return false;
 		}
 	  public:
-		url_worker_lua(lyramilk::script::engines* es):log(lyramilk::klog,"teapoy.web.lua")
+		url_worker_lua(lyramilk::script::engines* es)
 		{
 			pool = es;
 		}

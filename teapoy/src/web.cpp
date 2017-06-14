@@ -243,6 +243,18 @@ namespace lyramilk{ namespace teapoy { namespace web {
 		return true;
 	}
 
+	url_worker_loger::url_worker_loger(lyramilk::data::string prefix,lyramilk::teapoy::http::request* req)
+	{
+		td.mark();
+		this->prefix = prefix;
+		this->req = req;
+	}
+
+	url_worker_loger::~url_worker_loger()
+	{
+		lyramilk::klog(lyramilk::log::trace,prefix) << D("%s:%u-->%s 耗时%.3f(毫秒)",req->dest().c_str(),req->dest_port(),req->header->uri.c_str(),double(td.diff()) / 1000000) << std::endl;
+	}
+
 	/**************** url_worker_master ********************/
 
 	url_worker_master* url_worker_master::instance()

@@ -8,8 +8,6 @@
 #include <errno.h>
 #include <libmilk/log.h>
 #include <libmilk/multilanguage.h>
-#include <libmilk/testing.h>
-#include <pcre.h>
 #include <zlib.h>
 
 #include <unistd.h>
@@ -457,6 +455,8 @@ namespace lyramilk{ namespace teapoy { namespace web {
 
 		virtual bool call(lyramilk::teapoy::http::request* req,std::ostream& os,lyramilk::data::string real,website_worker& w) const
 		{
+			url_worker_loger _("teapoy.web.s",req);
+
 			if(req->header->method == "GET") return onget(req,os,real);
 			if(req->header->method == "POST") return onpost(req,os,real);
 			if(req->header->method == "HEAD") return onget(req,os,real);

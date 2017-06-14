@@ -6,16 +6,16 @@
 
 namespace lyramilk{ namespace teapoy { namespace web {
 
-	class url_worker_js : public url_worker
+	class url_worker_jsx : public url_worker
 	{
 		lyramilk::script::engines* pool;
 		bool call(lyramilk::teapoy::http::request* req,std::ostream& os,lyramilk::data::string real,website_worker& worker) const
 		{
-			url_worker_loger _("teapoy.web.js",req);
+			url_worker_loger _("teapoy.web.jsx",req);
 
 			lyramilk::script::engines::ptr p = pool->get();
 			if(!p->load_file(real)){
-				lyramilk::klog(lyramilk::log::warning,"teapoy.web.js") << D("加载文件%s失败",real.c_str()) << std::endl;
+				lyramilk::klog(lyramilk::log::warning,"teapoy.web.jsx") << D("加载文件%s失败",real.c_str()) << std::endl;
 				return false;
 			}
 
@@ -39,29 +39,28 @@ namespace lyramilk{ namespace teapoy { namespace web {
 			return false;
 		}
 	  public:
-		url_worker_js(lyramilk::script::engines* es)
+		url_worker_jsx(lyramilk::script::engines* es)
 		{
 			pool = es;
 		}
-		virtual ~url_worker_js()
+		virtual ~url_worker_jsx()
 		{
 		}
 
 		static url_worker* ctr(void*)
 		{
-			lyramilk::script::engines* es = engine_pool::instance()->get("js");
-			if(es)return new url_worker_js(es);
+			lyramilk::script::engines* es = engine_pool::instance()->get("jsx");
+			if(es)return new url_worker_jsx(es);
 			return nullptr;
 		}
 
 		static void dtr(url_worker* p)
 		{
-			delete (url_worker_js*)p;
+			delete (url_worker_jsx*)p;
 		}
 	};
-
 	static __attribute__ ((constructor)) void __init()
 	{
-		url_worker_master::instance()->define("js",url_worker_js::ctr,url_worker_js::dtr);
+		url_worker_master::instance()->define("jsx",url_worker_jsx::ctr,url_worker_jsx::dtr);
 	}
 }}}

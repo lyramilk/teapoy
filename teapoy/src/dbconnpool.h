@@ -20,7 +20,7 @@ namespace lyramilk{ namespace teapoy {
 		~mysql_client();
 	};
 
-	class mysql_clients:public lyramilk::threading::exclusive::list<lyramilk::teapoy::mysql_client>
+	class mysql_clients:public lyramilk::threading::rentlist<lyramilk::teapoy::mysql_client>
 	{
 		lyramilk::data::var::array opts;
 		lyramilk::data::string cnf;
@@ -45,7 +45,7 @@ namespace lyramilk{ namespace teapoy {
 
 	///////////////////////////////////////////////////////////
 
-	class redis_clients:public lyramilk::threading::exclusive::list<lyramilk::teapoy::redis::redis_client>
+	class redis_clients:public lyramilk::threading::rentlist<lyramilk::teapoy::redis::redis_client>
 	{
 		lyramilk::data::string host;
 		lyramilk::data::uint16 port;
@@ -81,7 +81,7 @@ namespace lyramilk{ namespace teapoy {
 	};
 
 
-	class mongo_clients:public lyramilk::threading::exclusive::list<lyramilk::teapoy::mongo_client>
+	class mongo_clients:public lyramilk::threading::rentlist<lyramilk::teapoy::mongo_client>
 	{
 		lyramilk::data::string host;
 		lyramilk::data::uint16 port;

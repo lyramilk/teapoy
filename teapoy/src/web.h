@@ -6,6 +6,7 @@
 #include "session.h"
 #include <libmilk/netaio.h>
 #include <libmilk/factory.h>
+#include <libmilk/testing.h>
 #include <map>
 
 namespace lyramilk{ namespace teapoy { namespace web {
@@ -36,6 +37,16 @@ namespace lyramilk{ namespace teapoy { namespace web {
 		virtual bool init_extra(const lyramilk::data::var& extra);
 		virtual bool check_auth(lyramilk::teapoy::http::request* req,std::ostream& os,lyramilk::data::string real,website_worker& w,bool* ret) const;
 		virtual bool try_call(lyramilk::teapoy::http::request* req,std::ostream& os,website_worker& w,bool* ret) const;
+	};
+
+	class url_worker_loger
+	{
+		lyramilk::debug::nsecdiff td;
+		lyramilk::teapoy::http::request* req;
+		lyramilk::data::string prefix;
+	  public:
+		url_worker_loger(lyramilk::data::string prefix,lyramilk::teapoy::http::request* req);
+		~url_worker_loger();
 	};
 
 	class url_worker_master:public lyramilk::util::factory<url_worker>
