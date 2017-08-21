@@ -83,10 +83,9 @@ namespace lyramilk{ namespace teapoy{ namespace native
 
 		lyramilk::log::logss log;
 		web::session_info* si;
+		lyramilk::data::uint32 response_code;
 
 		lyramilk::data::stringstream ss;
-		lyramilk::data::uint32 response_code;
-		lyramilk::data::var::map header;
 	  public:
 		static std::map<int,lyramilk::data::string> code_map;
 		lyramilk::data::string id;
@@ -94,57 +93,40 @@ namespace lyramilk{ namespace teapoy{ namespace native
 
 		static void* ctr(const lyramilk::data::var::array& args)
 		{
-			//assert(args.size() > 0);
-			return new httpresponse((web::session_info*)args[0].userdata("__http_session_info"));
+			return new httpresponse((web::session_info*)args[0].userdata("__http_session_info"),200);
+		}
+
+		static void* ctr2(const lyramilk::data::var::array& args)
+		{
+			return new httpresponse((web::session_info*)args[0].userdata("__http_session_info"),0);
 		}
 		static void dtr(void* p)
 		{
 			delete (httpresponse*)p;
 		}
 
-		httpresponse(web::session_info* si):log(lyramilk::klog,"teapoy.HttpResponse")
+		httpresponse(web::session_info* si,lyramilk::data::uint32 default_response_code):log(lyramilk::klog,"teapoy.HttpResponse")
 		{
 			this->si = si;
-			response_code = 200;
-			header["Server"] = "teapoy/" TEAPOY_VERSION;
-			header["Content-Type"] = "text/html;charset=utf-8";
-			header["Access-Control-Allow-Origin"] = "*";
-			header["Access-Control-Allow-Methods"] = "*";
+			si->rep.set("Content-Type","text/html;charset=utf-8");
+			response_code = default_response_code;
+			/*
+			si->rep.set("Access-Control-Allow-Origin","*");
+			si->rep.set("Access-Control-Allow-Methods","*");*/
 		}
 
 		~httpresponse()
 		{
-			lyramilk::data::stringstream ss_header;
-			lyramilk::data::string str_body;
-			if(response_code == 200){
-				ss_header << "HTTP/1.1 200 OK\r\n";
-			}else{
-				ss_header << "HTTP/1.1 " << http::get_error_code_desc(response_code) << "\r\n";
-			}
-			str_body = ss.str();
-			header["Content-Length"] = str_body.size();
-
-
-			lyramilk::data::var::map::iterator it = header.begin();
-			for(;it!=header.end();++it){
-				ss_header << it->first << ": " << it->second << "\r\n";
-			}
-
-			{
-				lyramilk::data::var::map& cookies = si->req->header->cookies();
-				lyramilk::data::var::map::iterator it = cookies.begin();
-				for(;it!=cookies.end();++it){
-					try{
-						lyramilk::data::var::map& m = it->second;
-						lyramilk::data::string value = m["value"];
-						ss_header << "Set-Cookie: " << it->first << "=" << value << ";" << "\r\n";
-					}catch(...){
-					}
+			if(response_code > 0){
+				lyramilk::data::string str_body = ss.str();
+				lyramilk::data::stringstream ss2;
+				if(si->hook->result_encrypt(si,str_body.c_str(),str_body.size(),ss2)){
+					lyramilk::data::string str_body = ss2.str();
+					si->rep.send_header_and_body(response_code,str_body.c_str(),str_body.size());
+				}else{
+					si->rep.send_header_and_body(response_code,str_body.c_str(),str_body.size());
 				}
 			}
-			ss_header << "\r\n";
-			si->os << ss_header.str() << str_body;
-			si->os.flush();
 		}
 
 		lyramilk::data::var setHeader(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
@@ -153,7 +135,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_str);
 			lyramilk::data::string field = args[0];
 			lyramilk::data::string value = args[1];
-			header[field] = value;
+			si->rep.set(field,value);
 			return true;
 		}
 
@@ -200,7 +182,8 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			fn["write"] = lyramilk::script::engine::functional<httpresponse,&httpresponse::write>;
 			fn["addCookie"] = lyramilk::script::engine::functional<httpresponse,&httpresponse::addCookie>;
 			p->define("HttpResponse",fn,httpresponse::ctr,httpresponse::dtr);
-			return 1;
+			p->define("HttpAuthResponse",fn,httpresponse::ctr2,httpresponse::dtr);
+			return 2;
 		}
 	};
 

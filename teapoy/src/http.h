@@ -9,26 +9,6 @@
 
 namespace lyramilk{ namespace teapoy {namespace http{
 	class request;
-/*
-	class mimetype_parser
-	{
-	};
-
-	class mimetype_parser_factory:public lyramilk::util::multiton_factory<mimetype_parser>
-	{
-	  public:
-		static mimetype_parser_factory* instance();
-	};
-
-	class transfer_encoding_reader
-	{
-	};
-	class transfer_encoding_reader_factory:public lyramilk::util::multiton_factory<transfer_encoding_reader>
-	{
-	  public:
-		static transfer_encoding_reader_factory* instance();
-	};
-*/
 
 	class http_body
 	{
@@ -114,12 +94,13 @@ namespace lyramilk{ namespace teapoy {namespace http{
 		http_frame(request* args);
 		bool parse(const char* p,long long sz);
 		bool ok();
+		void invalid_params();
 
 		lyramilk::data::var::map& cookies();
 		lyramilk::data::var::map& params();
 
+		lyramilk::data::string get_url();
 		lyramilk::data::string uri;
-		lyramilk::data::string url;
 		lyramilk::data::string method;
 		lyramilk::data::uint32 major:4;
 		lyramilk::data::uint32 minor:4;
@@ -151,7 +132,6 @@ namespace lyramilk{ namespace teapoy {namespace http{
 	  public:
 		http_frame* header;
 		lyramilk::teapoy::web::sessions* sessionmgr;
-		bool hsts;
 
 		lyramilk::data::string ssl_peer_certificate_info;
 
@@ -170,9 +150,36 @@ namespace lyramilk{ namespace teapoy {namespace http{
 	};
 
 
-	lyramilk::data::string get_error_code_desc(int code);
+	class response
+	{
+		lyramilk::data::var::map header;
+		lyramilk::data::var::map* cookies;
+		std::ostream* os;
+
+		lyramilk::data::uint32 major;
+		lyramilk::data::uint32 minor;
+	  public:
+		response();
+		virtual ~response();
+
+		lyramilk::data::var& get(const lyramilk::data::string& key);
+		void set(const lyramilk::data::string& key,const lyramilk::data::var& value);
+		void set_http_version(lyramilk::data::uint32 major,lyramilk::data::uint32 minor);
+		void init(std::ostream* os,lyramilk::data::var::map* cookies);
+
+		void send_header_and_body(lyramilk::data::uint32 code,const char* p,lyramilk::data::uint64 l);
+
+		void send_header_and_length(lyramilk::data::uint32 code,lyramilk::data::uint64 l);
+		void send_header_and_length(const char* code,lyramilk::data::uint64 code_length,lyramilk::data::uint64 l);
+		void send_body(const char* p,lyramilk::data::uint64 l);
+		//void send_body_finish();
+
+		void send_header_for_chunk(lyramilk::data::uint32 code);
+		void send_chunk(const char* p,lyramilk::data::uint32 l);
+		void send_chunk_finish();
+	};
+
 	void make_response_header(std::ostream& os,const char* retcodemsg,bool has_header_ending,int httpver_major = 1,int httpver_minor = 0);
-	
 }}}
 
 #endif

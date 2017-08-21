@@ -8,13 +8,16 @@
 #include <libmilk/multilanguage.h>
 #include <libmilk/testing.h>
 #include <pcre.h>
+#include <string.h>
 
 namespace lyramilk{ namespace teapoy { namespace web {
 	/**************** session_info ********************/
-	session_info::session_info(lyramilk::data::string realfile,lyramilk::teapoy::http::request* req,std::ostream& argos,website_worker& w):os(argos),worker(w)
+	session_info::session_info(lyramilk::data::string realfile,lyramilk::teapoy::http::request* req,std::ostream& os,website_worker& w,webhook_helper* h):worker(w)
 	{
 		this->real = realfile;
 		this->req = req;
+		hook = h;
+		rep.init(&os,&req->header->cookies());
 	}
 
 	session_info::~session_info()
@@ -58,6 +61,8 @@ namespace lyramilk{ namespace teapoy { namespace web {
 	url_worker::url_worker()
 	{
 		matcher_regex = nullptr;
+		static webhook default_hook;
+		this->hook = &default_hook;
 	}
 
 	url_worker::~url_worker()
@@ -68,8 +73,9 @@ namespace lyramilk{ namespace teapoy { namespace web {
 		return method;
 	}
 
-	bool url_worker::init(lyramilk::data::string method,lyramilk::data::string pattern,lyramilk::data::string real,lyramilk::data::var::array index)
+	bool url_worker::init(lyramilk::data::string method,lyramilk::data::string pattern,lyramilk::data::string real,lyramilk::data::var::array index,webhook* h)
 	{
+		if(h) this->hook = h;
 		this->method = method;
 		lyramilk::data::var::array::iterator it = index.begin();
 		this->index.reserve(index.size());
@@ -130,29 +136,29 @@ namespace lyramilk{ namespace teapoy { namespace web {
 		return true;
 	}
 
-	bool url_worker::check_auth(lyramilk::teapoy::http::request* req,std::ostream& os,lyramilk::data::string real,website_worker& w,bool* ret) const
+	bool url_worker::check_auth(session_info* si,bool* ret) const
 	{
 		if(authtype.empty()) return true; 
 
-		lyramilk::data::stringstream ss;
 		{
 			lyramilk::script::engines::ptr eng = engine_pool::instance()->get("js")->get();
+			if(!eng) return false;
 			if(!eng->load_file(authscript)){
 				lyramilk::klog(lyramilk::log::warning,"teapoy.web.processer.auth") << D("加载文件%s失败",authscript.c_str()) << std::endl;
-				lyramilk::teapoy::http::make_response_header(os,"500 Internal Server Error",true,req->header->major,req->header->minor);
+
+				si->rep.send_header_and_length("500 Internal Server Error",strlen("500 Internal Server Error"),0);
 				if(ret)*ret = false;
 				return false;
 			}
-			session_info si(real,req,ss,w);
 			lyramilk::data::var::array ar;
 			{
-				lyramilk::data::var var_processer_args("__http_session_info",&si);
+				lyramilk::data::var var_processer_args("__http_session_info",si);
 
 				lyramilk::data::var::array args;
 				args.push_back(var_processer_args);
 
 				ar.push_back(eng->createobject("HttpRequest",args));
-				ar.push_back(eng->createobject("HttpResponse",args));
+				ar.push_back(eng->createobject("HttpAuthResponse",args));
 			}
 
 			lyramilk::data::var vret = eng->call("auth",ar);
@@ -160,44 +166,41 @@ namespace lyramilk{ namespace teapoy { namespace web {
 				return true;
 			}
 		}
-		os << ss.str();
-		os.flush();
 		if(ret)*ret = true;
 		return false;
 	}
 
-	bool url_worker::test(lyramilk::teapoy::http::request* req,std::ostream& os,lyramilk::data::string& real,website_worker& w) const
+	bool url_worker::test(lyramilk::data::string uri,lyramilk::data::string* real) const
 	{
-		lyramilk::data::string url = req->header->url;
 		if(!matcher_regex) return false;
 		int ov[256] = {0};
-		int rc = pcre_exec((const pcre*)matcher_regex,nullptr,url.c_str(),url.size(),0,0,ov,256);
+		int rc = pcre_exec((const pcre*)matcher_regex,nullptr,uri.c_str(),uri.size(),0,0,ov,256);
 		if(rc > 0){
 			if(matcher_dest.type() == lyramilk::data::var::t_str){
-				real = matcher_dest.str();
-				std::size_t pos_args = real.find("?");
-				if(pos_args!=real.npos){
-					real = real.substr(0,pos_args);
+				*real = matcher_dest.str();
+				std::size_t pos_args = real->find("?");
+				if(pos_args!=real->npos){
+					*real = real->substr(0,pos_args);
 				}
 				return true;
 			}else if(matcher_dest.type() == lyramilk::data::var::t_array){
 				const lyramilk::data::var::array& ar = matcher_dest;
-				real.clear();
+				real->clear();
 				for(lyramilk::data::var::array::const_iterator it = ar.begin();it!=ar.end();++it){
 					if(it->type() == lyramilk::data::var::t_str){
-						real.append(it->str());
+						real->append(it->str());
 					}else if(it->type_like(lyramilk::data::var::t_int)){
 						int qi = *it;
 						int bof = ov[(qi<<1)];
 						int eof = ov[(qi<<1)|1];
-						if(eof - bof > 0 && bof < (int)url.size()){
-							real.append(url.substr(bof,eof-bof));
+						if(eof - bof > 0 && bof < (int)uri.size()){
+							real->append(uri.substr(bof,eof-bof));
 						}
 					}
 				}
-				std::size_t pos_args = real.find("?");
-				if(pos_args!=real.npos){
-					real = real.substr(0,pos_args);
+				std::size_t pos_args = real->find("?");
+				if(pos_args!=real->npos){
+					*real = real->substr(0,pos_args);
 				}
 				return true;
 			}
@@ -208,7 +211,16 @@ namespace lyramilk{ namespace teapoy { namespace web {
 	bool url_worker::try_call(lyramilk::teapoy::http::request* req,std::ostream& os,website_worker& w,bool* ret) const
 	{
 		lyramilk::data::string real;
-		if(!test(req,os,real,w)) return false;
+		lyramilk::data::string uri;
+
+		webhook_helper hh(*hook);
+		if(hh.url_decryption(req,&uri)){
+			if(uri.empty()) uri = req->header->uri;
+		}else{
+			uri = req->header->uri;
+		}
+
+		if(!test(uri,&real)) return false;
 		struct stat st = {0};
 		if(0 !=::stat(real.c_str(),&st)){
 			return false;
@@ -231,14 +243,20 @@ namespace lyramilk{ namespace teapoy { namespace web {
 			}
 		}
 
-		if(!check_auth(req,os,real,w,ret)){
+
+		req->header->uri = uri;
+
+		session_info si(real,req,os,w,&hh);
+		si.rep.set_http_version(req->header->major,req->header->minor);
+
+		if(!check_auth(&si,ret)){
 			return true;
 		}
 
 		if(ret){	
-			*ret = call(req,os,real,w);
+			*ret = call(&si);
 		}else{
-			call(req,os,real,w);
+			call(&si);
 		}
 		return true;
 	}
@@ -287,6 +305,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 	aiohttpsession::aiohttpsession()
 	{
 		worker = nullptr;
+		//hook_ptr = nullptr;
 	}
 
 	aiohttpsession::~aiohttpsession()
@@ -295,6 +314,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 
 	bool aiohttpsession::oninit(std::ostream& os)
 	{
+		//hook_userdata = hook_ptr?hook_ptr->create_env():nullptr;
 		req.init(getfd());
 		return true;
 	}

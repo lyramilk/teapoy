@@ -7,6 +7,7 @@
 #include "env.h"
 #include "mime.h"
 #include "session.h"
+#include "webhook.h"
 #include <sys/stat.h>
 #include <errno.h>
 #include <string.h>
@@ -17,7 +18,6 @@ namespace lyramilk{ namespace teapoy{ namespace native
 	{
 		lyramilk::log::logss log;
 		lyramilk::data::string root;
-
 		web::website_worker worker;
 	  public:
 
@@ -40,21 +40,6 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		lyramilk::data::var open(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_int);
-/*
-			proc_master.define("jsx",web::processer_jsx::ctr,web::processer_jsx::dtr);
-			log(lyramilk::log::debug,__FUNCTION__) << D("注册脚本引擎适配器：%s","jsx") << std::endl;
-			proc_master.define("js",web::processer_js::ctr,web::processer_js::dtr);
-			log(lyramilk::log::debug,__FUNCTION__) << D("注册脚本引擎适配器：%s","js") << std::endl;
-			proc_master.define("lua",web::processer_lua::ctr,web::processer_lua::dtr);
-			log(lyramilk::log::debug,__FUNCTION__) << D("注册脚本引擎适配器：%s","lua") << std::endl;
-			lyramilk::data::var::array keys = web::methodinvokers::instance()->keys();
-			for(lyramilk::data::var::array::iterator it = keys.begin();it!=keys.end();++it){
-				web::methodinvoker* invoker = web::methodinvokers::instance()->get(it->str());
-				if(invoker){
-					invoker->set_processer(&proc_master);
-				}
-			}
-*/
 			return lyramilk::netio::aiolistener::open(args[0]);
 		}
 
@@ -68,6 +53,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 				lyramilk::data::string type = it->at("type");
 				lyramilk::data::string pattern = it->at("pattern");
 				lyramilk::data::string module = it->at("module");
+				lyramilk::data::string hooktype = it->at("hook");
 				const lyramilk::data::var& auth = it->at("auth");
 
 				lyramilk::data::var::array index;
@@ -81,7 +67,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 
 				web::url_worker *w = web::url_worker_master::instance()->create(type);
 				if(w){
-					w->init(method,pattern,module,index);
+					w->init(method,pattern,module,index,lyramilk::teapoy::web::allwebhooks::instance()->get(hooktype));
 					w->init_extra(*it);
 					if(auth.type() == lyramilk::data::var::t_map){
 						w->init_auth(auth["type"],auth["module"]);
@@ -133,7 +119,6 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			return true;
 		}
 
-		
 		static int define(lyramilk::script::engine* p)
 		{
 			lyramilk::script::engine::functional_map fn;

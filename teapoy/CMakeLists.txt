@@ -1,6 +1,6 @@
 ﻿#定义工程名及版本
 project(teapoy)
-set(version 1.0.27)
+set(version 1.0.28)
 set(soversion 1.0)
 
 
@@ -65,6 +65,8 @@ if(UNIX)
 	pkg_check_modules(LIBCURL libcurl)
 	pkg_check_modules(PCRE libpcre)
 	pkg_check_modules(ZLIB zlib)
+
+	
 	pkg_check_modules(FFMPEG libavcodec)
 	pkg_check_modules(FFMPEG_AVDEVICE libavdevice)
 	pkg_check_modules(FFMPEG_AVFILTER libavfilter)
@@ -78,6 +80,7 @@ if(UNIX)
 	check_include_file_cxx(jpeglib.h Z_HAVE_LIBJPEG)
 	check_include_file_cxx(mongo/version.h Z_HAVE_MONGODB)
 	check_include_file_cxx(mongo/client/connpool.h Z_HAVE_LIBMONGO)
+	check_include_file_cxx(tinyxml.h Z_HAVE_TINYXML)
 endif()
 
 #if(NOT Z_HAVE_FILEDEVEL)
@@ -126,6 +129,13 @@ if(JS17_FOUND)
 	list(APPEND LIBS_DEPENDS ${JS17_LDFLAGS})
 	list(APPEND INCS_DEPENDS ${JS17_CFLAGS})
 	list(APPEND CONFIG_MACROS JS17_FOUND)
+endif()
+
+if(Z_HAVE_TINYXML)
+	list(APPEND BUILD_DEPENDS tinyxml)
+	list(APPEND RUN_DEPENDS tinyxml-devel)
+	list(APPEND LIBS_DEPENDS -ltinyxml)
+	list(APPEND CONFIG_MACROS Z_HAVE_TINYXML)
 endif()
 
 if(Z_HAVE_MYSQLDEVEL)

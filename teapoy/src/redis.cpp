@@ -24,6 +24,7 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 
 	redis_client::~redis_client()
 	{
+		close();
 	}
 
 	bool redis_client::open(lyramilk::data::string host,lyramilk::data::uint16 port)
@@ -35,6 +36,7 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 			lyramilk::netio::netaddress naddr = dest();
 			ss << naddr.ip_str() << ":" << naddr.port;
 			addr = ss.str();
+//printf("redis(%s:%d) open\n",host.c_str(),port);
 			return true;
 		}
 		throw lyramilk::exception(D("redis(%s:%d)错误：网络错误",host.c_str(),port));
@@ -162,7 +164,8 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 	bool redis_client::parse(lyramilk::data::stringstream& is,lyramilk::data::var& v)
 	{
 		char c;
-		if(is.get(c)){
+		for(is.get(c);is && (c == '\r' || c == '\n');is.get(c));
+		if(is){
 			switch(c){
 			  case '*':{
 					lyramilk::data::string slen;

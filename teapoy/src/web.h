@@ -4,6 +4,7 @@
 #include "config.h"
 #include "http.h"
 #include "session.h"
+#include "webhook.h"
 #include <libmilk/netaio.h>
 #include <libmilk/factory.h>
 #include <libmilk/testing.h>
@@ -12,6 +13,7 @@
 namespace lyramilk{ namespace teapoy { namespace web {
 
 	class website_worker;
+	class session_info;
 
 	class url_worker
 	{
@@ -25,17 +27,18 @@ namespace lyramilk{ namespace teapoy { namespace web {
 		lyramilk::data::strings index;
 	  protected:
 		lyramilk::data::var extra;
+		webhook* hook;
 	  protected:
-		virtual bool call(lyramilk::teapoy::http::request* req,std::ostream& os,lyramilk::data::string real,website_worker& w) const = 0;
-		virtual bool test(lyramilk::teapoy::http::request* req,std::ostream& os,lyramilk::data::string& real,website_worker& w) const;
+		virtual bool call(session_info* si) const = 0;
+		virtual bool test(lyramilk::data::string uri,lyramilk::data::string* real) const;
 	  public:
 		url_worker();
 		virtual ~url_worker();
 		lyramilk::data::string get_method();
-		virtual bool init(lyramilk::data::string method,lyramilk::data::string pattern,lyramilk::data::string real,lyramilk::data::var::array index);
+		virtual bool init(lyramilk::data::string method,lyramilk::data::string pattern,lyramilk::data::string real,lyramilk::data::var::array index,webhook* h);
 		virtual bool init_auth(lyramilk::data::string enginetype,lyramilk::data::string authscript);
 		virtual bool init_extra(const lyramilk::data::var& extra);
-		virtual bool check_auth(lyramilk::teapoy::http::request* req,std::ostream& os,lyramilk::data::string real,website_worker& w,bool* ret) const;
+		virtual bool check_auth(session_info* si,bool* ret) const;
 		virtual bool try_call(lyramilk::teapoy::http::request* req,std::ostream& os,website_worker& w,bool* ret) const;
 	};
 
@@ -71,11 +74,12 @@ namespace lyramilk{ namespace teapoy { namespace web {
 		lyramilk::data::string sid;
 	  public:
 		lyramilk::teapoy::http::request* req;
-		std::ostream& os;
+		lyramilk::teapoy::http::response rep;
 		website_worker& worker;
 		lyramilk::data::string real;
+		webhook_helper* hook;
 
-		session_info(lyramilk::data::string realfile,lyramilk::teapoy::http::request* req,std::ostream& os,website_worker& w);
+		session_info(lyramilk::data::string realfile,lyramilk::teapoy::http::request* req,std::ostream& os,website_worker& w,webhook_helper* h);
 		~session_info();
 
 		lyramilk::data::string getsid();
@@ -90,6 +94,10 @@ namespace lyramilk{ namespace teapoy { namespace web {
 	  public:
 		lyramilk::teapoy::http::request req;
 		website_worker* worker;
+		// hook相关
+		/*
+		void* hook_userdata;
+		lyramilk::teapoy::web::webhook* hook_ptr;*/
 
 		aiohttpsession();
 		virtual ~aiohttpsession();

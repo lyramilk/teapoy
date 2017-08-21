@@ -1203,6 +1203,22 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			return vret;
 		}
 
+		lyramilk::data::var gets(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		{
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
+			lyramilk::data::var::array cmd;
+			cmd.reserve(2 + args.size());
+			cmd.push_back("hmget");
+			cmd.push_back(key);
+			for(lyramilk::data::uint64 i=0;i<args.size();++i){
+				cmd.push_back(args[i]);
+			}
+			lyramilk::data::var vret;
+			if(!predis->c->exec(cmd,vret)) return lyramilk::data::var::nil;
+COUT << vret << std::endl;
+			return vret;
+		}
+
 		lyramilk::data::var set(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			if(predis->readonly()) throw lyramilk::exception(D("redis.hashmap.%s：禁止向只读Redis实例写入数据",__FUNCTION__));
@@ -1314,6 +1330,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			lyramilk::script::engine::functional_map fn;
 			fn["getkey"] = lyramilk::script::engine::functional<redis_hmap,&redis_hmap::getkey>;
 			fn["scan"] = lyramilk::script::engine::functional<redis_hmap,&redis_hmap::scan>;
+			fn["gets"] = lyramilk::script::engine::functional<redis_hmap,&redis_hmap::gets>;
 			fn["get"] = lyramilk::script::engine::functional<redis_hmap,&redis_hmap::get>;
 			fn["set"] = lyramilk::script::engine::functional<redis_hmap,&redis_hmap::set>;
 			fn["remove"] = lyramilk::script::engine::functional<redis_hmap,&redis_hmap::remove>;

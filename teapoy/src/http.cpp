@@ -4,6 +4,7 @@
 #include <arpa/inet.h>
 #include "stringutil.h"
 #include <stdlib.h>
+#include <stdio.h>
 
 namespace lyramilk{ namespace teapoy {namespace http{
 
@@ -180,11 +181,208 @@ namespace lyramilk{ namespace teapoy {namespace http{
 		return it->second;
 	}
 
+	response::response()
+	{
+		os = nullptr;
+		major = 1;
+		minor = 1;
+		header["teapoy"] = "1.0.0";
+	}
+
+	response::~response()
+	{
+	}
+
+
+	lyramilk::data::var& response::get(const lyramilk::data::string& key)
+	{
+		return header[key];
+	}
+
+	void response::set(const lyramilk::data::string& key,const lyramilk::data::var& value)
+	{
+		header[key] = value;
+	}
+
+
+	void response::set_http_version(lyramilk::data::uint32 major,lyramilk::data::uint32 minor)
+	{
+		this->major = major;
+		this->minor = minor;
+	}
+
+	void response::init(std::ostream* os,lyramilk::data::var::map* cookies)
+	{
+		this->os = os;
+		this->cookies = cookies;
+	}
+
+	void response::send_header_and_body(lyramilk::data::uint32 code,const char* p,lyramilk::data::uint64 l)
+	{
+		if(os){
+			*os << "HTTP/" << major << "." << minor << " " << get_error_code_desc(code) << "\r\n";
+			*os << "Access-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: *\r\n";
+			header["Server"] = "teapoy/" TEAPOY_VERSION;
+			header["Content-Length"] = l;
+
+			{
+				lyramilk::data::var::map::iterator it = header.begin();
+				for(;it!=header.end();++it){
+					*os << it->first << ": " << it->second << "\r\n";
+				}
+			}
+			{
+				lyramilk::data::var::map::iterator it = cookies->begin();
+				for(;it!=cookies->end();++it){
+					if(it->second.type() == lyramilk::data::var::t_map){
+						lyramilk::data::var::map& m = it->second;
+						lyramilk::data::var& v = m["value"];
+						if(v.type_like(lyramilk::data::var::t_str)){
+							*os << "Set-Cookie: " << it->first << "=" << v.str() << ";" << "\r\n";
+						}
+					}else if(it->second.type() == lyramilk::data::var::t_str){
+						*os << "Set-Cookie: " << it->first << "=" << it->second.str() << ";" << "\r\n";
+					}
+				}
+			}
+			*os << "\r\n";
+			os->write(p,l);
+			os->flush();
+		}
+	}
+
+
+	void response::send_header_and_length(lyramilk::data::uint32 code,lyramilk::data::uint64 l)
+	{
+		if(os){
+			*os << "HTTP/" << major << "." << minor << " " << get_error_code_desc(code) << "\r\n";
+			*os << "Access-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: *\r\n";
+
+			header["Server"] = "teapoy/" TEAPOY_VERSION;
+			header["Content-Length"] = l;
+
+			{
+				lyramilk::data::var::map::iterator it = header.begin();
+				for(;it!=header.end();++it){
+					*os << it->first << ": " << it->second << "\r\n";
+				}
+			}
+			{
+				lyramilk::data::var::map::iterator it = cookies->begin();
+				for(;it!=cookies->end();++it){
+					if(it->second.type() == lyramilk::data::var::t_map){
+						lyramilk::data::var::map& m = it->second;
+						lyramilk::data::var& v = m["value"];
+						if(v.type_like(lyramilk::data::var::t_str)){
+							*os << "Set-Cookie: " << it->first << "=" << v.str() << ";" << "\r\n";
+						}
+					}else if(it->second.type() == lyramilk::data::var::t_str){
+						*os << "Set-Cookie: " << it->first << "=" << it->second.str() << ";" << "\r\n";
+					}
+				}
+			}
+			*os << "\r\n";
+		}
+	}
+
+	void response::send_header_and_length(const char* code,lyramilk::data::uint64 code_length,lyramilk::data::uint64 l)
+	{
+		if(os){
+			*os << "HTTP/" << major << "." << minor << " ";
+			os->write(code,code_length) << "\r\n";
+			*os << "Access-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: *\r\n";
+
+			header["Server"] = "teapoy/" TEAPOY_VERSION;
+			header["Content-Length"] = l;
+
+			{
+				lyramilk::data::var::map::iterator it = header.begin();
+				for(;it!=header.end();++it){
+					*os << it->first << ": " << it->second << "\r\n";
+				}
+			}
+			{
+				lyramilk::data::var::map::iterator it = cookies->begin();
+				for(;it!=cookies->end();++it){
+					if(it->second.type() == lyramilk::data::var::t_map){
+						lyramilk::data::var::map& m = it->second;
+						lyramilk::data::var& v = m["value"];
+						if(v.type_like(lyramilk::data::var::t_str)){
+							*os << "Set-Cookie: " << it->first << "=" << v.str() << ";" << "\r\n";
+						}
+					}else if(it->second.type() == lyramilk::data::var::t_str){
+						*os << "Set-Cookie: " << it->first << "=" << it->second.str() << ";" << "\r\n";
+					}
+				}
+			}
+			*os << "\r\n";
+		}
+	}
+
+	void response::send_body(const char* p,lyramilk::data::uint64 l)
+	{
+		os->write(p,l);
+	}
+
+/*
+	void response::send_body_finish()
+	{
+		os->flush();
+	}*/
+
+	void response::send_header_for_chunk(lyramilk::data::uint32 code)
+	{
+		if(os){
+			*os << "HTTP/" << major << "." << minor << " " << get_error_code_desc(code) << "\r\n";
+			*os << "Access-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: *\r\n";
+			header.erase("Content-Length");
+			header["Server"] = "teapoy/" TEAPOY_VERSION;
+			header["Transfer-Encoding"] = "chunked";
+
+			{
+				lyramilk::data::var::map::iterator it = header.begin();
+				for(;it!=header.end();++it){
+					*os << it->first << ": " << it->second << "\r\n";
+				}
+			}
+			{
+				lyramilk::data::var::map::iterator it = cookies->begin();
+				for(;it!=cookies->end();++it){
+					if(it->second.type() == lyramilk::data::var::t_map){
+						lyramilk::data::var::map& m = it->second;
+						lyramilk::data::var& v = m["value"];
+						if(v.type_like(lyramilk::data::var::t_str)){
+							*os << "Set-Cookie: " << it->first << "=" << v.str() << ";" << "\r\n";
+						}
+					}else if(it->second.type() == lyramilk::data::var::t_str){
+						*os << "Set-Cookie: " << it->first << "=" << it->second.str() << ";" << "\r\n";
+					}
+				}
+			}
+			*os << "\r\n";
+		}
+	}
+
+	void response::send_chunk(const char* p,lyramilk::data::uint32 l)
+	{
+		char buff_chunkheader[30];
+		unsigned int szh = sprintf(buff_chunkheader,"%x\r\n",l);
+		os->write(buff_chunkheader,szh);
+		os->write(p,l);
+		os->write("\r\n",2);
+	}
+
+	void response::send_chunk_finish()
+	{
+		os->write("0\r\n\r\n",5);
+		os->flush();
+	}
+
 	void make_response_header(std::ostream& os,const char* retcodemsg,bool has_header_ending,int httpver_major,int httpver_minor)
 	{
 		os <<	"HTTP/" << httpver_major << "." << httpver_minor << " " << retcodemsg << "\r\n"
-				"Server: teapoy/" TEAPOY_VERSION;
+				"Server: teapoy/" TEAPOY_VERSION << "\r\n";
+		os <<	"Access-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: *\r\n";
 		if(has_header_ending) os << "\r\n";
 	}
-
 }}}

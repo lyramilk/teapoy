@@ -9,21 +9,19 @@ namespace lyramilk{ namespace teapoy { namespace web {
 	class url_worker_js : public url_worker
 	{
 		lyramilk::script::engines* pool;
-		bool call(lyramilk::teapoy::http::request* req,std::ostream& os,lyramilk::data::string real,website_worker& worker) const
+		bool call(session_info* si) const
 		{
-			url_worker_loger _("teapoy.web.js",req);
+			url_worker_loger _("teapoy.web.js",si->req);
 
 			lyramilk::script::engines::ptr p = pool->get();
-			if(!p->load_file(real)){
-				lyramilk::klog(lyramilk::log::warning,"teapoy.web.js") << D("加载文件%s失败",real.c_str()) << std::endl;
+			if(!p->load_file(si->real)){
+				lyramilk::klog(lyramilk::log::warning,"teapoy.web.js") << D("加载文件%s失败",si->real.c_str()) << std::endl;
 				return false;
 			}
 
-			session_info si(real,req,os,worker);
-
 			lyramilk::data::var::array ar;
 			{
-				lyramilk::data::var var_processer_args("__http_session_info",&si);
+				lyramilk::data::var var_processer_args("__http_session_info",si);
 
 				lyramilk::data::var::array args;
 				args.push_back(var_processer_args);
