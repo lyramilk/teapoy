@@ -8,8 +8,7 @@ namespace lyramilk{ namespace teapoy {
 	class mime
 	{
 	  public:
-		typedef lyramilk::data::unordered_map<lyramilk::data::string,lyramilk::data::string> header_type;
-		mutable header_type _header;
+		mutable lyramilk::data::var::map _header;
 	  public:
 		mime();
 		virtual ~mime();
@@ -17,9 +16,12 @@ namespace lyramilk{ namespace teapoy {
 		virtual lyramilk::data::string get(const lyramilk::data::string& k) const;
 		virtual void set(const lyramilk::data::string& k,const lyramilk::data::string& v);
 
-		virtual header_type& header();
+		virtual lyramilk::data::var::map& header();
 
 		virtual bool parse(const char* buf,int size);
+
+		virtual const char* ptr() const;
+		virtual lyramilk::data::uint64 size() const;
 	  private:
 		mutable lyramilk::data::string mimeheaderstr;
 		void init() const;

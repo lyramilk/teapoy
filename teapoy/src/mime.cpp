@@ -29,7 +29,7 @@ namespace lyramilk{ namespace teapoy {
 
 		lyramilk::data::strings vheader = lyramilk::teapoy::split(mimeheaderstr,"\r\n");
 		lyramilk::data::strings::iterator it = vheader.begin();
-		lyramilk::data::string* laststr = nullptr;
+		lyramilk::data::var* laststr = nullptr;
 		for(;it!=vheader.end();++it){
 			std::size_t pos = it->find_first_of(":");
 			if(pos != it->npos){
@@ -45,7 +45,7 @@ namespace lyramilk{ namespace teapoy {
 				}
 			}
 		}
-		mimeheaderstr.clear();
+		//mimeheaderstr.clear();
 	}
 
 	bool mime::parse(const char* buf,int size)
@@ -54,11 +54,21 @@ namespace lyramilk{ namespace teapoy {
 		return true;
 	}
 
+	const char* mime::ptr() const
+	{
+		return mimeheaderstr.c_str();
+	}
+
+	lyramilk::data::uint64 mime::size() const
+	{
+		return mimeheaderstr.size();
+	}
+
 	lyramilk::data::string mime::get(const lyramilk::data::string& k) const
 	{
 		init();
 		lyramilk::data::string key = lyramilk::teapoy::lowercase(k);
-		header_type::const_iterator it = _header.find(key);
+		lyramilk::data::var::map::const_iterator it = _header.find(key);
 		if(it!=_header.end()){
 			return it->second;
 		}
@@ -72,7 +82,7 @@ namespace lyramilk{ namespace teapoy {
 		_header[key] = v;
 	}
 
-	mime::header_type& mime::header()
+	lyramilk::data::var::map& mime::header()
 	{
 		init();
 		return _header;

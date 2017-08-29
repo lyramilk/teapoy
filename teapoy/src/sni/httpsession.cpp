@@ -220,7 +220,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 
 		lyramilk::data::var getHeaders(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
-			return this->si->req->header;
+			return this->si->req->header->header();
 		}
 
 		lyramilk::data::var getParameter(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
@@ -338,8 +338,8 @@ namespace lyramilk{ namespace teapoy{ namespace native
 					fileitem["header"].type(lyramilk::data::var::t_map);
 					lyramilk::data::var::map& m = fileitem["header"];
 
-					mime::header_type requestheader = res->header();
-					mime::header_type::const_iterator it = requestheader.begin();
+					lyramilk::data::var::map requestheader = res->header();
+					lyramilk::data::var::map::const_iterator it = requestheader.begin();
 					for(;it!=requestheader.end();++it){
 						m[it->first] = it->second;
 					}

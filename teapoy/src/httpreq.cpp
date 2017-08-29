@@ -215,6 +215,7 @@ namespace lyramilk{ namespace teapoy {namespace http{
 		const char* cap_eof = strnstr(p,"\r\n",sz);
 		if(!cap_eof) return false;
 		caption.assign(p,cap_eof-p);
+		cap_eof += 2;	//	跳过crlf
 
 		lyramilk::data::strings fields = lyramilk::teapoy::split(caption," ");
 

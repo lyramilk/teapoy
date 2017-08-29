@@ -94,7 +94,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 				lyramilk::data::int64 gcount = ifs.gcount();
 				if(gcount > 0){
 					datacount -= gcount;
-					si->rep.send_body(buff,gcount);
+					si->rep.send(buff,gcount);
 				}else{
 					ifs.close();
 					return true;
@@ -363,7 +363,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 			ss <<				"Access-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: *\r\n\r\n";
 
 			lyramilk::data::string strheader = ss.str();
-			si->rep.send_body(strheader.c_str(),strheader.size());
+			si->rep.send(strheader.c_str(),strheader.size());
 
 			if(gzipmode != DYNAMIC_GZIP){
 				std::ifstream ifs;
@@ -380,7 +380,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 					lyramilk::data::int64 gcount = ifs.gcount();
 					if(gcount > 0){
 						datacount -= gcount;
-						si->rep.send_body(buff,gcount);
+						si->rep.send(buff,gcount);
 					}else{
 						ifs.close();
 						return false;

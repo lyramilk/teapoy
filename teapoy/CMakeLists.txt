@@ -1,6 +1,6 @@
 ﻿#定义工程名及版本
 project(teapoy)
-set(version 1.0.28)
+set(version 1.0.29)
 set(soversion 1.0)
 
 
@@ -65,6 +65,7 @@ if(UNIX)
 	pkg_check_modules(LIBCURL libcurl)
 	pkg_check_modules(PCRE libpcre)
 	pkg_check_modules(ZLIB zlib)
+	pkg_check_modules(NGHTTP2 libnghttp2)
 
 	
 	pkg_check_modules(FFMPEG libavcodec)
@@ -136,6 +137,8 @@ if(Z_HAVE_TINYXML)
 	list(APPEND RUN_DEPENDS tinyxml-devel)
 	list(APPEND LIBS_DEPENDS -ltinyxml)
 	list(APPEND CONFIG_MACROS Z_HAVE_TINYXML)
+else()
+	list(REMOVE_ITEM src_cpps src/sni/xml.cpp)
 endif()
 
 if(Z_HAVE_MYSQLDEVEL)
@@ -191,6 +194,14 @@ if(ZLIB_FOUND)
 	list(APPEND LIBS_DEPENDS ${ZLIB_LDFLAGS})
 	list(APPEND INCS_DEPENDS ${ZLIB_CFLAGS})
 	list(APPEND CONFIG_MACROS ZLIB_FOUND)
+endif()
+
+if(NGHTTP2_FOUND)
+	list(APPEND BUILD_DEPENDS libnghttp2)
+	list(APPEND RUN_DEPENDS libnghttp2-devel)
+	list(APPEND LIBS_DEPENDS ${NGHTTP2_LDFLAGS})
+	list(APPEND INCS_DEPENDS ${NGHTTP2_CFLAGS})
+	list(APPEND CONFIG_MACROS NGHTTP2_FOUND)
 endif()
 
 if(Z_HAVE_LIBJPEG)

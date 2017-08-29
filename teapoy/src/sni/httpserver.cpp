@@ -52,10 +52,9 @@ namespace lyramilk{ namespace teapoy{ namespace native
 				lyramilk::data::string method = it->at("method");
 				lyramilk::data::string type = it->at("type");
 				lyramilk::data::string pattern = it->at("pattern");
-				lyramilk::data::string module = it->at("module");
+				lyramilk::data::var module = it->at("module");
 				lyramilk::data::string hooktype = it->at("hook");
 				const lyramilk::data::var& auth = it->at("auth");
-
 				lyramilk::data::var::array index;
 
 				{
@@ -67,7 +66,11 @@ namespace lyramilk{ namespace teapoy{ namespace native
 
 				web::url_worker *w = web::url_worker_master::instance()->create(type);
 				if(w){
-					w->init(method,pattern,module,index,lyramilk::teapoy::web::allwebhooks::instance()->get(hooktype));
+					if(module.type() == lyramilk::data::var::t_invalid){
+						w->init(method,pattern,"",index,lyramilk::teapoy::web::allwebhooks::instance()->get(hooktype));
+					}else{
+						w->init(method,pattern,module,index,lyramilk::teapoy::web::allwebhooks::instance()->get(hooktype));
+					}
 					w->init_extra(*it);
 					if(auth.type() == lyramilk::data::var::t_map){
 						w->init_auth(auth["type"],auth["module"]);
@@ -131,9 +134,6 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			p->define("DefineMimeType",DefineMimeType);
 			return 1;
 		}
-
-
-
 
 		static __attribute__ ((constructor)) void __init()
 		{

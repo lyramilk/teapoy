@@ -319,7 +319,7 @@ namespace lyramilk{ namespace teapoy {namespace http{
 		}
 	}
 
-	void response::send_body(const char* p,lyramilk::data::uint64 l)
+	void response::send(const char* p,lyramilk::data::uint64 l)
 	{
 		os->write(p,l);
 	}

@@ -171,7 +171,7 @@ namespace lyramilk{ namespace teapoy {namespace http{
 
 		void send_header_and_length(lyramilk::data::uint32 code,lyramilk::data::uint64 l);
 		void send_header_and_length(const char* code,lyramilk::data::uint64 code_length,lyramilk::data::uint64 l);
-		void send_body(const char* p,lyramilk::data::uint64 l);
+		void send(const char* p,lyramilk::data::uint64 l);
 		//void send_body_finish();
 
 		void send_header_for_chunk(lyramilk::data::uint32 code);

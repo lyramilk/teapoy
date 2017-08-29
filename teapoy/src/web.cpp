@@ -113,7 +113,13 @@ namespace lyramilk{ namespace teapoy { namespace web {
 			}
 			ar.push_back(ret);
 			if(ar.size() == 1){
-				matcher_dest = ar[0];
+				lyramilk::data::var& v = ar[0];
+				if(v.type() == lyramilk::data::var::t_str){
+					lyramilk::data::string s = v.str();
+					if(!s.empty()){
+						matcher_dest = ar[0];
+					}
+				}
 			}else if(ar.size() > 1){
 				matcher_dest = ar;
 			}
@@ -203,6 +209,9 @@ namespace lyramilk{ namespace teapoy { namespace web {
 					*real = real->substr(0,pos_args);
 				}
 				return true;
+			}else if(matcher_dest.type() == lyramilk::data::var::t_invalid){
+				real->clear();
+				return true;
 			}
 		}
 		return false;
@@ -221,28 +230,29 @@ namespace lyramilk{ namespace teapoy { namespace web {
 		}
 
 		if(!test(uri,&real)) return false;
-		struct stat st = {0};
-		if(0 !=::stat(real.c_str(),&st)){
-			return false;
-		}
-
-		if(st.st_mode&S_IFDIR){
-			lyramilk::data::string rawdir;
-			std::size_t pos_end = real.find_last_not_of("/");
-			rawdir = real.substr(0,pos_end + 1);
-			rawdir.push_back('/');
-			lyramilk::data::strings::const_iterator it = index.begin();
-			for(;it!=index.end();++it){
-				real = rawdir + *it;
-				if(0 == ::stat(real.c_str(),&st) && !(st.st_mode&S_IFDIR)){
-					break;
-				}
-			}
-			if (it == index.end()){
+		if(matcher_dest.type() != lyramilk::data::var::t_invalid){
+			struct stat st = {0};
+			if(0 !=::stat(real.c_str(),&st)){
 				return false;
 			}
-		}
 
+			if(st.st_mode&S_IFDIR){
+				lyramilk::data::string rawdir;
+				std::size_t pos_end = real.find_last_not_of("/");
+				rawdir = real.substr(0,pos_end + 1);
+				rawdir.push_back('/');
+				lyramilk::data::strings::const_iterator it = index.begin();
+				for(;it!=index.end();++it){
+					real = rawdir + *it;
+					if(0 == ::stat(real.c_str(),&st) && !(st.st_mode&S_IFDIR)){
+						break;
+					}
+				}
+				if (it == index.end()){
+					return false;
+				}
+			}
+		}
 
 		req->header->uri = uri;
 
