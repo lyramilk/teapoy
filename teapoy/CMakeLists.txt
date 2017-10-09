@@ -1,6 +1,6 @@
 ﻿#定义工程名及版本
 project(teapoy)
-set(version 1.0.29)
+set(version 1.0.30)
 set(soversion 1.0)
 
 
@@ -133,8 +133,8 @@ if(JS17_FOUND)
 endif()
 
 if(Z_HAVE_TINYXML)
-	list(APPEND BUILD_DEPENDS tinyxml)
-	list(APPEND RUN_DEPENDS tinyxml-devel)
+	list(APPEND BUILD_DEPENDS tinyxml-devel)
+	list(APPEND RUN_DEPENDS tinyxml)
 	list(APPEND LIBS_DEPENDS -ltinyxml)
 	list(APPEND CONFIG_MACROS Z_HAVE_TINYXML)
 else()

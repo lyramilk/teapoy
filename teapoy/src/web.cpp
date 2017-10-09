@@ -16,8 +16,9 @@ namespace lyramilk{ namespace teapoy { namespace web {
 	{
 		this->real = realfile;
 		this->req = req;
+		this->rep = req->get_response_object();
 		hook = h;
-		rep.init(&os,&req->header->cookies());
+		this->rep->init(&os,&req->entityframe->cookies());
 	}
 
 	session_info::~session_info()
@@ -26,7 +27,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 
 	lyramilk::data::string session_info::getsid()
 	{
-		lyramilk::data::var::map& cookies = req->header->cookies();
+		lyramilk::data::var::map& cookies = req->entityframe->cookies();
 		lyramilk::data::var::map::iterator it = cookies.find("TeapoyId");
 
 		if(it!=cookies.end()){
@@ -152,7 +153,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 			if(!eng->load_file(authscript)){
 				lyramilk::klog(lyramilk::log::warning,"teapoy.web.processer.auth") << D("加载文件%s失败",authscript.c_str()) << std::endl;
 
-				si->rep.send_header_and_length("500 Internal Server Error",strlen("500 Internal Server Error"),0);
+				si->rep->send_header_and_length("500 Internal Server Error",strlen("500 Internal Server Error"),0);
 				if(ret)*ret = false;
 				return false;
 			}
@@ -182,6 +183,15 @@ namespace lyramilk{ namespace teapoy { namespace web {
 		int ov[256] = {0};
 		int rc = pcre_exec((const pcre*)matcher_regex,nullptr,uri.c_str(),uri.size(),0,0,ov,256);
 		if(rc > 0){
+			/*
+COUT << "正则" << matcher_regexstr << std::endl;
+			for(int qi=0;qi<rc;++qi){
+				int bof = ov[(qi*2)];
+				int eof = ov[(qi*2)|1];
+COUT << qi << "---->" << uri.substr(bof,eof-bof) << std::endl;
+			}*/
+
+
 			if(matcher_dest.type() == lyramilk::data::var::t_str){
 				*real = matcher_dest.str();
 				std::size_t pos_args = real->find("?");
@@ -224,11 +234,10 @@ namespace lyramilk{ namespace teapoy { namespace web {
 
 		webhook_helper hh(*hook);
 		if(hh.url_decryption(req,&uri)){
-			if(uri.empty()) uri = req->header->uri;
+			if(uri.empty()) uri = req->entityframe->uri;
 		}else{
-			uri = req->header->uri;
+			uri = req->entityframe->uri;
 		}
-
 		if(!test(uri,&real)) return false;
 		if(matcher_dest.type() != lyramilk::data::var::t_invalid){
 			struct stat st = {0};
@@ -254,10 +263,9 @@ namespace lyramilk{ namespace teapoy { namespace web {
 			}
 		}
 
-		req->header->uri = uri;
+		req->entityframe->uri = uri;
 
 		session_info si(real,req,os,w,&hh);
-		si.rep.set_http_version(req->header->major,req->header->minor);
 
 		if(!check_auth(&si,ret)){
 			return true;
@@ -280,7 +288,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 
 	url_worker_loger::~url_worker_loger()
 	{
-		lyramilk::klog(lyramilk::log::trace,prefix) << D("%s:%u-->%s 耗时%.3f(毫秒)",req->dest().c_str(),req->dest_port(),req->header->uri.c_str(),double(td.diff()) / 1000000) << std::endl;
+		lyramilk::klog(lyramilk::log::trace,prefix) << D("%s:%u-->%s 耗时%.3f(毫秒)",req->dest().c_str(),req->dest_port(),req->entityframe->uri.c_str(),double(td.diff()) / 1000000) << std::endl;
 	}
 
 	/**************** url_worker_master ********************/
@@ -304,41 +312,66 @@ namespace lyramilk{ namespace teapoy { namespace web {
 		std::vector<url_worker*>::const_iterator it = lst.begin();
 		for(;it!=lst.end();++it){
 			lyramilk::data::string method = it[0]->get_method();
-			if(method.find(req->header->method) != method.npos && it[0]->try_call(req,os,w,ret)) return true;
+			if(method.find(req->entityframe->method) != method.npos && it[0]->try_call(req,os,w,ret)) return true;
 		}
 		return false;
 	}
-	
+	/**************** aiohttpsession_http ********************/
 
-	/**************** aiohttpsession ********************/
-
-	aiohttpsession::aiohttpsession()
+	aiohttpsession_http::aiohttpsession_http(aiohttpsession* root)
 	{
-		worker = nullptr;
-		//hook_ptr = nullptr;
+		this->root = root;
 	}
 
-	aiohttpsession::~aiohttpsession()
+	aiohttpsession_http::~aiohttpsession_http()
 	{
 	}
 
-	bool aiohttpsession::oninit(std::ostream& os)
+	lyramilk::netio::native_socket_type aiohttpsession_http::fd() const
 	{
-		//hook_userdata = hook_ptr?hook_ptr->create_env():nullptr;
-		req.init(getfd());
+		if(root) return root->fd();
+		return 0;
+	}
+
+
+	/**************** aiohttpsession_http_1_0 ********************/
+	aiohttpsession_http_1_0::aiohttpsession_http_1_0(aiohttpsession* root):aiohttpsession_http(root)
+	{
+		req.sessionmgr = root->sessionmgr;
+	}
+
+	aiohttpsession_http_1_0::~aiohttpsession_http_1_0()
+	{
+	}
+
+	bool aiohttpsession_http_1_0::oninit(std::ostream& os)
+	{
 		return true;
 	}
 
-	bool aiohttpsession::onrequest(const char* cache,int size,std::ostream& os)
+	bool aiohttpsession_http_1_0::onrequest(const char* cache,int size,std::ostream& os)
 	{
-/*
-		lyramilk::data::string k = D(" ");
-		lyramilk::debug::nsecdiff td;
-		lyramilk::debug::clocktester _d(td,lyramilk::klog(lyramilk::log::debug),k);
-*/
+		return false;
+	}
 
-//std::cout.write(cache,size) << std::endl;
+	/**************** aiohttpsession_http_1_1 ********************/
+	aiohttpsession_http_1_1::aiohttpsession_http_1_1(aiohttpsession* root):aiohttpsession_http(root)
+	{
+		req.sessionmgr = root->sessionmgr;
+	}
 
+	aiohttpsession_http_1_1::~aiohttpsession_http_1_1()
+	{
+	}
+
+	bool aiohttpsession_http_1_1::oninit(std::ostream& os)
+	{
+		req.init(fd());
+		return true;
+	}
+
+	bool aiohttpsession_http_1_1::onrequest(const char* cache,int size,std::ostream& os)
+	{
 		unsigned int remain = 0;
 		if(!req.parse(cache,(unsigned int)size,&remain)){
 			return true;
@@ -350,23 +383,23 @@ namespace lyramilk{ namespace teapoy { namespace web {
 		}
 		req.ssl_peer_certificate_info = ssl_get_peer_certificate_info();
 
-		if(worker == nullptr){
+		if(root->worker == nullptr){
 			lyramilk::teapoy::http::make_response_header(os,"503 Service Temporarily Unavailable",true);
 			return false;
 		}
 
 		bool bret = false;
-		if(!worker->try_call(&req,os,*worker,&bret)){
-			lyramilk::teapoy::http::make_response_header(os,"404 Not Found",true,req.header->major,req.header->minor);
+		if(!root->worker->try_call(&req,os,*root->worker,&bret)){
+			lyramilk::teapoy::http::make_response_header(os,"404 Not Found",true,req.entityframe->major,req.entityframe->minor);
 			return false;
 		}
 
 		if(bret){
-			if(req.header->major <= 1 && req.header->minor < 1){
+			if(req.entityframe->major <= 1 && req.entityframe->minor < 1){
 				return false;
 			}
 
-			lyramilk::data::string strconnection = lyramilk::teapoy::lowercase(req.header->get("Connection"));
+			lyramilk::data::string strconnection = lyramilk::teapoy::lowercase(req.entityframe->get("Connection"));
 			if(strconnection == "keep-alive"){
 				req.reset();
 				if(remain != 0){
@@ -380,4 +413,59 @@ namespace lyramilk{ namespace teapoy { namespace web {
 		return false;
 	}
 
+	/**************** aiohttpsession_http_2_0 ********************/
+	aiohttpsession_http_2_0::aiohttpsession_http_2_0(aiohttpsession* root):aiohttpsession_http(root)
+	{
+		req.sessionmgr = root->sessionmgr;
+	}
+
+	aiohttpsession_http_2_0::~aiohttpsession_http_2_0()
+	{
+	}
+
+	bool aiohttpsession_http_2_0::oninit(std::ostream& os)
+	{
+		return true;
+	}
+
+	bool aiohttpsession_http_2_0::onrequest(const char* cache,int size,std::ostream& os)
+	{
+		return true;
+	}
+
+	/**************** aiohttpsession ********************/
+
+	aiohttpsession::aiohttpsession()
+	{
+		handler = nullptr;
+	}
+
+	aiohttpsession::~aiohttpsession()
+	{
+	}
+
+	bool aiohttpsession::oninit(std::ostream& os)
+	{
+		if(handler == nullptr){
+			handler = new aiohttpsession_http_1_1(this);
+		}
+
+		if(handler){
+			return handler->oninit(os);
+		}
+		return false;
+	}
+
+	bool aiohttpsession::onrequest(const char* cache,int size,std::ostream& os)
+	{
+/*
+		lyramilk::data::string k = D(" ");
+		lyramilk::debug::nsecdiff td;
+		lyramilk::debug::clocktester _d(td,lyramilk::klog(lyramilk::log::debug),k);
+*/
+
+///std::cout.write(cache,size) << std::endl;
+		if(handler) return handler->onrequest(cache,size,os);
+		return false;
+	}
 }}}

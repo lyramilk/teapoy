@@ -74,7 +74,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 		lyramilk::data::string sid;
 	  public:
 		lyramilk::teapoy::http::request* req;
-		lyramilk::teapoy::http::response rep;
+		lyramilk::teapoy::http::response* rep;
 		website_worker& worker;
 		lyramilk::data::string real;
 		webhook_helper* hook;
@@ -89,16 +89,58 @@ namespace lyramilk{ namespace teapoy { namespace web {
 		void set(const lyramilk::data::string& key,const lyramilk::data::var& value);
 	};
 
+	class aiohttpsession;
+	class aiohttpsession_http:public lyramilk::netio::aiosession2
+	{
+	  protected:
+		aiohttpsession* root;
+		friend class aiohttpsession;
+	  public:
+		aiohttpsession_http(aiohttpsession* root);
+		virtual ~aiohttpsession_http();
+		virtual lyramilk::netio::native_socket_type fd() const;
+	};
+
+	class aiohttpsession_http_1_0:public aiohttpsession_http
+	{
+		lyramilk::teapoy::http::request_http_1_0 req;
+	  public:
+		aiohttpsession_http_1_0(aiohttpsession* root);
+		virtual ~aiohttpsession_http_1_0();
+	  protected:
+		virtual bool oninit(std::ostream& os);
+		virtual bool onrequest(const char* cache,int size,std::ostream& os);
+	};
+
+	class aiohttpsession_http_1_1:public aiohttpsession_http
+	{
+		lyramilk::teapoy::http::request_http_1_1 req;
+	  public:
+		aiohttpsession_http_1_1(aiohttpsession* root);
+		virtual ~aiohttpsession_http_1_1();
+	  protected:
+		virtual bool oninit(std::ostream& os);
+		virtual bool onrequest(const char* cache,int size,std::ostream& os);
+	};
+
+	class aiohttpsession_http_2_0:public aiohttpsession_http
+	{
+		lyramilk::teapoy::http::request_http_2_0 req;
+	  public:
+		aiohttpsession_http_2_0(aiohttpsession* root);
+		virtual ~aiohttpsession_http_2_0();
+	  protected:
+		virtual bool oninit(std::ostream& os);
+		virtual bool onrequest(const char* cache,int size,std::ostream& os);
+	};
+
 	class aiohttpsession:public lyramilk::netio::aiosession2
 	{
 	  public:
-		lyramilk::teapoy::http::request req;
+		aiohttpsession_http* handler;
 		website_worker* worker;
-		// hook相关
-		/*
-		void* hook_userdata;
-		lyramilk::teapoy::web::webhook* hook_ptr;*/
-
+		lyramilk::teapoy::web::sessions* sessionmgr;
+	  public:
 		aiohttpsession();
 		virtual ~aiohttpsession();
 

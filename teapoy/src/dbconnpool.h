@@ -115,6 +115,7 @@ namespace lyramilk{ namespace teapoy {
 		filelogers(const lyramilk::data::var& cfg);
 		virtual ~filelogers();
 
+		bool good();
 		bool write(const char* str,std::size_t sz);
 	};
 

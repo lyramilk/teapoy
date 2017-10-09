@@ -318,12 +318,20 @@ namespace lyramilk{ namespace teapoy {
 	{
 		filepath = cfg["file"].str();
 		fp = fopen(filepath.c_str(),"a");
+		if(!fp){
+			log(lyramilk::log::error,"underflow") << D("FileLoger初始化%s失败：%s",filepath.c_str(),strerror(errno)) << std::endl;
+		}
 		time_t stime = time(0);
 		localtime_r(&stime,&daytime);
 	}
 
 	filelogers::~filelogers()
 	{
+	}
+
+	bool filelogers::good()
+	{
+		return fp != nullptr;
 	}
 
 	bool filelogers::write(const char* str,std::size_t sz)
@@ -348,6 +356,7 @@ namespace lyramilk{ namespace teapoy {
 				}
 			}
 		}
+		if(!fp) return false;
 		if(fwrite(str,sz,1,fp) == 1){
 			fflush(fp);
 			return true;
@@ -365,12 +374,18 @@ namespace lyramilk{ namespace teapoy {
 	{
 		lyramilk::data::string token = id;
 		filelogers* c = get(token);
-		if(c == nullptr){
-			const lyramilk::data::var& cfg = get_config(token);
-			if(cfg.type() == lyramilk::data::var::t_invalid) return nullptr;
-			lyramilk::threading::mutex_sync _(lock);
-			define(token,new filelogers(cfg));
-			c = get(token);
+		if(c != nullptr) return c;
+		const lyramilk::data::var& cfg = get_config(token);
+		if(cfg.type() == lyramilk::data::var::t_invalid) return nullptr;
+
+		lyramilk::threading::mutex_sync _(lock);
+		c = get(token);
+		if(c != nullptr) return c;
+
+		filelogers* p = new filelogers(cfg);
+		if(p){
+			define(token,p);
+			return p;
 		}
 		return c;
 	}

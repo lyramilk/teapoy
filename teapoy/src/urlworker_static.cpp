@@ -28,25 +28,25 @@ namespace lyramilk{ namespace teapoy { namespace web {
 			}
 
 			if(rawfile.find("/../") != rawfile.npos){
-				si->rep.send_header_and_length("400 Bad Request",strlen("400 Bad Request"),0);
+				si->rep->send_header_and_length("400 Bad Request",strlen("400 Bad Request"),0);
 				return false;
 			}
 
 			struct stat st = {0};
 			if(0 !=::stat(rawfile.c_str(),&st)){
 				if(errno == ENOENT){
-					si->rep.send_header_and_length("404 Not Found",strlen("404 Not Found"),0);
+					si->rep->send_header_and_length("404 Not Found",strlen("404 Not Found"),0);
 					return false;
 				}
 				if(errno == EACCES){
-					si->rep.send_header_and_length("403 Forbidden",strlen("403 Forbidden"),0);
+					si->rep->send_header_and_length("403 Forbidden",strlen("403 Forbidden"),0);
 					return false;
 				}
 				if(errno == ENAMETOOLONG){
-					si->rep.send_header_and_length("400 Bad Request",strlen("400 Bad Request"),0);
+					si->rep->send_header_and_length("400 Bad Request",strlen("400 Bad Request"),0);
 					return false;
 				}
-				si->rep.send_header_and_length("500 Internal Server Error",strlen("500 Internal Server Error"),0);
+				si->rep->send_header_and_length("500 Internal Server Error",strlen("500 Internal Server Error"),0);
 				return false;
 			}
 
@@ -79,14 +79,14 @@ namespace lyramilk{ namespace teapoy { namespace web {
 			std::ifstream ifs;
 			ifs.open(rawfile.c_str(),std::ifstream::binary|std::ifstream::in);
 			if(!ifs.is_open()){
-				si->rep.send_header_and_length("404 Not Found",strlen("404 Not Found"),0);
+				si->rep->send_header_and_length("404 Not Found",strlen("404 Not Found"),0);
 				return false;
 			}
 
 
 			lyramilk::data::uint64 datacount = st.st_size;
-			si->rep.set("Content-Type",mimetype);
-			si->rep.send_header_and_length("200 OK",strlen("200 OK"),datacount);
+			si->rep->set("Content-Type",mimetype);
+			si->rep->send_header_and_length("200 OK",strlen("200 OK"),datacount);
 
 			char buff[65536];
 			for(;ifs && datacount > 0;){
@@ -94,7 +94,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 				lyramilk::data::int64 gcount = ifs.gcount();
 				if(gcount > 0){
 					datacount -= gcount;
-					si->rep.send(buff,gcount);
+					si->rep->send(buff,gcount);
 				}else{
 					ifs.close();
 					return true;
@@ -115,25 +115,25 @@ namespace lyramilk{ namespace teapoy { namespace web {
 			}
 
 			if(rawfile.find("/../") != rawfile.npos){
-				si->rep.send_header_and_length("400 Bad Request",strlen("400 Bad Request"),0);
+				si->rep->send_header_and_length("400 Bad Request",strlen("400 Bad Request"),0);
 				return false;
 			}
 
 			struct stat st = {0};
 			if(0 !=::stat(rawfile.c_str(),&st)){
 				if(errno == ENOENT){
-					si->rep.send_header_and_length("404 Not Found",strlen("404 Not Found"),0);
+					si->rep->send_header_and_length("404 Not Found",strlen("404 Not Found"),0);
 					return false;
 				}
 				if(errno == EACCES){
-					si->rep.send_header_and_length("403 Forbidden",strlen("403 Forbidden"),0);
+					si->rep->send_header_and_length("403 Forbidden",strlen("403 Forbidden"),0);
 					return false;
 				}
 				if(errno == ENAMETOOLONG){
-					si->rep.send_header_and_length("400 Bad Request",strlen("400 Bad Request"),0);
+					si->rep->send_header_and_length("400 Bad Request",strlen("400 Bad Request"),0);
 					return false;
 				}
-				si->rep.send_header_and_length("500 Internal Server Error",strlen("500 Internal Server Error"),0);
+				si->rep->send_header_and_length("500 Internal Server Error",strlen("500 Internal Server Error"),0);
 				return false;
 			}
 
@@ -175,11 +175,11 @@ namespace lyramilk{ namespace teapoy { namespace web {
 					etag = buff_etag;
 				}
 
-				lyramilk::data::var vifetagnotmatch = si->req->header->get("If-None-Match");
+				lyramilk::data::var vifetagnotmatch = si->req->entityframe->get("If-None-Match");
 				if(vifetagnotmatch.type() != lyramilk::data::var::t_invalid && vifetagnotmatch == etag){
 
-					si->rep.set("Cache-Control","max-age=3600,public");
-					si->rep.send_header_and_length("304 Not Modified",strlen("304 Not Modified"),0);
+					si->rep->set("Cache-Control","max-age=3600,public");
+					si->rep->send_header_and_length("304 Not Modified",strlen("304 Not Modified"),0);
 					return true;
 				}
 			}
@@ -199,7 +199,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 #ifdef ZLIB_FOUND
 			if(threshold > 0 && st.st_size > this->threshold){
 				//支持gzip
-				lyramilk::data::var v = si->req->header->get("Accept-Encoding");
+				lyramilk::data::var v = si->req->entityframe->get("Accept-Encoding");
 				if(v.type() == lyramilk::data::var::t_str){
 					lyramilk::data::string stracc = v.str();
 					if(stracc.find(compress_type)!= stracc.npos){
@@ -250,7 +250,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 										}
 										deflateEnd(&strm);
 									}
-								}else if(si->req->header->major <= 1 && si->req->header->minor < 1){
+								}else if(si->req->entityframe->major <= 1 && si->req->entityframe->minor < 1){
 									gzipmode = NO_GZIP;
 								}else{
 									gzipmode = DYNAMIC_GZIP;
@@ -260,7 +260,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 								rawfile = cachedgzip;
 								::stat(rawfile.c_str(),&st);
 							}
-						}else if(si->req->header->major <= 1 && si->req->header->minor < 1){
+						}else if(si->req->entityframe->major <= 1 && si->req->entityframe->minor < 1){
 							gzipmode = NO_GZIP;
 						}else{
 							gzipmode = DYNAMIC_GZIP;
@@ -279,7 +279,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 			if(gzipmode != DYNAMIC_GZIP)
 			{
 				//取得分段下载的范围
-				lyramilk::data::var v = si->req->header->get("Range");
+				lyramilk::data::var v = si->req->entityframe->get("Range");
 				bool has_range_start = false;
 				bool has_range_end = false;
 				if(v != lyramilk::data::var::nil){
@@ -300,7 +300,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 					}
 
 					if(!has_range_start && !has_range_end){
-						si->rep.send_header_and_length("500 Internal Server Error",strlen("500 Internal Server Error"),0);
+						si->rep->send_header_and_length("500 Internal Server Error",strlen("500 Internal Server Error"),0);
 						return false;
 					}
 					if(!has_range_start){
@@ -319,8 +319,8 @@ namespace lyramilk{ namespace teapoy { namespace web {
 
 			if(is_range){
 				//判断分断下载是否因原文件修改而失效。
-				lyramilk::data::var vifrange = si->req->header->get("If-Range");
-				lyramilk::data::var vifmatch = si->req->header->get("If-Match");
+				lyramilk::data::var vifrange = si->req->entityframe->get("If-Range");
+				lyramilk::data::var vifmatch = si->req->entityframe->get("If-Match");
 
 				if(vifrange.type() != lyramilk::data::var::t_invalid && (vifrange != etag)){
 					//Range失效
@@ -363,7 +363,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 			ss <<				"Access-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: *\r\n\r\n";
 
 			lyramilk::data::string strheader = ss.str();
-			si->rep.send(strheader.c_str(),strheader.size());
+			si->rep->send(strheader.c_str(),strheader.size());
 
 			if(gzipmode != DYNAMIC_GZIP){
 				std::ifstream ifs;
@@ -380,7 +380,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 					lyramilk::data::int64 gcount = ifs.gcount();
 					if(gcount > 0){
 						datacount -= gcount;
-						si->rep.send(buff,gcount);
+						si->rep->send(buff,gcount);
 					}else{
 						ifs.close();
 						return false;
@@ -426,7 +426,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 							}
 							unsigned int sz = sizeof(buff_chunkbody) - strm.avail_out;
 							if(sz > 0){
-								si->rep.send_chunk(buff_chunkbody,sz);
+								si->rep->send_chunk(buff_chunkbody,sz);
 							}
 						}while(strm.avail_out == 0);
 						if(strm.avail_in > 0){
@@ -441,7 +441,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 				}
 				ifs.close();
 				deflateEnd(&strm);
-				si->rep.send_chunk_finish();
+				si->rep->send_chunk_finish();
 			}
 			return true;
 		}
@@ -449,12 +449,12 @@ namespace lyramilk{ namespace teapoy { namespace web {
 		virtual bool call(session_info* si) const
 		{
 			url_worker_loger _("teapoy.web.s",si->req);
-			if(si->req->header->method == "GET") return onget(si);
-			if(si->req->header->method == "POST") return onpost(si);
-			if(si->req->header->method == "HEAD") return onget(si);
+			if(si->req->entityframe->method == "GET") return onget(si);
+			if(si->req->entityframe->method == "POST") return onpost(si);
+			if(si->req->entityframe->method == "HEAD") return onget(si);
 
-			si->rep.set("Allow","GET,POST");
-			si->rep.send_header_and_length("405 Method Not Allowed",strlen("405 Method Not Allowed"),0);
+			si->rep->set("Allow","GET,POST");
+			si->rep->send_header_and_length("405 Method Not Allowed",strlen("405 Method Not Allowed"),0);
 			return false;
 		}
 

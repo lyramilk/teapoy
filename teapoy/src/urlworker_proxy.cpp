@@ -42,12 +42,12 @@ namespace lyramilk{ namespace teapoy { namespace web {
 
 		bool call(lyramilk::teapoy::web::session_info* si) const
 		{
-			lyramilk::data::string url = uriprefix + si->req->header->uri;
+			lyramilk::data::string url = uriprefix + si->req->entityframe->uri;
 			url_worker_proxy_loger _("teapoy.web.proxy",url,si->req);
 			lyramilk::data::stringstream ss;
 			{
-				ss << si->req->header->method << " " << si->req->header->uri << " HTTP/1.0\r\n";
-				lyramilk::data::string header(si->req->header->ptr(),si->req->header->size());
+				ss << si->req->entityframe->method << " " << si->req->entityframe->uri << " HTTP/1.0\r\n";
+				lyramilk::data::string header(si->req->entityframe->ptr(),si->req->entityframe->size());
 				lyramilk::data::string lowercase_header = lyramilk::teapoy::lowercase(header);
 				std::size_t pos = lowercase_header.find("host");
 				if(pos != lowercase_header.npos){
@@ -60,12 +60,12 @@ namespace lyramilk{ namespace teapoy { namespace web {
 						ss.write(header.c_str(),pos);
 					}
 				}else{
-					ss.write(si->req->header->ptr(),si->req->header->size());
+					ss.write(si->req->entityframe->ptr(),si->req->entityframe->size());
 				}
 
 			}
-			if(si->req->header->body && si->req->header->body->ptr() && si->req->header->body->size()){
-				ss.write(si->req->header->body->ptr(),si->req->header->body->size());
+			if(si->req->entityframe->body && si->req->entityframe->body->ptr() && si->req->entityframe->body->size()){
+				ss.write(si->req->entityframe->body->ptr(),si->req->entityframe->body->size());
 			}
 
 			lyramilk::netio::client c;
@@ -77,7 +77,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 			while(true){
 				int r = c.read(buff,sizeof(buff));
 				if(r > 0){
-					si->rep.send(buff,r);
+					si->rep->send(buff,r);
 				}else{
 					break;
 				}

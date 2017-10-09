@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <ttyent.h>
 
+#include "config.h"
 #include "script.h"
 
 class teapoy_log_base;
@@ -469,9 +470,10 @@ class teapoy_loader
 
 void useage(lyramilk::data::string selfname)
 {
-	std::cout << gettext("useage:") << selfname << "-[optional] <file>" << std::endl;
+	std::cout << gettext("useage:") << selfname << " [optional] <file>" << std::endl;
+	std::cout << "version: " << TEAPOY_VERSION << std::endl;
 	std::cout << "\t-s <file>\t" << gettext("start by script <file>") << std::endl;
-	std::cout << "\t-e <type>\t" << gettext("use engine type(eg. js,lua,...),default decide by extension name.") << std::endl;
+	std::cout << "\t-e <type>\t" << gettext("use engine type(eg. js,lua,...),default depending on extension name.") << std::endl;
 	std::cout << "\t-d       \t" << gettext("start as daemon") << std::endl;
 	std::cout << "\t-c       \t" << gettext("enable console mode use log redirect") << std::endl;
 	std::cout << "\t-t <file>\t" << gettext("translate string by <file>") << std::endl;

@@ -58,62 +58,18 @@ namespace lyramilk{ namespace teapoy {namespace http{
 		_source_port = 0;
 		_dest_port = 0;
 		sessionmgr = nullptr;
-		header = nullptr;
+		entityframe = nullptr;
 		reset();
 	}
 
 	request::~request()
 	{
-		if(header) delete header;
+		if(entityframe) delete entityframe;
 	}
 
 	void request::init(lyramilk::io::native_filedescriptor_type fd)
 	{
 		sockfd = fd;
-	}
-
-	bool request::parse(const char* buf,unsigned int size,unsigned int* remain)
-	{
-		if(s == s0){
-			httpheaderstr.append(buf,size);
-			std::size_t pos_headereof = httpheaderstr.find("\r\n\r\n");
-			if(pos_headereof == httpheaderstr.npos) return false;
-			pos_headereof += 4;
-
-			header = new http_frame(this);
-			if(!header->parse(httpheaderstr.c_str(),pos_headereof)){
-				s = sbad;
-				return true;
-			}
-
-			s = smime;
-
-			if(header->get("Transfer-Encoding") == "chunked"){
-				header->body = new http_chunkbody();
-			}else{
-				lyramilk::data::string cl_str = header->get("Content-Length");
-				if(cl_str.empty()){
-					s = sok;
-					return true;
-				}
-				long long cl = strtoll(cl_str.c_str(),nullptr,10);
-				if(cl > 0){
-					header->body = new http_lengthedbody(cl);
-				}else{
-					s = sok;
-					return true;
-				}
-			}
-			unsigned int des = httpheaderstr.size() - pos_headereof;
-			if(des > 0 && header->body->write(httpheaderstr.c_str() + pos_headereof,des,remain)){
-				s = sok;
-				return true;
-			}
-		}else if(header->body->write(buf,size,remain)){
-			s = sok;
-			return true;
-		}
-		return false;
 	}
 
 	bool request::ok()
@@ -124,10 +80,133 @@ namespace lyramilk{ namespace teapoy {namespace http{
 	void request::reset()
 	{
 		s = s0;
-		httpheaderstr.clear();
-		if(header) delete header;
-		header = nullptr;
+		if(entityframe) delete entityframe;
+		entityframe = nullptr;
 	}
+
+	response* request_http_1_0::get_response_object()
+	{
+		return &rep;
+	}
+
+	bool request_http_1_0::parse(const char* buf,unsigned int size,unsigned int* remain)
+	{
+		if(s == s0){
+			httpheaderstr.append(buf,size);
+			std::size_t pos_headereof = httpheaderstr.find("\r\n\r\n");
+			if(pos_headereof == httpheaderstr.npos) return false;
+			pos_headereof += 4;
+
+			entityframe = new http_frame(this);
+			if(!entityframe->parse(httpheaderstr.c_str(),pos_headereof)){
+				s = sbad;
+				return true;
+			}
+
+			s = smime;
+
+			{
+				lyramilk::data::string cl_str = entityframe->get("Content-Length");
+				if(cl_str.empty()){
+					s = sok;
+					return true;
+				}
+				long long cl = strtoll(cl_str.c_str(),nullptr,10);
+				if(cl > 0){
+					entityframe->body = new http_lengthedbody(cl);
+				}else{
+					s = sok;
+					return true;
+				}
+			}
+			unsigned int des = httpheaderstr.size() - pos_headereof;
+			if(des > 0 && entityframe->body->write(httpheaderstr.c_str() + pos_headereof,des,remain)){
+				s = sok;
+				return true;
+			}
+		}else if(entityframe->body->write(buf,size,remain)){
+			s = sok;
+			return true;
+		}
+		return false;
+	}
+
+	void request_http_1_0::reset()
+	{
+		httpheaderstr.clear();
+		request::reset();
+	}
+
+	response* request_http_1_1::get_response_object()
+	{
+		return &rep;
+	}
+
+	bool request_http_1_1::parse(const char* buf,unsigned int size,unsigned int* remain)
+	{
+		if(s == s0){
+			httpheaderstr.append(buf,size);
+			std::size_t pos_headereof = httpheaderstr.find("\r\n\r\n");
+			if(pos_headereof == httpheaderstr.npos) return false;
+			pos_headereof += 4;
+
+			entityframe = new http_frame(this);
+			if(!entityframe->parse(httpheaderstr.c_str(),pos_headereof)){
+				s = sbad;
+				return true;
+			}
+
+			s = smime;
+
+			if(entityframe->get("Transfer-Encoding") == "chunked"){
+				entityframe->body = new http_chunkbody();
+			}else{
+				lyramilk::data::string cl_str = entityframe->get("Content-Length");
+				if(cl_str.empty()){
+					s = sok;
+					return true;
+				}
+				long long cl = strtoll(cl_str.c_str(),nullptr,10);
+				if(cl > 0){
+					entityframe->body = new http_lengthedbody(cl);
+				}else{
+					s = sok;
+					return true;
+				}
+			}
+			unsigned int des = httpheaderstr.size() - pos_headereof;
+			if(des > 0 && entityframe->body->write(httpheaderstr.c_str() + pos_headereof,des,remain)){
+				s = sok;
+				return true;
+			}
+		}else if(entityframe->body && entityframe->body->write(buf,size,remain)){
+			s = sok;
+			return true;
+		}
+		return false;
+	}
+
+	void request_http_1_1::reset()
+	{
+		httpheaderstr.clear();
+		request::reset();
+	}
+
+
+	response* request_http_2_0::get_response_object()
+	{
+		return &rep;
+	}
+	bool request_http_2_0::parse(const char* buf,unsigned int size,unsigned int* remain)
+	{
+		TODO();
+	}
+
+	void request_http_2_0::reset()
+	{
+		request::reset();
+	}
+
 
 	static std::map<int,lyramilk::data::string> __init_code_map()
 	{
@@ -184,8 +263,6 @@ namespace lyramilk{ namespace teapoy {namespace http{
 	response::response()
 	{
 		os = nullptr;
-		major = 1;
-		minor = 1;
 		header["teapoy"] = "1.0.0";
 	}
 
@@ -204,23 +281,30 @@ namespace lyramilk{ namespace teapoy {namespace http{
 		header[key] = value;
 	}
 
-
-	void response::set_http_version(lyramilk::data::uint32 major,lyramilk::data::uint32 minor)
-	{
-		this->major = major;
-		this->minor = minor;
-	}
-
 	void response::init(std::ostream* os,lyramilk::data::var::map* cookies)
 	{
 		this->os = os;
 		this->cookies = cookies;
 	}
 
-	void response::send_header_and_body(lyramilk::data::uint32 code,const char* p,lyramilk::data::uint64 l)
+	void response::send(const char* p,lyramilk::data::uint64 l)
+	{
+		os->write(p,l);
+	}
+
+	//	response_http_1_0
+	response_http_1_0::response_http_1_0()
+	{
+	}
+
+	response_http_1_0::~response_http_1_0()
+	{
+	}
+
+	void response_http_1_0::send_header_and_body(lyramilk::data::uint32 code,const char* p,lyramilk::data::uint64 l)
 	{
 		if(os){
-			*os << "HTTP/" << major << "." << minor << " " << get_error_code_desc(code) << "\r\n";
+			*os << "HTTP/1.0 " << get_error_code_desc(code) << "\r\n";
 			*os << "Access-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: *\r\n";
 			header["Server"] = "teapoy/" TEAPOY_VERSION;
 			header["Content-Length"] = l;
@@ -251,11 +335,10 @@ namespace lyramilk{ namespace teapoy {namespace http{
 		}
 	}
 
-
-	void response::send_header_and_length(lyramilk::data::uint32 code,lyramilk::data::uint64 l)
+	void response_http_1_0::send_header_and_length(lyramilk::data::uint32 code,lyramilk::data::uint64 l)
 	{
 		if(os){
-			*os << "HTTP/" << major << "." << minor << " " << get_error_code_desc(code) << "\r\n";
+			*os << "HTTP/1.0 " << get_error_code_desc(code) << "\r\n";
 			*os << "Access-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: *\r\n";
 
 			header["Server"] = "teapoy/" TEAPOY_VERSION;
@@ -285,10 +368,10 @@ namespace lyramilk{ namespace teapoy {namespace http{
 		}
 	}
 
-	void response::send_header_and_length(const char* code,lyramilk::data::uint64 code_length,lyramilk::data::uint64 l)
+	void response_http_1_0::send_header_and_length(const char* code,lyramilk::data::uint64 code_length,lyramilk::data::uint64 l)
 	{
 		if(os){
-			*os << "HTTP/" << major << "." << minor << " ";
+			*os << "HTTP/1.0 ";
 			os->write(code,code_length) << "\r\n";
 			*os << "Access-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: *\r\n";
 
@@ -319,21 +402,135 @@ namespace lyramilk{ namespace teapoy {namespace http{
 		}
 	}
 
-	void response::send(const char* p,lyramilk::data::uint64 l)
+	void response_http_1_0::send_header_for_chunk(lyramilk::data::uint32 code)
 	{
-		os->write(p,l);
+		this->code = code;
 	}
 
-/*
-	void response::send_body_finish()
+	void response_http_1_0::send_chunk(const char* p,lyramilk::data::uint32 l)
 	{
-		os->flush();
-	}*/
+		chunkcache.append(p,l);
+	}
 
-	void response::send_header_for_chunk(lyramilk::data::uint32 code)
+	void response_http_1_0::send_chunk_finish()
+	{
+		send_header_and_body(code,chunkcache.c_str(),chunkcache.size());
+	}
+
+	//	response_http_1_1
+	response_http_1_1::response_http_1_1()
+	{
+	}
+
+	response_http_1_1::~response_http_1_1()
+	{
+	}
+
+	void response_http_1_1::send_header_and_body(lyramilk::data::uint32 code,const char* p,lyramilk::data::uint64 l)
 	{
 		if(os){
-			*os << "HTTP/" << major << "." << minor << " " << get_error_code_desc(code) << "\r\n";
+			*os << "HTTP/1.1 " << get_error_code_desc(code) << "\r\n";
+			*os << "Access-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: *\r\n";
+			header["Server"] = "teapoy/" TEAPOY_VERSION;
+			header["Content-Length"] = l;
+
+			{
+				lyramilk::data::var::map::iterator it = header.begin();
+				for(;it!=header.end();++it){
+					*os << it->first << ": " << it->second << "\r\n";
+				}
+			}
+			{
+				lyramilk::data::var::map::iterator it = cookies->begin();
+				for(;it!=cookies->end();++it){
+					if(it->second.type() == lyramilk::data::var::t_map){
+						lyramilk::data::var::map& m = it->second;
+						lyramilk::data::var& v = m["value"];
+						if(v.type_like(lyramilk::data::var::t_str)){
+							*os << "Set-Cookie: " << it->first << "=" << v.str() << ";" << "\r\n";
+						}
+					}else if(it->second.type() == lyramilk::data::var::t_str){
+						*os << "Set-Cookie: " << it->first << "=" << it->second.str() << ";" << "\r\n";
+					}
+				}
+			}
+			*os << "\r\n";
+			os->write(p,l);
+			os->flush();
+		}
+	}
+
+	void response_http_1_1::send_header_and_length(lyramilk::data::uint32 code,lyramilk::data::uint64 l)
+	{
+		if(os){
+			*os << "HTTP/1.1 " << get_error_code_desc(code) << "\r\n";
+			*os << "Access-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: *\r\n";
+
+			header["Server"] = "teapoy/" TEAPOY_VERSION;
+			header["Content-Length"] = l;
+
+			{
+				lyramilk::data::var::map::iterator it = header.begin();
+				for(;it!=header.end();++it){
+					*os << it->first << ": " << it->second << "\r\n";
+				}
+			}
+			{
+				lyramilk::data::var::map::iterator it = cookies->begin();
+				for(;it!=cookies->end();++it){
+					if(it->second.type() == lyramilk::data::var::t_map){
+						lyramilk::data::var::map& m = it->second;
+						lyramilk::data::var& v = m["value"];
+						if(v.type_like(lyramilk::data::var::t_str)){
+							*os << "Set-Cookie: " << it->first << "=" << v.str() << ";" << "\r\n";
+						}
+					}else if(it->second.type() == lyramilk::data::var::t_str){
+						*os << "Set-Cookie: " << it->first << "=" << it->second.str() << ";" << "\r\n";
+					}
+				}
+			}
+			*os << "\r\n";
+		}
+	}
+
+	void response_http_1_1::send_header_and_length(const char* code,lyramilk::data::uint64 code_length,lyramilk::data::uint64 l)
+	{
+		if(os){
+			*os << "HTTP/1.1 ";
+			os->write(code,code_length) << "\r\n";
+			*os << "Access-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: *\r\n";
+
+			header["Server"] = "teapoy/" TEAPOY_VERSION;
+			header["Content-Length"] = l;
+
+			{
+				lyramilk::data::var::map::iterator it = header.begin();
+				for(;it!=header.end();++it){
+					*os << it->first << ": " << it->second << "\r\n";
+				}
+			}
+			{
+				lyramilk::data::var::map::iterator it = cookies->begin();
+				for(;it!=cookies->end();++it){
+					if(it->second.type() == lyramilk::data::var::t_map){
+						lyramilk::data::var::map& m = it->second;
+						lyramilk::data::var& v = m["value"];
+						if(v.type_like(lyramilk::data::var::t_str)){
+							*os << "Set-Cookie: " << it->first << "=" << v.str() << ";" << "\r\n";
+						}
+					}else if(it->second.type() == lyramilk::data::var::t_str){
+						*os << "Set-Cookie: " << it->first << "=" << it->second.str() << ";" << "\r\n";
+					}
+				}
+			}
+			*os << "\r\n";
+		}
+	}
+
+	void response_http_1_1::send_header_for_chunk(lyramilk::data::uint32 code)
+	{
+		if(os){
+			*os << "HTTP/1.1 " << get_error_code_desc(code) << "\r\n";
 			*os << "Access-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: *\r\n";
 			header.erase("Content-Length");
 			header["Server"] = "teapoy/" TEAPOY_VERSION;
@@ -362,8 +559,7 @@ namespace lyramilk{ namespace teapoy {namespace http{
 			*os << "\r\n";
 		}
 	}
-
-	void response::send_chunk(const char* p,lyramilk::data::uint32 l)
+	void response_http_1_1::send_chunk(const char* p,lyramilk::data::uint32 l)
 	{
 		char buff_chunkheader[30];
 		unsigned int szh = sprintf(buff_chunkheader,"%x\r\n",l);
@@ -372,7 +568,7 @@ namespace lyramilk{ namespace teapoy {namespace http{
 		os->write("\r\n",2);
 	}
 
-	void response::send_chunk_finish()
+	void response_http_1_1::send_chunk_finish()
 	{
 		os->write("0\r\n\r\n",5);
 		os->flush();

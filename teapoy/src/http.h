@@ -113,9 +113,10 @@ namespace lyramilk{ namespace teapoy {namespace http{
 		}flags;
 	};
 
+	class response;
 	class request
 	{
-		lyramilk::data::string httpheaderstr;
+	  protected:
 		enum 
 		{
 			s0,
@@ -130,7 +131,7 @@ namespace lyramilk{ namespace teapoy {namespace http{
 
 		lyramilk::io::native_filedescriptor_type sockfd;
 	  public:
-		http_frame* header;
+		http_frame* entityframe;
 		lyramilk::teapoy::web::sessions* sessionmgr;
 
 		lyramilk::data::string ssl_peer_certificate_info;
@@ -144,40 +145,95 @@ namespace lyramilk{ namespace teapoy {namespace http{
 		virtual ~request();
 
 		virtual void init(lyramilk::io::native_filedescriptor_type fd);
-		virtual bool parse(const char* buf,unsigned int size,unsigned int* remain);
+		virtual bool parse(const char* buf,unsigned int size,unsigned int* remain) = 0;
 		virtual bool ok();
 		virtual void reset();
+		virtual response* get_response_object() = 0;
 	};
-
-
 	class response
 	{
+	  protected:
 		lyramilk::data::var::map header;
 		lyramilk::data::var::map* cookies;
 		std::ostream* os;
-
-		lyramilk::data::uint32 major;
-		lyramilk::data::uint32 minor;
 	  public:
 		response();
 		virtual ~response();
 
-		lyramilk::data::var& get(const lyramilk::data::string& key);
-		void set(const lyramilk::data::string& key,const lyramilk::data::var& value);
-		void set_http_version(lyramilk::data::uint32 major,lyramilk::data::uint32 minor);
-		void init(std::ostream* os,lyramilk::data::var::map* cookies);
+		virtual lyramilk::data::var& get(const lyramilk::data::string& key);
+		virtual void set(const lyramilk::data::string& key,const lyramilk::data::var& value);
+		virtual void init(std::ostream* os,lyramilk::data::var::map* cookies);
 
-		void send_header_and_body(lyramilk::data::uint32 code,const char* p,lyramilk::data::uint64 l);
+		virtual void send_header_and_body(lyramilk::data::uint32 code,const char* p,lyramilk::data::uint64 l) = 0;
 
-		void send_header_and_length(lyramilk::data::uint32 code,lyramilk::data::uint64 l);
-		void send_header_and_length(const char* code,lyramilk::data::uint64 code_length,lyramilk::data::uint64 l);
-		void send(const char* p,lyramilk::data::uint64 l);
-		//void send_body_finish();
+		virtual void send_header_and_length(lyramilk::data::uint32 code,lyramilk::data::uint64 l) = 0;
+		virtual void send_header_and_length(const char* code,lyramilk::data::uint64 code_length,lyramilk::data::uint64 l) = 0;
+		virtual void send(const char* p,lyramilk::data::uint64 l);
 
-		void send_header_for_chunk(lyramilk::data::uint32 code);
-		void send_chunk(const char* p,lyramilk::data::uint32 l);
-		void send_chunk_finish();
+		virtual void send_header_for_chunk(lyramilk::data::uint32 code) = 0;
+		virtual void send_chunk(const char* p,lyramilk::data::uint32 l) = 0;
+		virtual void send_chunk_finish() = 0;
 	};
+
+	class response_http_1_0:public response
+	{
+		lyramilk::data::string chunkcache;
+		lyramilk::data::uint32 code;
+	  public:
+		response_http_1_0();
+		virtual ~response_http_1_0();
+		virtual void send_header_and_body(lyramilk::data::uint32 code,const char* p,lyramilk::data::uint64 l);
+		virtual void send_header_and_length(lyramilk::data::uint32 code,lyramilk::data::uint64 l);
+		virtual void send_header_and_length(const char* code,lyramilk::data::uint64 code_length,lyramilk::data::uint64 l);
+
+		virtual void send_header_for_chunk(lyramilk::data::uint32 code);
+		virtual void send_chunk(const char* p,lyramilk::data::uint32 l);
+		virtual void send_chunk_finish();
+	};
+
+	class response_http_1_1:public response
+	{
+		lyramilk::data::string chunkcache;
+	  public:
+		response_http_1_1();
+		virtual ~response_http_1_1();
+		virtual void send_header_and_body(lyramilk::data::uint32 code,const char* p,lyramilk::data::uint64 l);
+		virtual void send_header_and_length(lyramilk::data::uint32 code,lyramilk::data::uint64 l);
+		virtual void send_header_and_length(const char* code,lyramilk::data::uint64 code_length,lyramilk::data::uint64 l);
+		virtual void send_header_for_chunk(lyramilk::data::uint32 code);
+		virtual void send_chunk(const char* p,lyramilk::data::uint32 l);
+		virtual void send_chunk_finish();
+	};
+
+	class request_http_1_0:public request
+	{
+		response_http_1_0 rep;
+		lyramilk::data::string httpheaderstr;
+		virtual response* get_response_object();
+	  public:
+		virtual bool parse(const char* buf,unsigned int size,unsigned int* remain);
+		virtual void reset();
+	};
+
+	class request_http_1_1:public request
+	{
+		response_http_1_1 rep;
+		lyramilk::data::string httpheaderstr;
+		virtual response* get_response_object();
+	  public:
+		virtual bool parse(const char* buf,unsigned int size,unsigned int* remain);
+		virtual void reset();
+	};
+
+	class request_http_2_0:public request
+	{
+		response_http_1_1 rep;
+		virtual response* get_response_object();
+	  public:
+		virtual bool parse(const char* buf,unsigned int size,unsigned int* remain);
+		virtual void reset();
+	};
+
 
 	void make_response_header(std::ostream& os,const char* retcodemsg,bool has_header_ending,int httpver_major = 1,int httpver_minor = 0);
 }}}
