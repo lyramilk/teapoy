@@ -363,7 +363,10 @@ namespace lyramilk{ namespace teapoy{ namespace native
 
 		lyramilk::data::var getRequestBody(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
-			return lyramilk::data::chunk((const unsigned char*)si->req->entityframe->body->ptr(),si->req->entityframe->body->size());
+			if(si->req->entityframe->body){
+				return lyramilk::data::chunk((const unsigned char*)si->req->entityframe->body->ptr(),si->req->entityframe->body->size());
+			}
+			return lyramilk::data::var::nil;
 		}
 
 		lyramilk::data::var getRealPath(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)

@@ -1,6 +1,6 @@
 ﻿#定义工程名及版本
 project(teapoy)
-set(version 1.0.30)
+set(version 1.0.31)
 set(soversion 1.0)
 
 
@@ -67,14 +67,6 @@ if(UNIX)
 	pkg_check_modules(ZLIB zlib)
 	pkg_check_modules(NGHTTP2 libnghttp2)
 
-	
-	pkg_check_modules(FFMPEG libavcodec)
-	pkg_check_modules(FFMPEG_AVDEVICE libavdevice)
-	pkg_check_modules(FFMPEG_AVFILTER libavfilter)
-	pkg_check_modules(FFMPEG_AVFORMAT libavformat)
-	pkg_check_modules(FFMPEG_AVUTIL libavutil)
-	pkg_check_modules(FFMPEG_SWRESAMPLE libswresample)
-	pkg_check_modules(FFMPEG_SWSCALE libswscale)
 	pkg_search_module(JS17 mozjs-17.0)
 
 	check_include_file_cxx(mysql/mysql.h Z_HAVE_MYSQLDEVEL)
@@ -125,8 +117,8 @@ else()
 endif()
 
 if(JS17_FOUND)
-	list(APPEND BUILD_DEPENDS mozjs17)
-	list(APPEND RUN_DEPENDS mozjs17-devel)
+	list(APPEND BUILD_DEPENDS mozjs17-devel)
+	list(APPEND RUN_DEPENDS mozjs17)
 	list(APPEND LIBS_DEPENDS ${JS17_LDFLAGS})
 	list(APPEND INCS_DEPENDS ${JS17_CFLAGS})
 	list(APPEND CONFIG_MACROS JS17_FOUND)
@@ -148,36 +140,6 @@ if(Z_HAVE_MYSQLDEVEL)
 	list(APPEND CONFIG_MACROS Z_HAVE_MYSQLDEVEL)
 else()
 	list(REMOVE_ITEM src_cpps src/sni/mysql.cpp)
-endif()
-
-if(FFMPEG_FOUND)
-	list(APPEND BUILD_DEPENDS ffmpeg)
-	list(APPEND RUN_DEPENDS ffmpeg-devel)
-
-	list(APPEND LIBS_DEPENDS ${FFMPEG_AVUTIL_LDFLAGS} )
-	list(APPEND INCS_DEPENDS ${FFMPEG_AVUTIL_CFLAGS})
-
-	list(APPEND LIBS_DEPENDS ${FFMPEG_SWSCALE_LDFLAGS} )
-	list(APPEND INCS_DEPENDS ${FFMPEG_SWSCALE_CFLAGS})
-
-	list(APPEND LIBS_DEPENDS ${FFMPEG_SWRESAMPLE_LDFLAGS} )
-	list(APPEND INCS_DEPENDS ${FFMPEG_SWRESAMPLE_CFLAGS})
-
-	list(APPEND LIBS_DEPENDS ${FFMPEG_LDFLAGS} )
-	list(APPEND INCS_DEPENDS ${FFMPEG_CFLAGS})
-
-	list(APPEND LIBS_DEPENDS ${FFMPEG_AVFORMAT_LDFLAGS} )
-	list(APPEND INCS_DEPENDS ${FFMPEG_AVFORMAT_CFLAGS})
-
-	list(APPEND LIBS_DEPENDS ${FFMPEG_AVFILTER_LDFLAGS} )
-	list(APPEND INCS_DEPENDS ${FFMPEG_AVFILTER_CFLAGS})
-
-	list(APPEND LIBS_DEPENDS ${FFMPEG_AVDEVICE_LDFLAGS} )
-	list(APPEND INCS_DEPENDS ${FFMPEG_AVDEVICE_CFLAGS})
-
-	list(APPEND CONFIG_MACROS FFMPEG_FOUND)
-else()
-	list(REMOVE_ITEM src_cpps src/sni/mpeg.cpp)
 endif()
 
 if(PCRE_FOUND)

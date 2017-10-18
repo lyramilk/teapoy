@@ -442,6 +442,7 @@ COUT << qi << "---->" << uri.substr(bof,eof-bof) << std::endl;
 
 	aiohttpsession::~aiohttpsession()
 	{
+		if(handler) delete handler;
 	}
 
 	bool aiohttpsession::oninit(std::ostream& os)
