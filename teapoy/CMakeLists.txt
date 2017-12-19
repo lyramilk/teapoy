@@ -1,6 +1,6 @@
 ﻿#定义工程名及版本
 project(teapoy)
-set(version 1.0.31)
+set(version 1.0.32)
 set(soversion 1.0)
 
 
@@ -74,6 +74,7 @@ if(UNIX)
 	check_include_file_cxx(mongo/version.h Z_HAVE_MONGODB)
 	check_include_file_cxx(mongo/client/connpool.h Z_HAVE_LIBMONGO)
 	check_include_file_cxx(tinyxml.h Z_HAVE_TINYXML)
+	check_include_file_cxx(tinyxml2.h Z_HAVE_TINYXML2)
 endif()
 
 #if(NOT Z_HAVE_FILEDEVEL)
@@ -125,10 +126,7 @@ if(JS17_FOUND)
 endif()
 
 if(Z_HAVE_TINYXML)
-	list(APPEND BUILD_DEPENDS tinyxml-devel)
-	list(APPEND RUN_DEPENDS tinyxml)
-	list(APPEND LIBS_DEPENDS -ltinyxml)
-	list(APPEND CONFIG_MACROS Z_HAVE_TINYXML)
+elseif(Z_HAVE_TINYXML2)
 else()
 	list(REMOVE_ITEM src_cpps src/sni/xml.cpp)
 endif()
