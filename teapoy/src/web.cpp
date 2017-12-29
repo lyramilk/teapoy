@@ -327,7 +327,7 @@ COUT << qi << "---->" << uri.substr(bof,eof-bof) << std::endl;
 		}
 		req->entityframe->uri = uri;
 		if(req->entityframe->uri.empty()){
-			req->entityframe->uri = uri;
+			req->entityframe->uri = req->entityframe->rawuri;
 		}
 
 

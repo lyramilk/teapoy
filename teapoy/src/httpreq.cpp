@@ -277,9 +277,9 @@ namespace lyramilk{ namespace teapoy {namespace http{
 		if(params_inited) return _params; 
 		lyramilk::data::string urlparams;
 
-		std::size_t sz = rawuri.find("?");
-		if(sz != rawuri.npos){
-			urlparams = rawuri.substr(sz + 1);
+		std::size_t sz = uri.find("?");
+		if(sz != uri.npos){
+			urlparams = uri.substr(sz + 1);
 		}
 
 		//解析请求正文中的参数
@@ -334,11 +334,11 @@ namespace lyramilk{ namespace teapoy {namespace http{
 
 	lyramilk::data::string http_frame::get_url()
 	{
-		std::size_t sz = rawuri.find("?");
-		if(sz == rawuri.npos){
-			return rawuri;
+		std::size_t sz = uri.find("?");
+		if(sz == uri.npos){
+			return uri;
 		}
-		return rawuri.substr(0,sz);
+		return uri.substr(0,sz);
 	}
 
 
