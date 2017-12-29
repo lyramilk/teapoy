@@ -100,6 +100,7 @@ namespace lyramilk{ namespace teapoy {namespace http{
 		lyramilk::data::var::map& params();
 
 		lyramilk::data::string get_url();
+		lyramilk::data::string rawuri;
 		lyramilk::data::string uri;
 		lyramilk::data::string method;
 		lyramilk::data::uint32 major:4;

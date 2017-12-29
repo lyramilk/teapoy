@@ -52,6 +52,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		return e->createobject("Mysql",ar);
 	}
 
+#if (defined Z_HAVE_LIBMONGO) || (defined Z_HAVE_MONGODB)
 	lyramilk::data::var GetMongo(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
@@ -63,7 +64,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		ar.push_back(ariv);
 		return e->createobject("Mongo",ar);
 	}
-
+#endif
 	lyramilk::data::var GetLoger(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
@@ -91,9 +92,11 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		}else if(type == "mysql"){
 			mysql_clients_multiton::instance()->add_config(args[1].str(),args[2]);
 			return true;
+#if (defined Z_HAVE_LIBMONGO) || (defined Z_HAVE_MONGODB)
 		}else if(type == "mongo"){
 			mongo_clients_multiton::instance()->add_config(args[1].str(),args[2]);
 			return true;
+#endif
 		}else if(type == "loger"){
 			filelogers_multiton::instance()->add_config(args[1].str(),args[2]);
 			return true;
@@ -106,7 +109,9 @@ namespace lyramilk{ namespace teapoy{ namespace native
 	{
 		p->define("GetRedis",GetRedis);
 		p->define("GetMysql",GetMysql);
+#if (defined Z_HAVE_LIBMONGO) || (defined Z_HAVE_MONGODB)
 		p->define("GetMongo",GetMongo);
+#endif
 		p->define("GetLoger",GetLoger);
 		p->define("DefineDataBase",DefineDataBase);
 		return 3;

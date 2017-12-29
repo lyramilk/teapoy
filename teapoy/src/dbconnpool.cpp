@@ -3,6 +3,8 @@
 #include <libmilk/factory.h>
 #include <libmilk/exception.h>
 #include <stdio.h>
+#include <errno.h>
+#include <string.h>
 
 #include <mysql/mysql.h>
 #define MAROC_MYSQL MYSQL
@@ -216,6 +218,8 @@ namespace lyramilk{ namespace teapoy {
 		return lyramilk::data::var::nil;
 	}
 	///////////////////////////////////////////////////////////
+#if (defined Z_HAVE_LIBMONGO) || (defined Z_HAVE_MONGODB)
+
 	mongo_client::mongo_client():c(true)
 	{
 	}
@@ -312,7 +316,7 @@ namespace lyramilk{ namespace teapoy {
 		}
 		return lyramilk::data::var::nil;
 	}
-
+#endif
 	///////////////////////////////////////////////////////////
 	filelogers::filelogers(const lyramilk::data::var& cfg)
 	{

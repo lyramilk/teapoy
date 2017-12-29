@@ -83,6 +83,13 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			return true;
 		}
 
+		lyramilk::data::var set_urlhook(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		{
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
+			worker.set_urlhook(args[0].str());
+			return true;
+		}
+
 		lyramilk::data::var set_ssl(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);

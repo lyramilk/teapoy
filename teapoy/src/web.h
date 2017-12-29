@@ -60,12 +60,14 @@ namespace lyramilk{ namespace teapoy { namespace web {
 
 	class website_worker
 	{
+		lyramilk::data::string urlhooktype;
 	  public:
 		std::vector<url_worker*> lst;
 	  public:
 		website_worker();
 		virtual ~website_worker();
 
+		virtual void set_urlhook(lyramilk::data::string urlhooktype);
 		virtual bool try_call(lyramilk::teapoy::http::request* req,std::ostream& os,website_worker& w,bool* ret) const;
 	};
 

@@ -5,7 +5,9 @@
 #include "redis.h"
 #include <libmilk/factory.h>
 #include <libmilk/atom.h>
-#include <mongo/client/dbclient.h>
+#if (defined Z_HAVE_LIBMONGO) || (defined Z_HAVE_MONGODB)
+	#include <mongo/client/dbclient.h>
+#endif
 #include <map>
 
 #ifndef MAROC_MYSQL
@@ -70,6 +72,7 @@ namespace lyramilk{ namespace teapoy {
 		virtual const lyramilk::data::var& get_config(lyramilk::data::string id);
 	};
 	///////////////////////////////////////////////////////////
+#if (defined Z_HAVE_LIBMONGO) || (defined Z_HAVE_MONGODB)
 	class mongo_client
 	{
 	  public:
@@ -104,6 +107,7 @@ namespace lyramilk{ namespace teapoy {
 		virtual void add_config(lyramilk::data::string id,const lyramilk::data::var& cfg);
 		virtual const lyramilk::data::var& get_config(lyramilk::data::string id);
 	};
+#endif
 	///////////////////////////////////////////////////////////
 	class filelogers
 	{

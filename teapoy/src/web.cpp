@@ -58,11 +58,11 @@ namespace lyramilk{ namespace teapoy { namespace web {
 		return req->sessionmgr->set(sid,key,value);
 	}
 
+	static webhook default_hook;
 	/**************** url_worker ********************/
 	url_worker::url_worker()
 	{
 		matcher_regex = nullptr;
-		static webhook default_hook;
 		this->hook = &default_hook;
 	}
 
@@ -288,7 +288,7 @@ COUT << qi << "---->" << uri.substr(bof,eof-bof) << std::endl;
 
 	url_worker_loger::~url_worker_loger()
 	{
-		lyramilk::klog(lyramilk::log::trace,prefix) << D("%s:%u-->%s 耗时%.3f(毫秒)",req->dest().c_str(),req->dest_port(),req->entityframe->uri.c_str(),double(td.diff()) / 1000000) << std::endl;
+		lyramilk::klog(lyramilk::log::trace,prefix) << D("%s:%u-->%s 耗时%.3f(毫秒)",req->dest().c_str(),req->dest_port(),req->entityframe->rawuri.c_str(),double(td.diff()) / 1000000) << std::endl;
 	}
 
 	/**************** url_worker_master ********************/
@@ -307,8 +307,30 @@ COUT << qi << "---->" << uri.substr(bof,eof-bof) << std::endl;
 	{
 	}
 
+	void website_worker::set_urlhook(lyramilk::data::string urlhooktype)
+	{
+		this->urlhooktype = urlhooktype;
+	}
+
+
 	bool website_worker::try_call(lyramilk::teapoy::http::request* req,std::ostream& os,website_worker& w,bool* ret) const
 	{
+		webhook* hook = lyramilk::teapoy::web::allwebhooks::instance()->get(urlhooktype);
+		if(hook == nullptr){
+			hook = &default_hook;
+		}
+		webhook_helper hh(*hook);
+
+		lyramilk::data::string uri;
+		if(hh.url_decryption(req,&uri)){
+			if(uri.empty()) uri = req->entityframe->rawuri;
+		}
+		req->entityframe->uri = uri;
+		if(req->entityframe->uri.empty()){
+			req->entityframe->uri = uri;
+		}
+
+
 		std::vector<url_worker*>::const_iterator it = lst.begin();
 		for(;it!=lst.end();++it){
 			lyramilk::data::string method = it[0]->get_method();
