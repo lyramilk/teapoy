@@ -135,6 +135,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			fn["open"] = lyramilk::script::engine::functional<httpserver,&httpserver::open>;
 			fn["bind_url"] = lyramilk::script::engine::functional<httpserver,&httpserver::bind_url>;
 			fn["set_ssl"] = lyramilk::script::engine::functional<httpserver,&httpserver::set_ssl>;
+			fn["set_urlhook"] = lyramilk::script::engine::functional<httpserver,&httpserver::set_urlhook>;
 			fn["set_ssl_verify_locations"] = lyramilk::script::engine::functional<httpserver,&httpserver::set_ssl_verify_locations>;
 			fn["set_ssl_client_verify"] = lyramilk::script::engine::functional<httpserver,&httpserver::set_ssl_client_verify>;
 			p->define("httpserver",fn,httpserver::ctr,httpserver::dtr);
