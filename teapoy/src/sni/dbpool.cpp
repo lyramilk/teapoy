@@ -77,6 +77,19 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		return e->createobject("Logfile",ar);
 	}
 
+#ifdef CAVEDB_FOUND
+	lyramilk::data::var GetCaveDB(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+	{
+		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
+
+		lyramilk::cave::leveldb_minimal* p = cavedb_leveldb_minimal_multiton::instance()->getobj(args[0].str());
+		lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
+		lyramilk::data::var::array ar;
+		lyramilk::data::var ariv("__cavedb_instance",p);
+		ar.push_back(ariv);
+		return e->createobject("CaveDB",ar);
+	}
+#endif
 
 	lyramilk::data::var DefineDataBase(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 	{
@@ -97,6 +110,11 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			mongo_clients_multiton::instance()->add_config(args[1].str(),args[2]);
 			return true;
 #endif
+#ifdef CAVEDB_FOUND
+		}else if(type == "cavedb"){
+			cavedb_leveldb_minimal_multiton::instance()->add_config(args[1].str(),args[2]);
+			return true;
+#endif
 		}else if(type == "loger"){
 			filelogers_multiton::instance()->add_config(args[1].str(),args[2]);
 			return true;
@@ -113,6 +131,9 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		p->define("GetMongo",GetMongo);
 #endif
 		p->define("GetLoger",GetLoger);
+#ifdef CAVEDB_FOUND
+		p->define("GetCaveDB",GetCaveDB);
+#endif
 		p->define("DefineDataBase",DefineDataBase);
 		return 3;
 	}

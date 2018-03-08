@@ -407,4 +407,46 @@ namespace lyramilk{ namespace teapoy {
 		}
 		return lyramilk::data::var::nil;
 	}
+
+
+
+
+
+#ifdef CAVEDB_FOUND
+	cavedb_leveldb_minimal_multiton* cavedb_leveldb_minimal_multiton::instance()
+	{
+		static cavedb_leveldb_minimal_multiton _mm;
+		return &_mm;
+	}
+
+	lyramilk::cave::leveldb_minimal* cavedb_leveldb_minimal_multiton::getobj(lyramilk::data::string id)
+	{
+		lyramilk::data::string token = id;
+		return get(token);
+	}
+	void cavedb_leveldb_minimal_multiton::add_config(lyramilk::data::string id,const lyramilk::data::var& cfg)
+	{
+		if(slaves.find(id) == slaves.end()){
+			lyramilk::data::string emptystr;
+			lyramilk::data::string ssdb_host = cfg["host"].conv(emptystr);
+			unsigned short ssdb_port = cfg["port"].conv(0);
+			lyramilk::data::string ssdb_password = cfg["password"].conv(emptystr);
+			lyramilk::data::string leveldb_path = cfg["cache"].conv(emptystr);
+
+			lyramilk::cave::leveldb_minimal* mstore = new lyramilk::cave::leveldb_minimal;
+			mstore->open(leveldb_path,1000);
+			
+			lyramilk::data::string replid = "";
+			lyramilk::data::uint64 offset = 0;
+			mstore->get_sync_info(&replid,&offset);
+
+			lyramilk::cave::slave_ssdb* datasource = new lyramilk::cave::slave_ssdb;
+			slaves[id] = datasource;
+			datasource->slaveof(ssdb_host,ssdb_port,ssdb_password,replid,offset,mstore);
+			define(id,mstore);
+		}
+	}
+
+#endif
+
 }}

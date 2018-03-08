@@ -8,6 +8,10 @@
 #if (defined Z_HAVE_LIBMONGO) || (defined Z_HAVE_MONGODB)
 	#include <mongo/client/dbclient.h>
 #endif
+#ifdef CAVEDB_FOUND
+	#include <cavedb/slave_ssdb.h>
+	#include <cavedb/store/leveldb_minimal.h>
+#endif
 #include <map>
 
 #ifndef MAROC_MYSQL
@@ -134,6 +138,19 @@ namespace lyramilk{ namespace teapoy {
 		virtual void add_config(lyramilk::data::string id,const lyramilk::data::var& cfg);
 		virtual const lyramilk::data::var& get_config(lyramilk::data::string id);
 	};
+	///////////////////////////////////////////////////////////
+#ifdef CAVEDB_FOUND
+	class cavedb_leveldb_minimal_multiton:public lyramilk::util::multiton_factory<lyramilk::cave::leveldb_minimal>
+	{
+		std::map<lyramilk::data::string,lyramilk::cave::slave_ssdb*> slaves;
+	  public:
+		static cavedb_leveldb_minimal_multiton* instance();
+		virtual lyramilk::cave::leveldb_minimal* getobj(lyramilk::data::string id);
+		virtual void add_config(lyramilk::data::string id,const lyramilk::data::var& cfg);
+	};
+
+#endif
+
 }}
 
 #endif

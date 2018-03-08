@@ -1,6 +1,6 @@
 ﻿#定义工程名及版本
 project(teapoy)
-set(version 1.0.36)
+set(version 1.0.37)
 set(soversion 1.0)
 
 
@@ -66,6 +66,7 @@ if(UNIX)
 	pkg_check_modules(PCRE libpcre)
 	pkg_check_modules(ZLIB zlib)
 	pkg_check_modules(NGHTTP2 libnghttp2)
+	pkg_check_modules(CAVEDB cavedb)
 
 	pkg_search_module(JS17 mozjs-17.0)
 
@@ -91,7 +92,7 @@ endif()
 
 if(LIBMILK_FOUND)
 	list(APPEND BUILD_DEPENDS libmilk-devel)
-	list(APPEND RUN_DEPENDS libmilk)
+	list(APPEND RUN_DEPENDS libmilk = ${LIBMILK_VERSION})
 	list(APPEND LIBS_DEPENDS ${LIBMILK_LDFLAGS})
 	list(APPEND INCS_DEPENDS ${LIBMILK_CFLAGS})
 	list(APPEND CONFIG_MACROS LIBMILK_FOUND)
@@ -162,6 +163,14 @@ if(NGHTTP2_FOUND)
 	list(APPEND LIBS_DEPENDS ${NGHTTP2_LDFLAGS})
 	list(APPEND INCS_DEPENDS ${NGHTTP2_CFLAGS})
 	list(APPEND CONFIG_MACROS NGHTTP2_FOUND)
+endif()
+
+if(CAVEDB_FOUND)
+	list(APPEND BUILD_DEPENDS cavedb-devel)
+	list(APPEND RUN_DEPENDS cavedb)
+	list(APPEND LIBS_DEPENDS ${CAVEDB_LDFLAGS})
+	list(APPEND INCS_DEPENDS ${CAVEDB_CFLAGS})
+	list(APPEND CONFIG_MACROS CAVEDB_FOUND)
 endif()
 
 if(Z_HAVE_LIBJPEG)

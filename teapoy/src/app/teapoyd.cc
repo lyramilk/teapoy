@@ -24,6 +24,7 @@
 
 #include "config.h"
 #include "script.h"
+#include "js_extend.h"
 
 class teapoy_log_base;
 
@@ -581,6 +582,8 @@ int main(int argc,char* argv[])
 	}
 
 	signal(SIGPIPE, SIG_IGN);
+
+	lyramilk::teapoy::sni::js_extend::engine_load("js");
 
 	// 确定启动脚本的类型
 	if(launcher_script_type.empty()){
