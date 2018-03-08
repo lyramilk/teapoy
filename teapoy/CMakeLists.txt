@@ -1,6 +1,6 @@
 ﻿#定义工程名及版本
 project(teapoy)
-set(version 1.0.37)
+set(version 1.0.38)
 set(soversion 1.0)
 
 
@@ -92,7 +92,7 @@ endif()
 
 if(LIBMILK_FOUND)
 	list(APPEND BUILD_DEPENDS libmilk-devel)
-	list(APPEND RUN_DEPENDS libmilk = ${LIBMILK_VERSION})
+	list(APPEND RUN_DEPENDS libmilk)
 	list(APPEND LIBS_DEPENDS ${LIBMILK_LDFLAGS})
 	list(APPEND INCS_DEPENDS ${LIBMILK_CFLAGS})
 	list(APPEND CONFIG_MACROS LIBMILK_FOUND)
