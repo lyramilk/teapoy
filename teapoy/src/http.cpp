@@ -54,7 +54,7 @@ namespace lyramilk{ namespace teapoy {namespace http{
 
 	request::request()
 	{
-		sockfd = 0;
+		sockfd = -1;
 		_source_port = 0;
 		_dest_port = 0;
 		sessionmgr = nullptr;

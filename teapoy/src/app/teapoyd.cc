@@ -547,6 +547,7 @@ int main(int argc,char* argv[])
 				ondaemon = true;
 				break;
 			}
+			sleep(1);
 		}while(waitpid(pid,NULL,0));
 	}else{
 		ondaemon = getppid() == 1;
