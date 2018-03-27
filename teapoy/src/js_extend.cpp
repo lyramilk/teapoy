@@ -239,6 +239,13 @@ namespace lyramilk{ namespace teapoy{ namespace sni{
 				return JS_FALSE;
 			}
 			JSObject *jo = JS_NewObject(cx,&normalClass,nullptr,JS_GetGlobalObject(cx));
+
+
+			jsval sub_jv_label;
+			sub_jv_label.setString(JS_NewStringCopyZ(cx,root->Value()));
+
+			JS_SetProperty(cx,jo,"xml.tag",&sub_jv_label);
+
 			xml2js(cx,doc,root,jo);
 
 			vp->setObjectOrNull(jo);
