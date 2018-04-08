@@ -25,6 +25,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 		redis_clients::ptr p = redis_clients_multiton::instance()->getobj(args[0].str());
+		if(p == nullptr) return lyramilk::data::var::nil;
 		lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
 		lyramilk::data::var::array ar(2);
 		ar[0].assign("__redis_client",&p);
@@ -45,6 +46,8 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 
 		mysql_clients::ptr p = mysql_clients_multiton::instance()->getobj(args[0].str());
+		if(p == nullptr) return lyramilk::data::var::nil;
+
 		lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
 		lyramilk::data::var::array ar;
 		lyramilk::data::var ariv("__mysql_client",&p);
@@ -58,6 +61,8 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 
 		mongo_clients::ptr p = mongo_clients_multiton::instance()->getobj(args[0].str());
+		if(p == nullptr) return lyramilk::data::var::nil;
+
 		lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
 		lyramilk::data::var::array ar;
 		lyramilk::data::var ariv("__mongo_client",&p);
@@ -70,6 +75,8 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 
 		filelogers* p = filelogers_multiton::instance()->getobj(args[0].str());
+		if(p == nullptr) return lyramilk::data::var::nil;
+
 		lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
 		lyramilk::data::var::array ar;
 		lyramilk::data::var ariv("__loger_filepointer",p);
@@ -83,6 +90,8 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 
 		lyramilk::cave::leveldb_minimal* p = cavedb_leveldb_minimal_multiton::instance()->getobj(args[0].str());
+		if(p == nullptr) return lyramilk::data::var::nil;
+
 		lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
 		lyramilk::data::var::array ar;
 		lyramilk::data::var ariv("__cavedb_instance",p);

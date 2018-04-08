@@ -263,7 +263,7 @@ namespace lyramilk{ namespace teapoy {namespace http{
 	response::response()
 	{
 		os = nullptr;
-		header["teapoy"] = "1.0.0";
+		header["Teapoy"] = TEAPOY_VERSION;
 	}
 
 	response::~response()
