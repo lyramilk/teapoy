@@ -2,7 +2,7 @@
 #include <algorithm>
 
 namespace lyramilk{ namespace teapoy{
-	lyramilk::data::strings split(lyramilk::data::string data,lyramilk::data::string sep)
+	lyramilk::data::strings split(const lyramilk::data::string& data,const lyramilk::data::string& sep)
 	{
 		lyramilk::data::strings lines;
 		lines.reserve(10);
@@ -20,7 +20,7 @@ namespace lyramilk{ namespace teapoy{
 		return lines;
 	}
 
-	lyramilk::data::strings pathof(lyramilk::data::string path)
+	lyramilk::data::strings pathof(const lyramilk::data::string& path)
 	{
 		lyramilk::data::strings ret;
 		lyramilk::data::strings v = split(path,"/");
@@ -39,7 +39,7 @@ namespace lyramilk{ namespace teapoy{
 		return ret;
 	}
 
-	lyramilk::data::string trim(lyramilk::data::string data,lyramilk::data::string pattern)
+	lyramilk::data::string trim(const lyramilk::data::string& data,const lyramilk::data::string& pattern)
 	{
 		if (data.empty()) return data;
 		std::size_t pos1 = data.find_first_not_of(pattern);
@@ -53,9 +53,11 @@ namespace lyramilk{ namespace teapoy{
 		return data.substr(pos1,des);
 	}
 
-	lyramilk::data::string lowercase(lyramilk::data::string src)
+	lyramilk::data::string lowercase(const lyramilk::data::string& src)
 	{
-		std::transform(src.begin(), src.end(), src.begin(), tolower);
-		return src;
+		lyramilk::data::string ret;
+		ret.resize(src.size());
+		std::transform(src.begin(), src.end(), ret.begin(), tolower);
+		return ret;
 	}
 }}

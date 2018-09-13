@@ -1,19 +1,23 @@
 #include "script.h"
-#include "web.h"
+#include "httpclient.h"
 #include <libmilk/var.h>
 #include <libmilk/log.h>
 #include <libmilk/multilanguage.h>
+
 #include <curl/curl.h>
 #include <curl/easy.h>
+
 #include <fstream>
 #include <stdlib.h>
-#include <sys/stat.h> 
 #include <fcntl.h>
-#include <string.h>
+#include <sys/stat.h> 
 #include <errno.h>
-#include <unistd.h>
+#include <string.h>
 
 namespace lyramilk{ namespace teapoy{ namespace native{
+
+
+	lyramilk::log::logss static log_curl(lyramilk::klog,"teapoy.native.curl");
 
 	class httpclient
 	{
@@ -144,7 +148,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 				mimetype = args[3].str();
 			}
 
-			lyramilk::data::stringstream ss;
+			lyramilk::data::datastream ss;
 			lyramilk::data::string field = args[0];
 			lyramilk::data::string path = args[1];
 			lyramilk::data::string filename = args[2];
@@ -178,6 +182,24 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			TODO();
 		}
 
+
+
+		static lyramilk::data::var curl_return_bin(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		{
+			MILK_CHECK_SCRIPT_ARGS_LOG(log_curl,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
+			lyramilk::data::string url = args[0].str();
+			lyramilk::data::stringdict params;
+			return lyramilk::teapoy::httpclient::rcallb(url.c_str(),params);
+		}
+
+		static lyramilk::data::var curl_return_str(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		{
+			MILK_CHECK_SCRIPT_ARGS_LOG(log_curl,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
+			lyramilk::data::string url = args[0].str();
+			lyramilk::data::stringdict params;
+			return lyramilk::teapoy::httpclient::rcall(url.c_str(),params);
+		}
+
 		static int define(lyramilk::script::engine* p)
 		{
 			lyramilk::script::engine::functional_map fn;
@@ -189,49 +211,22 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			fn["todo"] = lyramilk::script::engine::functional<httpclient,&httpclient::todo>;
 			fn["todo"] = lyramilk::script::engine::functional<httpclient,&httpclient::todo>;
 			p->define("HttpClient",fn,httpclient::ctr,httpclient::dtr);
-			return 1;
+			p->define("curl",curl_return_str);
+			p->define("curl_rcall",curl_return_bin);
+			return 2;
 		}
 	};
-
-
-
-	static size_t curl_writestream_callback(void* buff, size_t size, size_t nmemb, void* userp) {
-		std::ofstream* ss = reinterpret_cast<std::ofstream*> (userp);
-		size *= nmemb;
-		ss->write((const char*)buff,size);
-		return size;
-	}
-
-	lyramilk::log::logss static log_curl(lyramilk::klog,"teapoy.native");
-	lyramilk::data::var curl(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
-	{
-		MILK_CHECK_SCRIPT_ARGS_LOG(log_curl,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
-		lyramilk::data::string url = args[0].str();
-		lyramilk::data::stringstream ss;
-		CURL *c = curl_easy_init();
-		curl_easy_setopt(c, CURLOPT_URL,url.c_str());
-		curl_easy_setopt(c, CURLOPT_WRITEFUNCTION, curl_writestream_callback);
-		curl_easy_setopt(c, CURLOPT_WRITEDATA, &ss);
-		//curl_easy_setopt(c, CURLOPT_ACCEPT_ENCODING, "");
-		CURLcode res = curl_easy_perform(c);
-		curl_easy_cleanup(c);
-		if(res == CURLE_OK) return ss.str();
-		return lyramilk::data::var::nil;
-	}
-
-
 
 	static int define(lyramilk::script::engine* p)
 	{
 		int i = 0;
 		i+= httpclient::define(p);
-		p->define("curl",curl);++i;
 		return i;
 	}
 
 
 	static __attribute__ ((constructor)) void __init()
 	{
-		lyramilk::teapoy::script2native::instance()->regist("curl",define);
+		lyramilk::teapoy::script_interface_master::instance()->regist("http",define);
 	}
 }}}

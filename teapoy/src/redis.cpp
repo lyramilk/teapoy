@@ -27,7 +27,7 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 		close();
 	}
 
-	bool redis_client::open(lyramilk::data::string host,lyramilk::data::uint16 port)
+	bool redis_client::open(const lyramilk::data::string& host,lyramilk::data::uint16 port)
 	{
 		this->host = host;
 		this->port = port;
@@ -57,7 +57,7 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 		listener = lst;
 	}
 
-	bool redis_client::auth(lyramilk::data::string password)
+	bool redis_client::auth(const lyramilk::data::string& password)
 	{
 		pwd = password;
 		lyramilk::data::var::array ar;
@@ -96,7 +96,7 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 		}
 	}
 
-	lyramilk::data::string uconv(lyramilk::data::string str)
+	lyramilk::data::string uconv(const lyramilk::data::string& str)
 	{
 		const char *p = str.c_str();
 		std::size_t sz = str.size();
@@ -359,7 +359,7 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 		return t_ssdb == type;
 	}
 
-	bool redis_client::testcmd(lyramilk::data::string cmd)
+	bool redis_client::testcmd(const lyramilk::data::string& cmd)
 	{
 		std::map<lyramilk::data::string,bool>::iterator it = support_cmds.find(cmd);
 		if(it != support_cmds.end()){
@@ -375,7 +375,7 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 		}
 
 		lyramilk::data::string str = v.str();
-		if(str.find("ERR unknown command") == str.npos){
+		if(str.find("ERR unknown command") == str.npos && str.find("Unknown Command") == str.npos){
 			support_cmds[cmd] = true;
 			return true;
 		}

@@ -1,19 +1,21 @@
 //#define __STDC_LIMIT_MACROS
+#include "config.h"
 #include "js_extend.h"
 #include <jsapi.h>
 #include <jsfriendapi.h>
-#include <tinyxml2.h>
+#ifdef TINYXML2_FOUND
+	#include <tinyxml2.h>
+#endif
 #include <math.h>
 
 namespace lyramilk{ namespace teapoy{ namespace sni{
-
-	static JSBool js_xml_stringify(JSContext *cx, unsigned argc, js::Value *vp);
-	static JSBool js_xml_parse(JSContext *cx, unsigned argc, js::Value *vp);
-
-
 	static JSClass normalClass = { "normal", 0,
 			JS_PropertyStub, JS_PropertyStub, JS_PropertyStub, JS_StrictPropertyStub,
             JS_EnumerateStub, JS_ResolveStub, JS_ConvertStub};
+
+#ifdef TINYXML2_FOUND
+	static JSBool js_xml_stringify(JSContext *cx, unsigned argc, js::Value *vp);
+	static JSBool js_xml_parse(JSContext *cx, unsigned argc, js::Value *vp);
 
 	static JSFunctionSpec js_xml_static_funs[] = {
 		JS_FN("stringify",	js_xml_stringify,	1, 0),
@@ -252,7 +254,7 @@ namespace lyramilk{ namespace teapoy{ namespace sni{
 		}
 		return JS_TRUE;
 	}
-
+#endif
 	js_extend::js_extend()
 	{
 	}
@@ -266,9 +268,10 @@ namespace lyramilk{ namespace teapoy{ namespace sni{
 		JS_SetRuntimeThread(rt);
 		JSContext* selectedcx = cx_template;
 		JSObject* global = JS_GetGlobalObject(selectedcx);
+#ifdef TINYXML2_FOUND
 		JSObject* jo = JS_DefineObject(selectedcx,global,"XML",&normalClass,NULL,0);
-
 		JS_DefineFunctions(selectedcx,jo,js_xml_static_funs);
+#endif
 	}
 
 	static lyramilk::script::engine* __ctr()

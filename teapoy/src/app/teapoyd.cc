@@ -3,24 +3,17 @@
 #include <libmilk/log.h>
 #include <libmilk/multilanguage.h>
 
-#include <unistd.h>
 #include <signal.h>
 #include <iostream>
 #include <fstream>
 #include <dlfcn.h>
 
-#include <unistd.h>
-#include <pwd.h>
 #include <sys/wait.h>
-#include <string.h>
-
-#include <stdio.h>
-#include <stdlib.h>
-
 #include <libintl.h>
-
 #include <algorithm>
-#include <ttyent.h>
+
+#include <errno.h>
+#include <curl/curl.h>
 
 #include "config.h"
 #include "script.h"
@@ -372,27 +365,6 @@ class teapoy_loader
 		}
 	}
 
-	lyramilk::data::var load(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
-	{
-		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
-
-		lyramilk::data::string filename = args[0];
-
-		lyramilk::data::var::array parameter(1);
-		parameter[0].assign("engine",eng_main);
-
-		lyramilk::script::engine* eng_tmp = lyramilk::script::engine::createinstance(filename);
-		if(!eng_tmp){
-			log(lyramilk::log::error,__FUNCTION__) << D("加载%s失败",filename.c_str()) << std::endl;
-			return false;
-		}
-
-		eng_tmp->load_file(filename);
-		int ret = eng_tmp->call("onload",parameter);
-		libs.push_back(eng_tmp);
-		return 0 == ret;
-	}
-
 	lyramilk::data::var loadso(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
@@ -458,6 +430,21 @@ class teapoy_loader
 			log(lyramilk::log::error,__FUNCTION__) << D("切换日志失败:%s",logfile.c_str()) << std::endl;
 		}
 		return true;
+	}
+
+
+	
+	lyramilk::data::var chroot(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+	{
+		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
+		lyramilk::data::string newroot = args[0].str();
+		if( 0 == ::chroot(newroot.c_str()) ){
+			::chdir("/");
+			log(lyramilk::log::debug,__FUNCTION__) << D("切换根目录到%s成功",newroot.c_str()) << std::endl;
+			return true;
+		}
+		log(lyramilk::log::warning,__FUNCTION__) << D("切换根目录到%s失败:原因%s",newroot.c_str(),strerror(errno)) << std::endl;
+		return false;
 	}
 
 	lyramilk::data::var noexit(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
@@ -604,16 +591,23 @@ int main(int argc,char* argv[])
 
 	{
 		lyramilk::script::engine::functional_map fn;
-		fn["load"] = lyramilk::script::engine::functional<teapoy_loader,&teapoy_loader::load>;
-		fn["loadso"] = lyramilk::script::engine::functional<teapoy_loader,&teapoy_loader::loadso>;
-		fn["enable_log"] = lyramilk::script::engine::functional<teapoy_loader,&teapoy_loader::enable_log>;
-		fn["set_log_file"] = lyramilk::script::engine::functional<teapoy_loader,&teapoy_loader::set_log_file>;
+		fn["loadLibrary"] = lyramilk::script::engine::functional<teapoy_loader,&teapoy_loader::loadso>;
+		fn["enableLog"] = lyramilk::script::engine::functional<teapoy_loader,&teapoy_loader::enable_log>;
+		fn["setLogFile"] = lyramilk::script::engine::functional<teapoy_loader,&teapoy_loader::set_log_file>;
+		fn["chroot"] = lyramilk::script::engine::functional<teapoy_loader,&teapoy_loader::chroot>;
 		fn["noexit"] = lyramilk::script::engine::functional<teapoy_loader,&teapoy_loader::noexit>;
-		eng_main->define("teapoy",fn,teapoy_loader::ctr,teapoy_loader::dtr);
+		eng_main->define("Teapoy",fn,teapoy_loader::ctr,teapoy_loader::dtr);
 	}
 
-	lyramilk::teapoy::script2native::instance()->fill(eng_main);
+	lyramilk::teapoy::script_interface_master::instance()->apply(eng_main);
 	eng_main->load_file(launcher_script);
+
+	lyramilk::data::var::array ar;
+	for(int i=0;i<argc;++i){
+		ar.push_back(argv[i]);
+	}
+	lyramilk::data::var result = eng_main->call("main",ar);
+
 	if(no_exit_mode){
 		log(lyramilk::log::trace) << D("设置了noexit标志，程序将不会随主脚本返回而退出。") << std::endl;
 		while(no_exit_mode){

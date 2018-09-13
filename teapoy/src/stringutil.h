@@ -4,10 +4,10 @@
 #include <libmilk/var.h>
 
 namespace lyramilk{ namespace teapoy{
-	lyramilk::data::strings split(lyramilk::data::string data,lyramilk::data::string sep);
-	lyramilk::data::strings pathof(lyramilk::data::string path);
-	lyramilk::data::string trim(lyramilk::data::string data,lyramilk::data::string pattern);
-	lyramilk::data::string lowercase(lyramilk::data::string src);
+	lyramilk::data::strings split(const lyramilk::data::string& data,const lyramilk::data::string& sep);
+	lyramilk::data::strings pathof(const lyramilk::data::string& path);
+	lyramilk::data::string trim(const lyramilk::data::string& data,const lyramilk::data::string& pattern);
+	lyramilk::data::string lowercase(const lyramilk::data::string& src);
 }}
 
 

@@ -31,12 +31,12 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 		redis_client();
 		virtual ~redis_client();
 
-		virtual bool open(lyramilk::data::string host,lyramilk::data::uint16 port);
+		virtual bool open(const lyramilk::data::string& host,lyramilk::data::uint16 port);
 		virtual bool close();
 		/// 设置监听器
 		void set_listener(redis_client_listener lst);
 		/// 登录
-		bool auth(lyramilk::data::string password);
+		bool auth(const lyramilk::data::string& password);
 		/// 执行redis命令，第二个参数为输出参数
 		bool exec(const lyramilk::data::var::array& cmd,lyramilk::data::var& ret);
 		/// 异步执行redis命令
@@ -44,7 +44,7 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 		/// 判断这个redis链接是不是指向一个ssdb数据库。
 		bool is_ssdb();
 		/// 判断这个redis链接是否支持指定的命令
-		bool testcmd(lyramilk::data::string cmd);
+		bool testcmd(const lyramilk::data::string& cmd);
 		/// 取得版本号。
 		lyramilk::data::string version();
 

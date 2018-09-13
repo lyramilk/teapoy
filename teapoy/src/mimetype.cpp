@@ -1,4 +1,4 @@
-#include "mime.h"
+#include "mimetype.h"
 #include "stringutil.h"
 
 namespace lyramilk{ namespace teapoy {
@@ -19,7 +19,7 @@ namespace lyramilk{ namespace teapoy {
 		return it->second;
 	}
 
-	lyramilk::data::string mime::getmimetype_bydata(lyramilk::data::string filedata)
+	lyramilk::data::string mime::getmimetype_bydata(const unsigned char* data,std::size_t size)
 	{
 #ifdef LIBFILE_FOUND
 		magic_t magic = magic_open(MAGIC_MIME_TYPE);
@@ -33,7 +33,7 @@ namespace lyramilk{ namespace teapoy {
 			log(lyramilk::log::warning,__FUNCTION__) << D("分析MIME类型时发生错误") << std::endl;
 			return "application/octet-stream";
 		}
-		lyramilk::data::string mimetype = magic_buffer(magic,filedata.c_str(),filedata.size());
+		lyramilk::data::string mimetype = magic_buffer(magic,data,size);
 		magic_close(magic);
 		return mimetype;
 #else

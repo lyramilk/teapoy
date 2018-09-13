@@ -21,7 +21,7 @@ namespace lyramilk{ namespace teapoy{
 			delete (server_poll*)p;
 		}
 
-		server_poll():log(lyramilk::klog,"teapoy.server.epoll")
+		server_poll():log(lyramilk::klog,"teapoy.epoll")
 		{
 		}
 
@@ -78,6 +78,6 @@ namespace lyramilk{ namespace teapoy{
 
 	static __attribute__ ((constructor)) void __init()
 	{
-		lyramilk::teapoy::script2native::instance()->regist("netio",define);
+		lyramilk::teapoy::script_interface_master::instance()->regist("netio",define);
 	}
 }}

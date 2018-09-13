@@ -4,7 +4,7 @@
 
 namespace lyramilk{ namespace teapoy
 {
-	int script2native::fill(lyramilk::data::string libname,lyramilk::script::engine* p)
+	int script_interface_master::apply(lyramilk::data::string libname,lyramilk::script::engine* p)
 	{
 		int i = 0;
 		std::map<lyramilk::data::string,std::vector<define_func> >::iterator it = c.find(libname);
@@ -17,7 +17,7 @@ namespace lyramilk{ namespace teapoy
 		return i;
 	}
 
-	int script2native::fill(lyramilk::script::engine* p)
+	int script_interface_master::apply(lyramilk::script::engine* p)
 	{
 		int i = 0;
 		std::map<lyramilk::data::string,std::vector<define_func> >::iterator it = c.begin();
@@ -30,19 +30,19 @@ namespace lyramilk{ namespace teapoy
 		return i;
 	}
 
-	void script2native::regist(lyramilk::data::string libname,define_func func)
+	void script_interface_master::regist(lyramilk::data::string libname,define_func func)
 	{
 		c[libname].push_back(func);
 	}
 
-	void script2native::unregist(lyramilk::data::string libname)
+	void script_interface_master::unregist(lyramilk::data::string libname)
 	{
 		c.erase(libname);
 	}
 
-	script2native* script2native::instance()
+	script_interface_master* script_interface_master::instance()
 	{
-		static script2native _mm;
+		static script_interface_master _mm;
 		return &_mm;
 	}
 
@@ -78,7 +78,7 @@ namespace lyramilk{ namespace teapoy
 				return nullptr;
 			}
 
-			lyramilk::teapoy::script2native::instance()->fill(eng_tmp);
+			lyramilk::teapoy::script_interface_master::instance()->apply(eng_tmp);
 			return eng_tmp;
 		}
 
@@ -120,7 +120,7 @@ namespace lyramilk{ namespace teapoy
 				return nullptr;
 			}
 
-			lyramilk::teapoy::script2native::instance()->fill(eng_tmp);
+			lyramilk::teapoy::script_interface_master::instance()->apply(eng_tmp);
 			return eng_tmp;
 		}
 
@@ -161,7 +161,7 @@ namespace lyramilk{ namespace teapoy
 				return nullptr;
 			}
 
-			lyramilk::teapoy::script2native::instance()->fill(eng_tmp);
+			lyramilk::teapoy::script_interface_master::instance()->apply(eng_tmp);
 			return eng_tmp;
 		}
 
