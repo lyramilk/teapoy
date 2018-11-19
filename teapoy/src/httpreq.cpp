@@ -253,7 +253,7 @@ namespace lyramilk{ namespace teapoy {namespace http{
 		params_inited = false;
 	}
 
-	lyramilk::data::var::map& http_frame::cookies()
+	lyramilk::data::map& http_frame::cookies()
 	{
 		if(cookies_inited) return _cookies; 
 		lyramilk::data::string cookiestr = get("cookie");
@@ -272,7 +272,7 @@ namespace lyramilk{ namespace teapoy {namespace http{
 		return _cookies;
 	}
 
-	lyramilk::data::var::map& http_frame::params()
+	lyramilk::data::map& http_frame::params()
 	{
 		if(params_inited) return _params; 
 		lyramilk::data::string urlparams;
@@ -325,7 +325,7 @@ namespace lyramilk{ namespace teapoy {namespace http{
 
 			lyramilk::data::var& parameters_of_key = _params[k];
 			parameters_of_key.type(lyramilk::data::var::t_array);
-			lyramilk::data::var::array& ar = parameters_of_key;
+			lyramilk::data::array& ar = parameters_of_key;
 			ar.push_back(v);
 		}
 		params_inited = true;

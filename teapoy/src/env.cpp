@@ -3,13 +3,13 @@
 
 namespace lyramilk{ namespace teapoy
 {
-	static lyramilk::data::var::map __g_cfg;
+	static lyramilk::data::map __g_cfg;
 	static lyramilk::threading::mutex_rw __g_cfg_lock;
 
 	const lyramilk::data::var& env::get_config(lyramilk::data::string cfgname)
 	{
 		lyramilk::threading::mutex_sync _(__g_cfg_lock.r());
-		lyramilk::data::var::map::iterator it = __g_cfg.find(cfgname);
+		lyramilk::data::map::iterator it = __g_cfg.find(cfgname);
 		if(it != __g_cfg.end()) return it->second;
 		return lyramilk::data::var::nil;
 	}

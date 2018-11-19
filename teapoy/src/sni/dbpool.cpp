@@ -1,5 +1,5 @@
 #include <libmilk/log.h>
-#include <libmilk/multilanguage.h>
+#include <libmilk/dict.h>
 #include <libmilk/thread.h>
 #include <sys/poll.h>
 #include <arpa/inet.h>
@@ -21,13 +21,13 @@ namespace lyramilk{ namespace teapoy{ namespace native
 {
 	static lyramilk::log::logss log(lyramilk::klog,"lyramilk.teapoy.native.dbpool");
 
-	lyramilk::data::var GetRedis(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+	lyramilk::data::var GetRedis(const lyramilk::data::array& args,const lyramilk::data::map& env)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 		redis_clients::ptr p = redis_clients_multiton::instance()->getobj(args[0].str());
 		if(p == nullptr) return lyramilk::data::var::nil;
 		lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
-		lyramilk::data::var::array ar(2);
+		lyramilk::data::array ar(2);
 		ar[0].assign("__redis_client",&p);
 		ar[1] = false;
 
@@ -41,7 +41,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		return e->createobject("Redis",ar);
 	}
 
-	lyramilk::data::var GetMysql(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+	lyramilk::data::var GetMysql(const lyramilk::data::array& args,const lyramilk::data::map& env)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 
@@ -49,14 +49,14 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		if(p == nullptr) return lyramilk::data::var::nil;
 
 		lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
-		lyramilk::data::var::array ar;
+		lyramilk::data::array ar;
 		lyramilk::data::var ariv("__mysql_client",&p);
 		ar.push_back(ariv);
 		return e->createobject("Mysql",ar);
 	}
 
 #if (defined Z_HAVE_LIBMONGO) || (defined Z_HAVE_MONGODB)
-	lyramilk::data::var GetMongo(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+	lyramilk::data::var GetMongo(const lyramilk::data::array& args,const lyramilk::data::map& env)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 
@@ -64,13 +64,13 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		if(p == nullptr) return lyramilk::data::var::nil;
 
 		lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
-		lyramilk::data::var::array ar;
+		lyramilk::data::array ar;
 		lyramilk::data::var ariv("__mongo_client",&p);
 		ar.push_back(ariv);
 		return e->createobject("Mongo",ar);
 	}
 #endif
-	lyramilk::data::var GetLoger(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+	lyramilk::data::var GetLoger(const lyramilk::data::array& args,const lyramilk::data::map& env)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 
@@ -78,14 +78,14 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		if(p == nullptr) return lyramilk::data::var::nil;
 
 		lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
-		lyramilk::data::var::array ar;
+		lyramilk::data::array ar;
 		lyramilk::data::var ariv("__loger_filepointer",p);
 		ar.push_back(ariv);
 		return e->createobject("Logfile",ar);
 	}
 
 #ifdef CAVEDB_FOUND
-	lyramilk::data::var GetCaveDB(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+	lyramilk::data::var GetCaveDB(const lyramilk::data::array& args,const lyramilk::data::map& env)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 
@@ -93,14 +93,14 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		if(p == nullptr) return lyramilk::data::var::nil;
 
 		lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
-		lyramilk::data::var::array ar;
+		lyramilk::data::array ar;
 		lyramilk::data::var ariv("__cavedb_instance",p);
 		ar.push_back(ariv);
 		return e->createobject("CaveDB",ar);
 	}
 #endif
 
-	lyramilk::data::var DefineDataBase(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+	lyramilk::data::var DefineDataBase(const lyramilk::data::array& args,const lyramilk::data::map& env)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_str);

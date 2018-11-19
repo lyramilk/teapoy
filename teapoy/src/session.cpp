@@ -12,7 +12,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 	  private:
 		struct timedmap
 		{
-			lyramilk::data::var::map m;
+			lyramilk::data::map m;
 			time_t tm;
 			timedmap()
 			{
@@ -78,7 +78,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 
 		lyramilk::data::string newid()
 		{
-			std::map<lyramilk::data::string,lyramilk::data::var::map>::iterator it;
+			std::map<lyramilk::data::string,lyramilk::data::map>::iterator it;
 			while(true){
 				lyramilk::data::string id = makeid();
 				if(k.find(id) == k.end()){

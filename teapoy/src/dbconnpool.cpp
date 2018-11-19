@@ -1,5 +1,5 @@
 #include <libmilk/log.h>
-#include <libmilk/multilanguage.h>
+#include <libmilk/dict.h>
 #include <libmilk/factory.h>
 #include <libmilk/exception.h>
 #include <stdio.h>
@@ -48,7 +48,7 @@ namespace lyramilk{ namespace teapoy {
 		my_bool my_true= true;
 		mysql_options(p->_db_ptr, MYSQL_OPT_RECONNECT, &my_true);
 
-		for(lyramilk::data::var::array::iterator it = opts.begin();it!=opts.end();++it){
+		for(lyramilk::data::array::iterator it = opts.begin();it!=opts.end();++it){
 			lyramilk::data::string opt = it->str();
 			int ret = mysql_options(p->_db_ptr,MYSQL_INIT_COMMAND, opt.c_str());
 			if(ret != 0){
@@ -114,7 +114,7 @@ namespace lyramilk{ namespace teapoy {
 
 	const lyramilk::data::var& mysql_clients_multiton::get_config(lyramilk::data::string id)
 	{
-		lyramilk::data::var::map::const_iterator it = cfgmap.find(id);
+		lyramilk::data::map::const_iterator it = cfgmap.find(id);
 		if(it != cfgmap.end()){
 			return it->second;
 		}
@@ -211,7 +211,7 @@ namespace lyramilk{ namespace teapoy {
 
 	const lyramilk::data::var& redis_clients_multiton::get_config(lyramilk::data::string id)
 	{
-		lyramilk::data::var::map::const_iterator it = cfgmap.find(id);
+		lyramilk::data::map::const_iterator it = cfgmap.find(id);
 		if(it != cfgmap.end()){
 			return it->second;
 		}
@@ -310,7 +310,7 @@ namespace lyramilk{ namespace teapoy {
 
 	const lyramilk::data::var& mongo_clients_multiton::get_config(lyramilk::data::string id)
 	{
-		lyramilk::data::var::map::const_iterator it = cfgmap.find(id);
+		lyramilk::data::map::const_iterator it = cfgmap.find(id);
 		if(it != cfgmap.end()){
 			return it->second;
 		}
@@ -401,7 +401,7 @@ namespace lyramilk{ namespace teapoy {
 
 	const lyramilk::data::var& filelogers_multiton::get_config(lyramilk::data::string id)
 	{
-		lyramilk::data::var::map::const_iterator it = cfgmap.find(id);
+		lyramilk::data::map::const_iterator it = cfgmap.find(id);
 		if(it != cfgmap.end()){
 			return it->second;
 		}

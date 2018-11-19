@@ -2,7 +2,7 @@
 #include "script.h"
 #include "script_jsx.h"
 #include <libmilk/log.h>
-#include <libmilk/multilanguage.h>
+#include <libmilk/dict.h>
 
 namespace lyramilk{ namespace teapoy { namespace web {
 
@@ -19,11 +19,11 @@ namespace lyramilk{ namespace teapoy { namespace web {
 				return false;
 			}
 
-			lyramilk::data::var::array ar;
+			lyramilk::data::array ar;
 			{
 				lyramilk::data::var var_processer_args("__http_session_info",si);
 
-				lyramilk::data::var::array args;
+				lyramilk::data::array args;
 				args.push_back(var_processer_args);
 
 				ar.push_back(p->createobject("HttpRequest",args));

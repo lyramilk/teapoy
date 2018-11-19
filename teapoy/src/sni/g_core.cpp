@@ -1,6 +1,6 @@
 #include <libmilk/scriptengine.h>
 #include <libmilk/log.h>
-#include <libmilk/multilanguage.h>
+#include <libmilk/dict.h>
 #include <libmilk/codes.h>
 #include <libmilk/json.h>
 #include <libmilk/sha1.h>
@@ -22,7 +22,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 {
 	static lyramilk::log::logss log(lyramilk::klog,"teapoy.native");
 
-	lyramilk::data::var teapoy_import(const lyramilk::data::var::array& args,const lyramilk::data::var::map& senv)
+	lyramilk::data::var teapoy_import(const lyramilk::data::array& args,const lyramilk::data::map& senv)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 		lyramilk::script::engine* e = (lyramilk::script::engine*)senv.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
@@ -48,9 +48,9 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		lyramilk::data::var& v = vm["require"];
 
 		v.type(lyramilk::data::var::t_array);
-		lyramilk::data::var::array& ar = v;
+		lyramilk::data::array& ar = v;
 
-		lyramilk::data::var::array::iterator it = ar.begin();
+		lyramilk::data::array::iterator it = ar.begin();
 		for(;it!=ar.end();++it){
 			lyramilk::data::string str = *it;
 			if(str == args[0].str()){
@@ -94,7 +94,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			lyramilk::data::inotify_file::status st = iff.check();
 			if(st != lyramilk::data::inotify_file::s_keep){
 				log(lyramilk::log::warning,"task") << D("重新加载%s",ei.filename.c_str()) << std::endl;
-				eng->set("clearonreset",lyramilk::data::var::map());
+				eng->set("clearonreset",lyramilk::data::map());
 				eng->reset();
 				eng->load_file(ei.filename);
 			}
@@ -108,7 +108,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		pthread_exit(0);
 		return nullptr;
 	}  
-	lyramilk::data::var task(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+	lyramilk::data::var task(const lyramilk::data::array& args,const lyramilk::data::map& env)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_str);
@@ -121,20 +121,20 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		return 0 == ret;
 	}
 
-	lyramilk::data::var daemon(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+	lyramilk::data::var daemon(const lyramilk::data::array& args,const lyramilk::data::map& env)
 	{
 		::daemon(1,0);
 		return true;
 	}
 
-	lyramilk::data::var msleep(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+	lyramilk::data::var msleep(const lyramilk::data::array& args,const lyramilk::data::map& env)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_int);
 		unsigned long long usecond = args[0];
 		return usleep(usecond * 1000);
 	}
 
-	lyramilk::data::var su(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+	lyramilk::data::var su(const lyramilk::data::array& args,const lyramilk::data::map& env)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 		bool permanent = false;
@@ -163,14 +163,14 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		return false;
 	}
 
-	lyramilk::data::var add_require_dir(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+	lyramilk::data::var add_require_dir(const lyramilk::data::array& args,const lyramilk::data::map& env)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 		TODO();
 		return true;
 	}
 
-	lyramilk::data::var serialize(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+	lyramilk::data::var serialize(const lyramilk::data::array& args,const lyramilk::data::map& env)
 	{
 		if(args.size() < 1) throw lyramilk::exception(D("%s参数不足",__FUNCTION__));
 		lyramilk::data::var v = args[0];
@@ -182,7 +182,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		return bstr;
 	}
 
-	lyramilk::data::var deserialize(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+	lyramilk::data::var deserialize(const lyramilk::data::array& args,const lyramilk::data::map& env)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_bin);
 		lyramilk::data::string seq = args[0];
@@ -192,7 +192,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		return v;
 	}
 
-	lyramilk::data::var json_stringify(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+	lyramilk::data::var json_stringify(const lyramilk::data::array& args,const lyramilk::data::map& env)
 	{
 		if(args.size() < 1)  throw lyramilk::exception(D("%s参数不足",__FUNCTION__));
 		lyramilk::data::string jsonstr;
@@ -201,7 +201,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		return jsonstr;
 	}
 
-	lyramilk::data::var json_parse(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+	lyramilk::data::var json_parse(const lyramilk::data::array& args,const lyramilk::data::map& env)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 		lyramilk::data::var v;
@@ -209,7 +209,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		return v;
 	}
 
-	lyramilk::data::var system(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+	lyramilk::data::var system(const lyramilk::data::array& args,const lyramilk::data::map& env)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 		lyramilk::data::string str = args[0];
@@ -224,7 +224,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		return ret;
 	}
 
-	lyramilk::data::var env(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+	lyramilk::data::var env(const lyramilk::data::array& args,const lyramilk::data::map& env)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 
@@ -235,14 +235,14 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		return env::get_config(args[0]);
 	}
 
-	lyramilk::data::var set_config(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+	lyramilk::data::var set_config(const lyramilk::data::array& args,const lyramilk::data::map& env)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_map);
 		env::set_config("config",args[0]);
 		return true;
 	}
 
-	lyramilk::data::var get_config(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+	lyramilk::data::var get_config(const lyramilk::data::array& args,const lyramilk::data::map& env)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 		const lyramilk::data::var& cfg = env::get_config("config");
@@ -250,7 +250,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		return cfg.path(item);
 	}
 
-	lyramilk::data::var decode(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+	lyramilk::data::var decode(const lyramilk::data::array& args,const lyramilk::data::map& env)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_str);
@@ -259,7 +259,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		return lyramilk::data::codes::instance()->decode(type,str);
 	}
 
-	lyramilk::data::var encode(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+	lyramilk::data::var encode(const lyramilk::data::array& args,const lyramilk::data::map& env)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_str);
@@ -268,7 +268,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		return lyramilk::data::codes::instance()->encode(type,str);
 	}
 
-	lyramilk::data::var sha1(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+	lyramilk::data::var sha1(const lyramilk::data::array& args,const lyramilk::data::map& env)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 		lyramilk::data::string str = args[0];
@@ -277,7 +277,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		return c1.get_key().str();
 	}
 
-	lyramilk::data::var md5_16(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+	lyramilk::data::var md5_16(const lyramilk::data::array& args,const lyramilk::data::map& env)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 		lyramilk::data::string str = args[0];
@@ -286,7 +286,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		return c1.get_key().str16();
 	}
 
-	lyramilk::data::var md5_32(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+	lyramilk::data::var md5_32(const lyramilk::data::array& args,const lyramilk::data::map& env)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 		lyramilk::data::string str = args[0];
@@ -302,7 +302,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		return c1.get_key().str32();
 	}
 
-	lyramilk::data::var http_digest_authentication(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+	lyramilk::data::var http_digest_authentication(const lyramilk::data::array& args,const lyramilk::data::map& env)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_map);

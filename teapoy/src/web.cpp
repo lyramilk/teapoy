@@ -5,10 +5,11 @@
 #include <fstream>
 #include <sys/stat.h>
 #include <libmilk/log.h>
-#include <libmilk/multilanguage.h>
+#include <libmilk/dict.h>
 #include <libmilk/testing.h>
 #include <pcre.h>
 #include <string.h>
+#include <cassert>
 
 namespace lyramilk{ namespace teapoy { namespace web {
 	/**************** session_info ********************/
@@ -27,8 +28,8 @@ namespace lyramilk{ namespace teapoy { namespace web {
 
 	lyramilk::data::string session_info::getsid()
 	{
-		lyramilk::data::var::map& cookies = req->entityframe->cookies();
-		lyramilk::data::var::map::iterator it = cookies.find("TeapoyId");
+		lyramilk::data::map& cookies = req->entityframe->cookies();
+		lyramilk::data::map::iterator it = cookies.find("TeapoyId");
 
 		if(it!=cookies.end()){
 			if(it->second.type() == lyramilk::data::var::t_map){
@@ -74,11 +75,11 @@ namespace lyramilk{ namespace teapoy { namespace web {
 		return method;
 	}
 
-	bool url_worker::init(lyramilk::data::string method,lyramilk::data::string pattern,lyramilk::data::string real,lyramilk::data::var::array index,webhook* h)
+	bool url_worker::init(lyramilk::data::string method,lyramilk::data::string pattern,lyramilk::data::string real,lyramilk::data::array index,webhook* h)
 	{
 		if(h) this->hook = h;
 		this->method = method;
-		lyramilk::data::var::array::iterator it = index.begin();
+		lyramilk::data::array::iterator it = index.begin();
 		this->index.reserve(index.size());
 		for(;it!=index.end();++it){
 			this->index.push_back(*it);
@@ -91,7 +92,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 		}
 		if(matcher_regex){
 			matcher_regexstr = pattern;
-			lyramilk::data::var::array ar;
+			lyramilk::data::array ar;
 			lyramilk::data::string ret;
 			int sz = real.size();
 			for(int i=0;i<sz;++i){
@@ -157,11 +158,11 @@ namespace lyramilk{ namespace teapoy { namespace web {
 				if(ret)*ret = false;
 				return false;
 			}
-			lyramilk::data::var::array ar;
+			lyramilk::data::array ar;
 			{
 				lyramilk::data::var var_processer_args("__http_session_info",si);
 
-				lyramilk::data::var::array args;
+				lyramilk::data::array args;
 				args.push_back(var_processer_args);
 
 				ar.push_back(eng->createobject("HttpRequest",args));
@@ -200,9 +201,9 @@ COUT << qi << "---->" << uri.substr(bof,eof-bof) << std::endl;
 				}
 				return true;
 			}else if(matcher_dest.type() == lyramilk::data::var::t_array){
-				const lyramilk::data::var::array& ar = matcher_dest;
+				const lyramilk::data::array& ar = matcher_dest;
 				real->clear();
-				for(lyramilk::data::var::array::const_iterator it = ar.begin();it!=ar.end();++it){
+				for(lyramilk::data::array::const_iterator it = ar.begin();it!=ar.end();++it){
 					if(it->type() == lyramilk::data::var::t_str){
 						real->append(it->str());
 					}else if(it->type_like(lyramilk::data::var::t_int)){
@@ -242,6 +243,7 @@ COUT << qi << "---->" << uri.substr(bof,eof-bof) << std::endl;
 		if(matcher_dest.type() != lyramilk::data::var::t_invalid){
 			struct stat st = {0};
 			if(0 !=::stat(real.c_str(),&st)){
+				lyramilk::klog(lyramilk::log::debug,"try_call") << "正则匹配" << matcher_regexstr << "成功，但" << real << "没有找到" << std::endl;
 				return false;
 			}
 

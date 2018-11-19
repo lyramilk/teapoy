@@ -1,5 +1,5 @@
 ﻿#include "script_jsx.h"
-#include <libmilk/multilanguage.h>
+#include <libmilk/dict.h>
 #include <libmilk/log.h>
 #include <libmilk/codes.h>
 //#include "testing.h"

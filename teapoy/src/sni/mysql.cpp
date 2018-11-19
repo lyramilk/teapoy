@@ -1,7 +1,7 @@
 #include "script.h"
 #include "env.h"
 #include <libmilk/log.h>
-#include <libmilk/multilanguage.h>
+#include <libmilk/dict.h>
 #include <libmilk/factory.h>
 #include <mysql/mysql.h>
 #define MAROC_MYSQL MYSQL
@@ -14,7 +14,7 @@
 namespace lyramilk{ namespace teapoy{ namespace native{
 	static lyramilk::log::logss log(lyramilk::klog,"teapoy.native.mysql");
 
-	class smysql_iterator
+	class smysql_iterator:public lyramilk::script::sclass
 	{
 		lyramilk::log::logss log;
 		MYSQL_RES* res;
@@ -23,12 +23,12 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 		lyramilk::data::strings keys2;
 		std::map<lyramilk::data::string,unsigned int> keys;
 	  public:
-		static void* ctr(const lyramilk::data::var::array& args)
+		static lyramilk::script::sclass* ctr(const lyramilk::data::array& args)
 		{
 			assert(args.size() > 0);
 			return new smysql_iterator((MYSQL_RES*)args[0].userdata("mysql.res"),(MYSQL*)args[0].userdata("mysql.db"));
 		}
-		static void dtr(void* p)
+		static void dtr(lyramilk::script::sclass* p)
 		{
 			delete (smysql_iterator*)p;
 		}
@@ -54,7 +54,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 		{
 			mysql_free_result(res);
 		}
-		lyramilk::data::var ok(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var ok(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			if(values.empty()){
 				MYSQL_ROW row = mysql_fetch_row(res);
@@ -72,7 +72,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return values.size() > 0;
 		}
 
-		lyramilk::data::var key(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var key(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_uint);
 			lyramilk::data::uint32 u = args[0];
@@ -80,7 +80,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return keys2[u];
 		}
 
-		lyramilk::data::var value(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var value(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			lyramilk::data::var v = args[0];
@@ -117,7 +117,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			}
 		}
 
-		lyramilk::data::var next(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var next(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			values.clear();
 			MYSQL_ROW row = mysql_fetch_row(res);
@@ -134,17 +134,17 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return true;
 		}
 
-		lyramilk::data::var size(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var size(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			return res->row_count;
 		}
 
-		lyramilk::data::var columncount(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var columncount(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			return keys2.size();
 		}
 
-		lyramilk::data::var seek(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var seek(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_int);
 			mysql_data_seek(res,args[0]);
@@ -163,9 +163,9 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return true;
 		}
 
-		lyramilk::data::var to_object(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var to_object(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
-			lyramilk::data::var::map m;
+			lyramilk::data::map m;
 			if(values.empty()) return m;
 			if(values.size() != keys2.size()){
 				throw lyramilk::exception(D("数据库错误：表宽度(%u)与数据行宽度(%u)不一致",keys2.size(),values.size()));
@@ -192,7 +192,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 		}
 	};
 
-	class smysql
+	class smysql:public lyramilk::script::sclass
 	{
 		lyramilk::log::logss log;
 		MYSQL* _db_ptr;
@@ -204,7 +204,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 
 		mysql_clients::ptr pp;
 	  public:
-		static void* ctr(const lyramilk::data::var::array& args)
+		static lyramilk::script::sclass* ctr(const lyramilk::data::array& args)
 		{
 			if(args.size() == 1){
 				const void* p = args[0].userdata("__mysql_client");
@@ -220,7 +220,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			}
 			return new smysql;
 		}
-		static void dtr(void* p)
+		static void dtr(lyramilk::script::sclass* p)
 		{
 			delete (smysql*)p;
 		}
@@ -246,7 +246,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			}
 		}
 
-		lyramilk::data::var setopt(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var setopt(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			int ret = mysql_options(_db_ptr,MYSQL_INIT_COMMAND, args[0].str().c_str());
@@ -256,7 +256,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			}
 			return true;
 		}
-		lyramilk::data::var use(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var use(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			lyramilk::data::string cfgfile = args[0];
@@ -283,7 +283,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return true;
 		}
 
-		lyramilk::data::var open(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var open(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			lyramilk::data::string host;
 			unsigned short port = 0;
@@ -339,12 +339,12 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 		}
 
 
-		lyramilk::data::var ok(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var ok(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			return 0 == mysql_ping(_db_ptr);
 		}
 
-		lyramilk::data::var query(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var query(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			lyramilk::data::string sql = args[0];
@@ -369,13 +369,13 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			lyramilk::data::var ud("mysql.res",res);
 			ud.userdata("mysql.db",_db_ptr);
 
-			lyramilk::data::var::array ar;
+			lyramilk::data::array ar;
 			ar.push_back(ud);
 			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
 			return e->createobject("mysql.iterator",ar);
 		}
 
-		lyramilk::data::var execute(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var execute(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			lyramilk::data::string sql = args[0];
@@ -407,7 +407,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			std::vector<MYSQL_BIND> bind(param_count);
 			std::vector<std::vector<char> > param_buff(param_count);
 
-			lyramilk::data::var::array::const_iterator it = args.begin();
+			lyramilk::data::array::const_iterator it = args.begin();
 			if(it != args.end()) ++it;
 			for(int i=0;it != args.end();++it,++i){
 				lyramilk::data::string sv = it->str();

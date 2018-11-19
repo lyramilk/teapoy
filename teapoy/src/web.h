@@ -35,7 +35,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 		url_worker();
 		virtual ~url_worker();
 		lyramilk::data::string get_method();
-		virtual bool init(lyramilk::data::string method,lyramilk::data::string pattern,lyramilk::data::string real,lyramilk::data::var::array index,webhook* h);
+		virtual bool init(lyramilk::data::string method,lyramilk::data::string pattern,lyramilk::data::string real,lyramilk::data::array index,webhook* h);
 		virtual bool init_auth(lyramilk::data::string enginetype,lyramilk::data::string authscript);
 		virtual bool init_extra(const lyramilk::data::var& extra);
 		virtual bool check_auth(session_info* si,bool* ret) const;
@@ -92,7 +92,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 	};
 
 	class aiohttpsession;
-	class aiohttpsession_http:public lyramilk::netio::aiosession2
+	class aiohttpsession_http:public lyramilk::netio::aiosession_sync
 	{
 	  protected:
 		aiohttpsession* root;
@@ -136,7 +136,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 		virtual bool onrequest(const char* cache,int size,std::ostream& os);
 	};
 
-	class aiohttpsession:public lyramilk::netio::aiosession2
+	class aiohttpsession:public lyramilk::netio::aiosession_sync
 	{
 	  public:
 		aiohttpsession_http* handler;

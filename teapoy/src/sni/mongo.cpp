@@ -2,7 +2,7 @@
 #include "dbconnpool.h"
 #include <mongo/client/dbclient.h>
 #include <libmilk/log.h>
-#include <libmilk/multilanguage.h>
+#include <libmilk/dict.h>
 #include <libmilk/json.h>
 
 namespace lyramilk{ namespace teapoy{ namespace native{
@@ -16,7 +16,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 		return v.type() != lyramilk::data::var::t_invalid;
 	}
 
-	static bool var2bson(const lyramilk::data::var::map& vm,::mongo::BSONObj& bson)
+	static bool var2bson(const lyramilk::data::map& vm,::mongo::BSONObj& bson)
 	{
 		lyramilk::data::var v(vm);
 		lyramilk::data::json j(v);
@@ -36,7 +36,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 
 		::mongo::DBClientConnection* p;
 
-		static void* ctr(const lyramilk::data::var::array& args)
+		static void* ctr(const lyramilk::data::array& args)
 		{
 			if(args.size() == 4){
 				mymongo *p = new mymongo(args[0],args[1],args[2],args[3]);
@@ -126,10 +126,10 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 		~mymongo()
 		{}
 
-		lyramilk::data::var show_dbs(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var show_dbs(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			std::list<std::string> ret = p->getDatabaseNames();
-			lyramilk::data::var::array ar;
+			lyramilk::data::array ar;
 			ar.reserve(ret.size());
 			std::list<std::string>::iterator it = ret.begin();
 			for(;it!=ret.end();++it){
@@ -139,7 +139,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return ar;
 		}
 
-		lyramilk::data::var db(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var db(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			lyramilk::data::string dbname = args[0];
@@ -153,21 +153,21 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 
 			p->resetError();
 
-			lyramilk::data::var::array ar;
+			lyramilk::data::array ar;
 			ar.reserve(2);
 			ar.push_back(lyramilk::data::var("mongo",p));
 			ar.push_back(dbname);
 			return e->createobject("Mongo.Database",ar);
 		}
 
-		lyramilk::data::var exists(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var exists(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			lyramilk::data::string str = args[0];
 			return p->exists(std::string(str.c_str(),str.size()));
 		}
 
-		lyramilk::data::var isMaster(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var isMaster(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			bool b = false;
 			if(p->isMaster(b)) return b;
@@ -194,7 +194,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 		lyramilk::log::logss log;
 		::mongo::DBClientConnection* p;
 
-		static void* ctr(const lyramilk::data::var::array& args)
+		static void* ctr(const lyramilk::data::array& args)
 		{
 			return new mymongo_db((::mongo::DBClientConnection*)args[0].userdata("mongo"),args[1].str());
 		}
@@ -209,7 +209,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			dbname.assign(name.c_str(),name.size());
 		}
 
-		lyramilk::data::var login(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var login(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_str);
@@ -222,7 +222,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			throw lyramilk::exception(lyramilk::data::string(errmsg.c_str(),errmsg.size()));
 		}
 
-		lyramilk::data::var logout(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var logout(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			::mongo::BSONObj bsonret;
 			p->logout(dbname,bsonret);
@@ -231,12 +231,12 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return v;
 		}
 
-		lyramilk::data::var create(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var create(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			TODO();
 		}
 
-		lyramilk::data::var drop(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var drop(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			lyramilk::data::string str = args[0];
@@ -251,7 +251,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return true;
 		}
 
-		lyramilk::data::var runCommand(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var runCommand(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_str);
@@ -284,10 +284,10 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return ret;
 		}
 
-		lyramilk::data::var show_collections(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var show_collections(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			std::list<std::string> ret = p->getCollectionNames(dbname);
-			lyramilk::data::var::array ar;
+			lyramilk::data::array ar;
 			ar.reserve(ret.size());
 			std::list<std::string>::iterator it = ret.begin();
 			for(;it!=ret.end();++it){
@@ -297,13 +297,13 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return ar;
 		}
 
-		lyramilk::data::var collection(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var collection(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			lyramilk::data::string collection = args[0];
 			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
 
-			lyramilk::data::var::array ar;
+			lyramilk::data::array ar;
 			ar.reserve(3);
 			ar.push_back(lyramilk::data::var("mongo",p));
 			ar.push_back(lyramilk::data::string(dbname.c_str(),dbname.size()));
@@ -311,7 +311,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return e->createobject("Mongo.Collection",ar);
 		}
 
-		lyramilk::data::var eval(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var eval(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			lyramilk::data::string collection = args[0];
@@ -357,7 +357,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 		lyramilk::log::logss log;
 		::mongo::DBClientConnection* p;
 
-		static void* ctr(const lyramilk::data::var::array& args)
+		static void* ctr(const lyramilk::data::array& args)
 		{
 			return new mymongo_collection((::mongo::DBClientConnection*)args[0].userdata("mongo"),args[1].str(),args[2].str());
 		}
@@ -380,9 +380,9 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 		{
 		}
 
-		lyramilk::data::var query(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var query(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
-			lyramilk::data::var::map querycond;
+			lyramilk::data::map querycond;
 			if(args.size() > 0){
 				MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_map);
 				querycond = args[0];
@@ -398,7 +398,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			}
 
 			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
-			lyramilk::data::var::array ar;
+			lyramilk::data::array ar;
 			ar.reserve(3);
 			ar.push_back(lyramilk::data::var("mongo",p));
 			ar.push_back(lyramilk::data::string(dbname.c_str(),dbname.size()));
@@ -407,7 +407,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return e->createobject("Mongo.Iterator",ar);
 		}
 
-		lyramilk::data::var insert(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var insert(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_map);
 			lyramilk::data::var v = args[0];
@@ -422,14 +422,14 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return true;
 		}
 
-		lyramilk::data::var insert_many(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var insert_many(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_array);
-			const lyramilk::data::var::array& ar = args[0];
+			const lyramilk::data::array& ar = args[0];
 
 			std::vector< ::mongo::BSONObj > bsons;
 
-			lyramilk::data::var::array::const_iterator it = ar.begin();
+			lyramilk::data::array::const_iterator it = ar.begin();
 			for(;it!=ar.end();++it){
 				lyramilk::data::var v = *it;
 				lyramilk::data::json j(v);
@@ -444,7 +444,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return true;
 		}
 
-		lyramilk::data::var mapreduce(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var mapreduce(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_str);
@@ -527,7 +527,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 		lyramilk::data::var currdata;
 		bool bof;
 
-		static void* ctr(const lyramilk::data::var::array& args)
+		static void* ctr(const lyramilk::data::array& args)
 		{
 			const lyramilk::data::var& v3 = args[3];
 			if(v3.type() == lyramilk::data::var::t_user){
@@ -574,7 +574,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return false;
 		}
 
-		lyramilk::data::var query_where(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var query_where(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			lyramilk::data::string wherestr = args[0].str();
@@ -586,7 +586,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 				::mongo::Query myquery = mq.where(std::string(wherestr.c_str(),wherestr.size()),scope);
 
 				lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
-				lyramilk::data::var::array ar;
+				lyramilk::data::array ar;
 				ar.reserve(3);
 				ar.push_back(lyramilk::data::var("mongo",p));
 				ar.push_back(lyramilk::data::string(dbname.c_str(),dbname.size()));
@@ -597,7 +597,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			::mongo::Query myquery = mq.where(std::string(wherestr.c_str(),wherestr.size()));
 
 			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
-			lyramilk::data::var::array ar;
+			lyramilk::data::array ar;
 			ar.reserve(3);
 			ar.push_back(lyramilk::data::var("mongo",p));
 			ar.push_back(lyramilk::data::string(dbname.c_str(),dbname.size()));
@@ -606,7 +606,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return e->createobject("Mongo.Iterator",ar);
 		}
 
-		lyramilk::data::var sort(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var sort(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_map);
 			::mongo::BSONObj sortjson;
@@ -614,7 +614,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			::mongo::Query myquery = mq.sort(sortjson);
 
 			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
-			lyramilk::data::var::array ar;
+			lyramilk::data::array ar;
 			ar.reserve(3);
 			ar.push_back(lyramilk::data::var("mongo",p));
 			ar.push_back(lyramilk::data::string(dbname.c_str(),dbname.size()));
@@ -623,7 +623,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return e->createobject("Mongo.Iterator",ar);
 		}
 
-		lyramilk::data::var update(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var update(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_map);
 			::mongo::BSONObj newdatabson;
@@ -636,7 +636,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return true;
 		}
 
-		lyramilk::data::var remove(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var remove(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			p->remove(ns,mq);
 			std::string str = p->getLastError(dbname);
@@ -647,7 +647,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 		}
 
 
-		lyramilk::data::var size(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var size(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			unsigned long long sz = p->count(ns,mq.getFilter());
 			if(sz == 0){
@@ -659,7 +659,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return sz;
 		}
 
-		lyramilk::data::var ok(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var ok(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			if(bof && init()){
 				bof = false;
@@ -669,7 +669,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return cursor->more();
 		}
 
-		lyramilk::data::var next(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var next(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			if(bof) init();
 			if(cursor->more()){
@@ -680,12 +680,12 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return false;
 		}
 
-		lyramilk::data::var to_object(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var to_object(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			return currdata;
 		}
 
-		lyramilk::data::var value(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var value(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			return currdata.path(args[0].str());

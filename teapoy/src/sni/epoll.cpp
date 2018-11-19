@@ -1,22 +1,23 @@
 #include <libmilk/var.h>
 #include <libmilk/log.h>
-#include <libmilk/multilanguage.h>
+#include <libmilk/dict.h>
 #include <libmilk/netaio.h>
 #include <libmilk/scriptengine.h>
 #include "script.h"
+#include "sni_selector.h"
 
 namespace lyramilk{ namespace teapoy{
 
-	class server_poll:public lyramilk::io::aiopoll
+	class server_poll:public lyramilk::script::sclass,public lyramilk::io::aiopoll
 	{
 		lyramilk::log::logss log;
 	  public:
 
-		static void* ctr(const lyramilk::data::var::array& args)
+		static lyramilk::script::sclass* ctr(const lyramilk::data::array& args)
 		{
 			return new server_poll();
 		}
-		static void dtr(void* p)
+		static void dtr(lyramilk::script::sclass* p)
 		{
 			delete (server_poll*)p;
 		}
@@ -25,19 +26,19 @@ namespace lyramilk{ namespace teapoy{
 		{
 		}
 
-		~server_poll()
+		virtual ~server_poll()
 		{}
 
-		lyramilk::data::var add(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var add(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_user);
 			const void* pobj = args[0].userdata(lyramilk::script::engine::s_user_nativeobject());
 			if(!pobj) return false;
-			lyramilk::netio::aiolistener* psrv = (lyramilk::netio::aiolistener*)pobj;
-			return lyramilk::io::aiopoll::add(psrv);
+			lyramilk::teapoy::epoll_selector* psrv = (lyramilk::teapoy::epoll_selector*)pobj;
+			return lyramilk::io::aiopoll::add(psrv->selector);
 		}
 
-		lyramilk::data::var active(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var active(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			if(args.size() == 0){
 				lyramilk::io::aiopoll::active();
@@ -51,7 +52,7 @@ namespace lyramilk{ namespace teapoy{
 			return true;
 		}
 
-		lyramilk::data::var wait(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var wait(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			lyramilk::io::aiopoll::svc();
 			return true;

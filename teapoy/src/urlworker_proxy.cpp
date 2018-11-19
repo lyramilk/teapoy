@@ -2,7 +2,7 @@
 #include "script.h"
 #include "stringutil.h"
 #include <libmilk/log.h>
-#include <libmilk/multilanguage.h>
+#include <libmilk/dict.h>
 #include <curl/curl.h>
 #include <curl/easy.h>
 #include <stdlib.h>

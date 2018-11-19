@@ -281,7 +281,7 @@ namespace lyramilk{ namespace teapoy {namespace http{
 		header[key] = value;
 	}
 
-	void response::init(std::ostream* os,lyramilk::data::var::map* cookies)
+	void response::init(std::ostream* os,lyramilk::data::map* cookies)
 	{
 		this->os = os;
 		this->cookies = cookies;
@@ -310,16 +310,16 @@ namespace lyramilk{ namespace teapoy {namespace http{
 			header["Content-Length"] = l;
 
 			{
-				lyramilk::data::var::map::iterator it = header.begin();
+				lyramilk::data::map::iterator it = header.begin();
 				for(;it!=header.end();++it){
 					*os << it->first << ": " << it->second << "\r\n";
 				}
 			}
 			{
-				lyramilk::data::var::map::iterator it = cookies->begin();
+				lyramilk::data::map::iterator it = cookies->begin();
 				for(;it!=cookies->end();++it){
 					if(it->second.type() == lyramilk::data::var::t_map){
-						lyramilk::data::var::map& m = it->second;
+						lyramilk::data::map& m = it->second;
 						lyramilk::data::var& v = m["value"];
 						if(v.type_like(lyramilk::data::var::t_str)){
 							*os << "Set-Cookie: " << it->first << "=" << v.str() << ";" << "\r\n";
@@ -345,16 +345,16 @@ namespace lyramilk{ namespace teapoy {namespace http{
 			header["Content-Length"] = l;
 
 			{
-				lyramilk::data::var::map::iterator it = header.begin();
+				lyramilk::data::map::iterator it = header.begin();
 				for(;it!=header.end();++it){
 					*os << it->first << ": " << it->second << "\r\n";
 				}
 			}
 			{
-				lyramilk::data::var::map::iterator it = cookies->begin();
+				lyramilk::data::map::iterator it = cookies->begin();
 				for(;it!=cookies->end();++it){
 					if(it->second.type() == lyramilk::data::var::t_map){
-						lyramilk::data::var::map& m = it->second;
+						lyramilk::data::map& m = it->second;
 						lyramilk::data::var& v = m["value"];
 						if(v.type_like(lyramilk::data::var::t_str)){
 							*os << "Set-Cookie: " << it->first << "=" << v.str() << ";" << "\r\n";
@@ -379,16 +379,16 @@ namespace lyramilk{ namespace teapoy {namespace http{
 			header["Content-Length"] = l;
 
 			{
-				lyramilk::data::var::map::iterator it = header.begin();
+				lyramilk::data::map::iterator it = header.begin();
 				for(;it!=header.end();++it){
 					*os << it->first << ": " << it->second << "\r\n";
 				}
 			}
 			{
-				lyramilk::data::var::map::iterator it = cookies->begin();
+				lyramilk::data::map::iterator it = cookies->begin();
 				for(;it!=cookies->end();++it){
 					if(it->second.type() == lyramilk::data::var::t_map){
-						lyramilk::data::var::map& m = it->second;
+						lyramilk::data::map& m = it->second;
 						lyramilk::data::var& v = m["value"];
 						if(v.type_like(lyramilk::data::var::t_str)){
 							*os << "Set-Cookie: " << it->first << "=" << v.str() << ";" << "\r\n";
@@ -435,16 +435,16 @@ namespace lyramilk{ namespace teapoy {namespace http{
 			header["Content-Length"] = l;
 
 			{
-				lyramilk::data::var::map::iterator it = header.begin();
+				lyramilk::data::map::iterator it = header.begin();
 				for(;it!=header.end();++it){
 					*os << it->first << ": " << it->second << "\r\n";
 				}
 			}
 			{
-				lyramilk::data::var::map::iterator it = cookies->begin();
+				lyramilk::data::map::iterator it = cookies->begin();
 				for(;it!=cookies->end();++it){
 					if(it->second.type() == lyramilk::data::var::t_map){
-						lyramilk::data::var::map& m = it->second;
+						lyramilk::data::map& m = it->second;
 						lyramilk::data::var& v = m["value"];
 						if(v.type_like(lyramilk::data::var::t_str)){
 							*os << "Set-Cookie: " << it->first << "=" << v.str() << ";" << "\r\n";
@@ -470,16 +470,16 @@ namespace lyramilk{ namespace teapoy {namespace http{
 			header["Content-Length"] = l;
 
 			{
-				lyramilk::data::var::map::iterator it = header.begin();
+				lyramilk::data::map::iterator it = header.begin();
 				for(;it!=header.end();++it){
 					*os << it->first << ": " << it->second << "\r\n";
 				}
 			}
 			{
-				lyramilk::data::var::map::iterator it = cookies->begin();
+				lyramilk::data::map::iterator it = cookies->begin();
 				for(;it!=cookies->end();++it){
 					if(it->second.type() == lyramilk::data::var::t_map){
-						lyramilk::data::var::map& m = it->second;
+						lyramilk::data::map& m = it->second;
 						lyramilk::data::var& v = m["value"];
 						if(v.type_like(lyramilk::data::var::t_str)){
 							*os << "Set-Cookie: " << it->first << "=" << v.str() << ";" << "\r\n";
@@ -504,16 +504,16 @@ namespace lyramilk{ namespace teapoy {namespace http{
 			header["Content-Length"] = l;
 
 			{
-				lyramilk::data::var::map::iterator it = header.begin();
+				lyramilk::data::map::iterator it = header.begin();
 				for(;it!=header.end();++it){
 					*os << it->first << ": " << it->second << "\r\n";
 				}
 			}
 			{
-				lyramilk::data::var::map::iterator it = cookies->begin();
+				lyramilk::data::map::iterator it = cookies->begin();
 				for(;it!=cookies->end();++it){
 					if(it->second.type() == lyramilk::data::var::t_map){
-						lyramilk::data::var::map& m = it->second;
+						lyramilk::data::map& m = it->second;
 						lyramilk::data::var& v = m["value"];
 						if(v.type_like(lyramilk::data::var::t_str)){
 							*os << "Set-Cookie: " << it->first << "=" << v.str() << ";" << "\r\n";
@@ -537,16 +537,16 @@ namespace lyramilk{ namespace teapoy {namespace http{
 			header["Transfer-Encoding"] = "chunked";
 
 			{
-				lyramilk::data::var::map::iterator it = header.begin();
+				lyramilk::data::map::iterator it = header.begin();
 				for(;it!=header.end();++it){
 					*os << it->first << ": " << it->second << "\r\n";
 				}
 			}
 			{
-				lyramilk::data::var::map::iterator it = cookies->begin();
+				lyramilk::data::map::iterator it = cookies->begin();
 				for(;it!=cookies->end();++it){
 					if(it->second.type() == lyramilk::data::var::t_map){
-						lyramilk::data::var::map& m = it->second;
+						lyramilk::data::map& m = it->second;
 						lyramilk::data::var& v = m["value"];
 						if(v.type_like(lyramilk::data::var::t_str)){
 							*os << "Set-Cookie: " << it->first << "=" << v.str() << ";" << "\r\n";

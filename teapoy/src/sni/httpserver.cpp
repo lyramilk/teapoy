@@ -1,6 +1,6 @@
 #include <libmilk/scriptengine.h>
 #include <libmilk/log.h>
-#include <libmilk/multilanguage.h>
+#include <libmilk/dict.h>
 #include <libmilk/netaio.h>
 #include "script.h"
 #include "web.h"
@@ -11,43 +11,67 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <string.h>
+#include "sni_selector.h"
 
 namespace lyramilk{ namespace teapoy{ namespace native
 {
-	class httpserver:public lyramilk::netio::aiolistener
+
+
+	class epoll_server:public lyramilk::netio::aiolistener
+	{
+	  public:
+		web::website_worker* worker;
+		virtual lyramilk::netio::aiosession* create()
+		{
+			lyramilk::teapoy::web::aiohttpsession* ss = lyramilk::netio::aiosession::__tbuilder<lyramilk::teapoy::web::aiohttpsession>();
+			ss->worker = worker;
+			ss->sessionmgr = lyramilk::teapoy::web::sessions::defaultinstance();
+			return ss;
+		}
+	};
+
+
+
+	class httpserver:public epoll_selector
 	{
 		lyramilk::log::logss log;
 		lyramilk::data::string root;
 		web::website_worker worker;
+		epoll_server* http;
 	  public:
 
-		static void* ctr(const lyramilk::data::var::array& args)
+		static lyramilk::script::sclass* ctr(const lyramilk::data::array& args)
 		{
 			return new httpserver();
 		}
-		static void dtr(void* p)
+		static void dtr(lyramilk::script::sclass* p)
 		{
 			delete (httpserver*)p;
 		}
 
 		httpserver():log(lyramilk::klog,"teapoy.server.httpserver")
 		{
+			http = new epoll_server;
+			http->worker = &worker;
+			selector = http;
 		}
 
 		virtual ~httpserver()
-		{}
-
-		lyramilk::data::var open(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
 		{
-			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_int);
-			return lyramilk::netio::aiolistener::open(args[0]);
+			delete http;
 		}
 
-		lyramilk::data::var bind_url(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var open(const lyramilk::data::array& args,const lyramilk::data::map& env)
+		{
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_int);
+			return http->open(args[0]);
+		}
+
+		lyramilk::data::var bind_url(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_array);
-			const lyramilk::data::var::array& ar = args[0];
-			lyramilk::data::var::array::const_iterator it = ar.begin();
+			const lyramilk::data::array& ar = args[0];
+			lyramilk::data::array::const_iterator it = ar.begin();
 			for(;it!=ar.end();++it){
 				lyramilk::data::string method = it->at("method");
 				lyramilk::data::string type = it->at("type");
@@ -55,7 +79,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 				lyramilk::data::var module = it->at("module");
 				lyramilk::data::string hooktype = it->at("hook");
 				const lyramilk::data::var& auth = it->at("auth");
-				lyramilk::data::var::array index;
+				lyramilk::data::array index;
 
 				{
 					const lyramilk::data::var& v = it->at("index");
@@ -83,42 +107,34 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			return true;
 		}
 
-		lyramilk::data::var set_urlhook(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var set_urlhook(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			worker.set_urlhook(args[0].str());
 			return true;
 		}
 
-		lyramilk::data::var set_ssl(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var set_ssl(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_str);
-			init_ssl(args[0],args[1]);
+			http->init_ssl(args[0],args[1]);
 			return true;
 		}
 
-		lyramilk::data::var set_ssl_verify_locations(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var set_ssl_verify_locations(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_array);
-			return ssl_load_verify_locations(args[0]);
+			return http->ssl_load_verify_locations(args[0]);
 		}
 
-		lyramilk::data::var set_ssl_client_verify(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var set_ssl_client_verify(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_bool);
-			return ssl_use_client_verify(args[0]);
-		}
-
-		virtual lyramilk::netio::aiosession* create()
-		{
-			lyramilk::teapoy::web::aiohttpsession* ss = lyramilk::netio::aiosession::__tbuilder<lyramilk::teapoy::web::aiohttpsession>();
-			ss->worker = &worker;
-			ss->sessionmgr = lyramilk::teapoy::web::sessions::defaultinstance();
-			return ss;
+			return http->ssl_use_client_verify(args[0]);
 		}
 		 		
-		static lyramilk::data::var DefineMimeType(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		static lyramilk::data::var DefineMimeType(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			lyramilk::log::logss log(lyramilk::klog,"teapoy.server.httpserver");
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);

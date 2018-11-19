@@ -1,6 +1,6 @@
 #include "script.h"
 #include <libmilk/log.h>
-#include <libmilk/multilanguage.h>
+#include <libmilk/dict.h>
 
 namespace lyramilk{ namespace teapoy
 {
@@ -84,7 +84,7 @@ namespace lyramilk{ namespace teapoy
 
 		virtual void onfire(lyramilk::script::engine* o)
 		{
-			o->set("clearonreset",lyramilk::data::var::map());
+			o->set("clearonreset",lyramilk::data::map());
 			o->reset();
 		}
 
@@ -126,7 +126,7 @@ namespace lyramilk{ namespace teapoy
 
 		virtual void onfire(lyramilk::script::engine* o)
 		{
-			o->set("clearonreset",lyramilk::data::var::map());
+			o->set("clearonreset",lyramilk::data::map());
 			o->reset();
 		}
 
@@ -167,7 +167,7 @@ namespace lyramilk{ namespace teapoy
 
 		virtual void onfire(lyramilk::script::engine* o)
 		{
-			o->set("clearonreset",lyramilk::data::var::map());
+			o->set("clearonreset",lyramilk::data::map());
 			o->reset();
 		}
 

@@ -12,8 +12,9 @@ namespace lyramilk{ namespace teapoy{ namespace sni{
 
 
 	static JSClass normalClass = { "normal", 0,
-			JS_PropertyStub, JS_PropertyStub, JS_PropertyStub, JS_StrictPropertyStub,
-            JS_EnumerateStub, JS_ResolveStub, JS_ConvertStub};
+		JS_PropertyStub, JS_PropertyStub, JS_PropertyStub, JS_StrictPropertyStub,
+		JS_EnumerateStub, JS_ResolveStub, JS_ConvertStub
+	};
 
 	static JSFunctionSpec js_xml_static_funs[] = {
 		JS_FN("stringify",	js_xml_stringify,	1, 0),

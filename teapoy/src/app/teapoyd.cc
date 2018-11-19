@@ -1,7 +1,7 @@
 #include <libmilk/json.h>
 #include <libmilk/scriptengine.h>
 #include <libmilk/log.h>
-#include <libmilk/multilanguage.h>
+#include <libmilk/dict.h>
 
 #include <unistd.h>
 #include <signal.h>
@@ -52,9 +52,9 @@ lyramilk::data::string get_env(const char* env,lyramilk::data::string def)
 	return strenv;
 }
 
-class lang_dict:public lyramilk::data::multilanguage::dict
+class lang_dict:public lyramilk::data::dict
 {
-	lyramilk::data::multilanguage::dict* old;
+	lyramilk::data::dict* old;
 	std::fstream fdict;
   public:
 	lang_dict()
@@ -80,14 +80,14 @@ class lang_dict:public lyramilk::data::multilanguage::dict
 	virtual void notify(lyramilk::data::string str)
 	{
 		/*
-		lyramilk::data::var::map m;
+		lyramilk::data::map m;
 
 		lyramilk::data::var v;
 		lyramilk::data::json j;
 		if(j.open(udictfile)){
 			try{
 				lyramilk::data::var v = j.path("/dict");
-				m = v.as<lyramilk::data::var::map>();
+				m = v.as<lyramilk::data::map>();
 			}catch(lyramilk::data::var::type_invalid& e){
 				j.clear();
 			}
@@ -322,17 +322,17 @@ class teapoy_log_logfile:public teapoy_log_base
 	}
 };
 
-class teapoy_loader
+class teapoy_loader:public lyramilk::script::sclass
 {
 	lyramilk::log::logss log;
 	std::vector<lyramilk::script::engine*> libs;
 	std::vector<void*> solibs;
   public:
-	static void* ctr(const lyramilk::data::var::array& args)
+	static lyramilk::script::sclass* ctr(const lyramilk::data::array& args)
 	{
 		return new teapoy_loader();
 	}
-	static void dtr(void* p)
+	static void dtr(lyramilk::script::sclass* p)
 	{
 		delete (teapoy_loader*)p;
 	}
@@ -372,13 +372,13 @@ class teapoy_loader
 		}
 	}
 
-	lyramilk::data::var load(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+	lyramilk::data::var load(const lyramilk::data::array& args,const lyramilk::data::map& env)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 
 		lyramilk::data::string filename = args[0];
 
-		lyramilk::data::var::array parameter(1);
+		lyramilk::data::array parameter(1);
 		parameter[0].assign("engine",eng_main);
 
 		lyramilk::script::engine* eng_tmp = lyramilk::script::engine::createinstance(filename);
@@ -393,7 +393,7 @@ class teapoy_loader
 		return 0 == ret;
 	}
 
-	lyramilk::data::var loadso(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+	lyramilk::data::var loadso(const lyramilk::data::array& args,const lyramilk::data::map& env)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 		lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
@@ -418,7 +418,7 @@ class teapoy_loader
 		}
 		return false;
 	}
-	lyramilk::data::var enable_log(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+	lyramilk::data::var enable_log(const lyramilk::data::array& args,const lyramilk::data::map& env)
 	{
 		if(logger == nullptr) init_log();
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
@@ -435,7 +435,7 @@ class teapoy_loader
 		return true;
 	}
 
-	lyramilk::data::var set_log_file(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+	lyramilk::data::var set_log_file(const lyramilk::data::array& args,const lyramilk::data::map& env)
 	{
 		if(!enable_console_logredirect){
 			if(!ondaemon){
@@ -460,7 +460,7 @@ class teapoy_loader
 		return true;
 	}
 
-	lyramilk::data::var noexit(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+	lyramilk::data::var noexit(const lyramilk::data::array& args,const lyramilk::data::map& env)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_bool);
 		no_exit_mode = args[0];

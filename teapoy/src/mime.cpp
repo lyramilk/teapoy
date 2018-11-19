@@ -2,7 +2,7 @@
 #include "stringutil.h"
 #include <strings.h>
 #include <libmilk/exception.h>
-#include <libmilk/multilanguage.h>
+#include <libmilk/dict.h>
 #include <libmilk/log.h>
 #include <stdio.h>
 #include <sys/mman.h>
@@ -68,7 +68,7 @@ namespace lyramilk{ namespace teapoy {
 	{
 		init();
 		lyramilk::data::string key = lyramilk::teapoy::lowercase(k);
-		lyramilk::data::var::map::const_iterator it = _header.find(key);
+		lyramilk::data::map::const_iterator it = _header.find(key);
 		if(it!=_header.end()){
 			return it->second;
 		}
@@ -82,7 +82,7 @@ namespace lyramilk{ namespace teapoy {
 		_header[key] = v;
 	}
 
-	lyramilk::data::var::map& mime::header()
+	lyramilk::data::map& mime::header()
 	{
 		init();
 		return _header;

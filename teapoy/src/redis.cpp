@@ -2,7 +2,7 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <libmilk/log.h>
-#include <libmilk/multilanguage.h>
+#include <libmilk/dict.h>
 #include <libmilk/exception.h>
 
 
@@ -27,7 +27,7 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 		close();
 	}
 
-	bool redis_client::open(lyramilk::data::string host,lyramilk::data::uint16 port)
+	bool redis_client::open(const lyramilk::data::string& host,lyramilk::data::uint16 port)
 	{
 		this->host = host;
 		this->port = port;
@@ -57,10 +57,10 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 		listener = lst;
 	}
 
-	bool redis_client::auth(lyramilk::data::string password)
+	bool redis_client::auth(const lyramilk::data::string& password)
 	{
 		pwd = password;
-		lyramilk::data::var::array ar;
+		lyramilk::data::array ar;
 		ar.push_back("auth");
 		ar.push_back(pwd);
 		lyramilk::data::var v;
@@ -70,98 +70,7 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 		return false;
 	}
 
-	bool inline is_hex_digit(char c) {
-		return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
-	}
-
-	char inline hex_digit_to_int(char c){
-		switch(c) {
-		  case '0': return 0;
-		  case '1': return 1;
-		  case '2': return 2;
-		  case '3': return 3;
-		  case '4': return 4;
-		  case '5': return 5;
-		  case '6': return 6;
-		  case '7': return 7;
-		  case '8': return 8;
-		  case '9': return 9;
-		  case 'a': case 'A': return 10;
-		  case 'b': case 'B': return 11;
-		  case 'c': case 'C': return 12;
-		  case 'd': case 'D': return 13;
-		  case 'e': case 'E': return 14;
-		  case 'f': case 'F': return 15;
-		  default: return 0;
-		}
-	}
-
-	lyramilk::data::string uconv(lyramilk::data::string str)
-	{
-		const char *p = str.c_str();
-		std::size_t sz = str.size();
-		const char *e = p + sz + 1;
-
-		lyramilk::data::string current;
-		current.reserve(sz);
-
-		enum {
-			s_0,
-			s_str1,
-			s_str2,
-		}s = s_0;
-
-		for(;*p && p < e;++p){
-			switch(s){
-			  case s_0:{
-				switch(*p) {
-				  case '"':
-					s = s_str1;
-					break;
-				  case '\'':
-					s = s_str2;
-					break;
-				}
-				current.push_back(*p);
-			  }break;
-			  case s_str1:{
-				if(*p == '\\' && *(p+1) == 'x' && is_hex_digit(*(p+2)) && is_hex_digit(*(p+3))){
-					unsigned char byte;
-					byte = (hex_digit_to_int(*(p+2))*16) + hex_digit_to_int(*(p+3));
-					current.push_back(byte);
-					p+=3;
-				}else if (*p == '\\' && *(p+1)) {
-					char c;
-					p++;
-					switch(*p) {
-					  case 'n': c = '\n'; break;
-					  case 'r': c = '\r'; break;
-					  case 't': c = '\t'; break;
-					  case 'b': c = '\b'; break;
-					  case 'a': c = '\a'; break;
-					  default: c = *p; break;
-					}
-					current.push_back(c);
-				} else {
-					current.push_back(*p);
-					if(*p == '"') s = s_0;
-				}
-			  }break;
-			  case s_str2:{
-				if (*p == '\\' && *(p+1) == '\''){
-					p++;
-					current.push_back('\'');
-				}else{
-					current.push_back(*p);
-					if(*p == '\'') s = s_0;
-				}
-			  }break;
-			}
-		}
-		return current;
-	}
-
-	bool redis_client::parse(lyramilk::data::stringstream& is,lyramilk::data::var& v)
+	bool redis_client::parse(lyramilk::data::istream& is,lyramilk::data::var& v)
 	{
 		char c;
 		for(is.get(c);is && (c == '\r' || c == '\n');is.get(c));
@@ -180,7 +89,7 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 					int ilen = len;
 					v.type(lyramilk::data::var::t_array);
 
-					lyramilk::data::var::array& ar = v;
+					lyramilk::data::array& ar = v;
 					ar.resize(ilen);
 
 					lyramilk::data::var* e = ar.data();
@@ -219,7 +128,7 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 						if(c == '\n') break;
 						str.push_back(c);
 					}
-					v = uconv(str);
+					v = str;
 					return true;
 				}
 				break;
@@ -231,7 +140,7 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 						if(c == '\n') break;
 						str.push_back(c);
 					}
-					v = uconv(str);
+					v = str;
 					return false;
 				}
 				break;
@@ -257,13 +166,13 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 		throw lyramilk::exception(D("redis(%s)错误：网络错误",addr.c_str()));
 	}
 
-	bool redis_client::exec(const lyramilk::data::var::array& cmd,lyramilk::data::var& ret)
+	bool redis_client::exec(const lyramilk::data::array& cmd,lyramilk::data::var& ret)
 	{
 		if(!isalive()){
 			reconnect();
 		}
-		lyramilk::data::var::array::const_iterator it = cmd.begin();
-		lyramilk::netio::socket_stream ss(*this);
+		lyramilk::data::array::const_iterator it = cmd.begin();
+		lyramilk::netio::socket_ostream ss(this);
 		ss << "*" << cmd.size() << "\r\n";
 		for(;it!=cmd.end();++it){
 			lyramilk::data::string str = it->str();
@@ -271,7 +180,8 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 			ss << str << "\r\n";
 		}
 		ss.flush();
-		bool suc = parse(ss,ret);
+		lyramilk::netio::socket_istream iss(this);
+		bool suc = parse(iss,ret);
 		if(listener)listener(addr,cmd,suc,ret);
 		return suc;
 	}
@@ -285,7 +195,7 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 
 	static void thread_redis_client_task(redis_client* p,redis_client_watch_handler h,void* args)
 	{
-		lyramilk::netio::socket_stream ss(*p);
+		lyramilk::netio::socket_istream ss(p);
 		while(true){
 			lyramilk::data::var v;
 			if(p->parse(ss,v)){
@@ -308,11 +218,11 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 		return nullptr;
 	}
 
-	bool redis_client::async_exec(const lyramilk::data::var::array& cmd,redis_client_watch_handler h,void* param,bool thread_join)
+	bool redis_client::async_exec(const lyramilk::data::array& cmd,redis_client_watch_handler h,void* param,bool thread_join)
 	{
 		{
-			lyramilk::data::var::array::const_iterator it = cmd.begin();
-			lyramilk::netio::socket_stream ss(*this);
+			lyramilk::data::array::const_iterator it = cmd.begin();
+			lyramilk::netio::socket_ostream ss(this);
 			ss << "*" << cmd.size() << "\r\n";
 			for(;it!=cmd.end();++it){
 				lyramilk::data::string str = it->str();
@@ -341,7 +251,7 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 	bool redis_client::is_ssdb()
 	{
 		if(t_unknow == type){
-			lyramilk::data::var::array ar;
+			lyramilk::data::array ar;
 			ar.push_back("info");
 			lyramilk::data::var v;
 			if(exec(ar,v)){
@@ -359,14 +269,14 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 		return t_ssdb == type;
 	}
 
-	bool redis_client::testcmd(lyramilk::data::string cmd)
+	bool redis_client::testcmd(const lyramilk::data::string& cmd)
 	{
 		std::map<lyramilk::data::string,bool>::iterator it = support_cmds.find(cmd);
 		if(it != support_cmds.end()){
 			return it->second;
 		}
 
-		lyramilk::data::var::array ar;
+		lyramilk::data::array ar;
 		ar.push_back(cmd);
 		lyramilk::data::var v;
 		if(exec(ar,v)){
@@ -375,7 +285,7 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 		}
 
 		lyramilk::data::string str = v.str();
-		if(str.find("ERR unknown command") == str.npos){
+		if(str.find("ERR unknown command") == str.npos && str.find("Unknown Command") == str.npos){
 			support_cmds[cmd] = true;
 			return true;
 		}
@@ -387,7 +297,7 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 	lyramilk::data::string redis_client::version()
 	{
 		if(!ver.empty()) return ver;
-		lyramilk::data::var::array ar;
+		lyramilk::data::array ar;
 		ar.push_back("info");
 		//ar.push_back("server");
 		lyramilk::data::var v;
@@ -408,12 +318,12 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 		return ver;
 	}
 
-	void redis_client::default_listener(const lyramilk::data::string& addr,const lyramilk::data::var::array& cmd,bool success,const lyramilk::data::var& ret)
+	void redis_client::default_listener(const lyramilk::data::string& addr,const lyramilk::data::array& cmd,bool success,const lyramilk::data::var& ret)
 	{
 		lyramilk::data::stringstream ss;
 
 		lyramilk::data::string logcmd;
-		lyramilk::data::var::array::const_iterator it = cmd.begin();
+		lyramilk::data::array::const_iterator it = cmd.begin();
 		for(;it!=cmd.end();++it){
 			logcmd += it->str() + ' ';
 		}

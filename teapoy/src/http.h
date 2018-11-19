@@ -83,8 +83,8 @@ namespace lyramilk{ namespace teapoy {namespace http{
 	{
 		request* req;
 
-		lyramilk::data::var::map _cookies;
-		lyramilk::data::var::map _params;
+		lyramilk::data::map _cookies;
+		lyramilk::data::map _params;
 
 		bool body_inited;
 		bool cookies_inited;
@@ -96,8 +96,8 @@ namespace lyramilk{ namespace teapoy {namespace http{
 		bool ok();
 		void invalid_params();
 
-		lyramilk::data::var::map& cookies();
-		lyramilk::data::var::map& params();
+		lyramilk::data::map& cookies();
+		lyramilk::data::map& params();
 
 		lyramilk::data::string get_url();
 		lyramilk::data::string rawuri;
@@ -154,8 +154,8 @@ namespace lyramilk{ namespace teapoy {namespace http{
 	class response
 	{
 	  protected:
-		lyramilk::data::var::map header;
-		lyramilk::data::var::map* cookies;
+		lyramilk::data::map header;
+		lyramilk::data::map* cookies;
 		std::ostream* os;
 	  public:
 		response();
@@ -163,7 +163,7 @@ namespace lyramilk{ namespace teapoy {namespace http{
 
 		virtual lyramilk::data::var& get(const lyramilk::data::string& key);
 		virtual void set(const lyramilk::data::string& key,const lyramilk::data::var& value);
-		virtual void init(std::ostream* os,lyramilk::data::var::map* cookies);
+		virtual void init(std::ostream* os,lyramilk::data::map* cookies);
 
 		virtual void send_header_and_body(lyramilk::data::uint32 code,const char* p,lyramilk::data::uint64 l) = 0;
 

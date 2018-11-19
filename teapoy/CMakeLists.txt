@@ -60,15 +60,14 @@ list(APPEND LIBS_DEPENDS -ldl)
 
 ## 搜索可选的外部依赖
 if(UNIX)
-	pkg_check_modules(LIBMILK libmilk)
+	pkg_check_modules(LIBMILK libmilk REQUIRED)
 	pkg_check_modules(LEVELDB leveldb)
 	pkg_check_modules(LIBCURL libcurl)
-	pkg_check_modules(PCRE libpcre)
+	pkg_check_modules(PCRE libpcre REQUIRED)
 	pkg_check_modules(ZLIB zlib)
 	pkg_check_modules(NGHTTP2 libnghttp2)
 	pkg_check_modules(CAVEDB cavedb)
-
-	pkg_search_module(JS17 mozjs-17.0)
+	pkg_check_modules(JS17 mozjs-17.0 REQUIRED)
 
 	check_include_file_cxx(mysql/mysql.h Z_HAVE_MYSQLDEVEL)
 	check_include_file_cxx(jpeglib.h Z_HAVE_LIBJPEG)
@@ -76,18 +75,6 @@ if(UNIX)
 	check_include_file_cxx(mongo/client/connpool.h Z_HAVE_LIBMONGO)
 	check_include_file_cxx(tinyxml.h Z_HAVE_TINYXML)
 	check_include_file_cxx(tinyxml2.h Z_HAVE_TINYXML2)
-endif()
-
-#if(NOT Z_HAVE_FILEDEVEL)
-#	message(FATAL_ERROR "require rpm package file-devel")
-#endif()
-
-#if(NOT Z_HAVE_MYSQLDEVEL)
-#	message(FATAL_ERROR "require rpm package mysql-devel")
-#endif()
-
-if(NOT PCRE_FOUND)
-	message(FATAL_ERROR "require rpm package pcre-devel")
 endif()
 
 if(LIBMILK_FOUND)

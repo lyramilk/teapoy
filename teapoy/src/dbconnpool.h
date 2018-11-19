@@ -28,7 +28,7 @@ namespace lyramilk{ namespace teapoy {
 
 	class mysql_clients:public lyramilk::threading::rentlist<lyramilk::teapoy::mysql_client>
 	{
-		lyramilk::data::var::array opts;
+		lyramilk::data::array opts;
 		lyramilk::data::string cnf;
 		lyramilk::data::var group;
 	  public:
@@ -40,7 +40,7 @@ namespace lyramilk{ namespace teapoy {
 	class mysql_clients_multiton:public lyramilk::util::multiton_factory<mysql_clients>
 	{
 		lyramilk::threading::mutex_spin lock;
-		lyramilk::data::var::map cfgmap;
+		lyramilk::data::map cfgmap;
 	  public:
 		static mysql_clients_multiton* instance();
 		virtual mysql_clients::ptr getobj(lyramilk::data::string id);
@@ -68,7 +68,7 @@ namespace lyramilk{ namespace teapoy {
 	{
 		lyramilk::threading::mutex_spin lock;
 
-		lyramilk::data::var::map cfgmap;
+		lyramilk::data::map cfgmap;
 	  public:
 		static redis_clients_multiton* instance();
 		virtual redis_clients::ptr getobj(lyramilk::data::string id);
@@ -104,7 +104,7 @@ namespace lyramilk{ namespace teapoy {
 	{
 		lyramilk::threading::mutex_spin lock;
 
-		lyramilk::data::var::map cfgmap;
+		lyramilk::data::map cfgmap;
 	  public:
 		static mongo_clients_multiton* instance();
 		virtual mongo_clients::ptr getobj(lyramilk::data::string id);
@@ -131,7 +131,7 @@ namespace lyramilk{ namespace teapoy {
 	{
 		lyramilk::threading::mutex_spin lock;
 
-		lyramilk::data::var::map cfgmap;
+		lyramilk::data::map cfgmap;
 	  public:
 		static filelogers_multiton* instance();
 		virtual filelogers* getobj(lyramilk::data::string id);

@@ -7,7 +7,7 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <libmilk/log.h>
-#include <libmilk/multilanguage.h>
+#include <libmilk/dict.h>
 #include <zlib.h>
 
 #include <unistd.h>
@@ -57,8 +57,8 @@ namespace lyramilk{ namespace teapoy { namespace web {
 				rawdir.push_back('/');
 				lyramilk::data::var indexs = env::get_config("web.index");
 				if(indexs.type() == lyramilk::data::var::t_array){
-					lyramilk::data::var::array& ar = indexs;
-					lyramilk::data::var::array::iterator it = ar.begin();
+					lyramilk::data::array& ar = indexs;
+					lyramilk::data::array::iterator it = ar.begin();
 					for(;it!=ar.end();++it){
 						rawfile = rawdir + it->str();
 						if(0 == ::stat(rawfile.c_str(),&st) && !(st.st_mode&S_IFDIR)){
@@ -144,8 +144,8 @@ namespace lyramilk{ namespace teapoy { namespace web {
 				rawdir.push_back('/');
 				lyramilk::data::var indexs = env::get_config("web.index");
 				if(indexs.type() == lyramilk::data::var::t_array){
-					lyramilk::data::var::array& ar = indexs;
-					lyramilk::data::var::array::iterator it = ar.begin();
+					lyramilk::data::array& ar = indexs;
+					lyramilk::data::array::iterator it = ar.begin();
 					for(;it!=ar.end();++it){
 						rawfile = rawdir + it->str();
 						if(0 == ::stat(rawfile.c_str(),&st) && !(st.st_mode&S_IFDIR)){

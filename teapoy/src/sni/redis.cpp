@@ -4,7 +4,7 @@
 #include <libmilk/var.h>
 #include <iostream>
 #include <libmilk/log.h>
-#include <libmilk/multilanguage.h>
+#include <libmilk/dict.h>
 #include <libmilk/factory.h>
 #include "redis.h"
 #include <queue>
@@ -27,7 +27,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 	}
 #endif
 
-	class redis
+	class redis:public lyramilk::script::sclass
 	{
 	  public:
 		lyramilk::log::logss log;
@@ -35,7 +35,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 		bool isreadonly;
 		redis_clients::ptr pp;
 
-		static void* ctr(const lyramilk::data::var::array& args)
+		static lyramilk::script::sclass* ctr(const lyramilk::data::array& args)
 		{
 			bool readonly = false;
 			redis_client* c = nullptr;
@@ -104,7 +104,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			}
 			return nullptr;
 		}
-		static void dtr(void* p)
+		static void dtr(lyramilk::script::sclass* p)
 		{
 			delete (redis*)p;
 		}
@@ -144,7 +144,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			isreadonly = b;
 		}
 
-		lyramilk::data::var exec(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var exec(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			lyramilk::data::var vret;
 			if(!c->exec(args,vret)){
@@ -154,17 +154,17 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			return vret;
 		}
 
-		lyramilk::data::var clear(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var clear(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			if(readonly()) throw lyramilk::exception(D("redis.%s：禁止向只读Redis实例写入数据",__FUNCTION__));
-			lyramilk::data::var::array cmd;
+			lyramilk::data::array cmd;
 			cmd.push_back("flushdb");
 			lyramilk::data::var vret;
 			if(!c->exec(cmd,vret)) return lyramilk::data::var::nil;
 			return vret;
 		}
 
-		lyramilk::data::var readonly(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var readonly(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			if(args.size() > 0){
 				MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_bool);
@@ -173,11 +173,11 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			return isreadonly;
 		}
 
-		lyramilk::data::var newid(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var newid(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			if(readonly()) throw lyramilk::exception(D("redis.%s：禁止向只读Redis实例写入数据",__FUNCTION__));
 			if(args.size() == 0){
-				lyramilk::data::var::array cmd;
+				lyramilk::data::array cmd;
 				cmd.reserve(2);
 				cmd.push_back("incr");
 				cmd.push_back("teapoy:auto_increment::");
@@ -187,7 +187,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			}
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			lyramilk::data::string skey = args[0];
-			lyramilk::data::var::array cmd;
+			lyramilk::data::array cmd;
 			cmd.reserve(2);
 			cmd.push_back("incr");
 			cmd.push_back("teapoy:auto_increment:" + skey);
@@ -196,15 +196,15 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			return vret;
 		}
 
-		lyramilk::data::var ok(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var ok(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			TODO();
 		}
 
-		lyramilk::data::var kvget(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var kvget(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
-			lyramilk::data::var::array cmd;
+			lyramilk::data::array cmd;
 			cmd.reserve(2);
 			cmd.push_back("get");
 			cmd.push_back(args[0]);
@@ -213,12 +213,12 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			return vret;
 		}
 
-		lyramilk::data::var kvset(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var kvset(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			if(readonly()) throw lyramilk::exception(D("redis.%s：禁止向只读Redis实例写入数据",__FUNCTION__));
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_str);
-			lyramilk::data::var::array cmd;
+			lyramilk::data::array cmd;
 			cmd.reserve(3);
 			cmd.push_back("set");
 			cmd.push_back(args[0]);
@@ -228,52 +228,52 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			return vret;
 		}
 
-		lyramilk::data::var kv(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var kv(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			lyramilk::data::string key = args[0];
 			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
 			
-			lyramilk::data::var::array ar;
+			lyramilk::data::array ar;
 			ar.reserve(2);
 			ar.push_back(lyramilk::data::var("redis",this));
 			ar.push_back(key);
 			return e->createobject("redis.kv",ar);
 		}
 
-		lyramilk::data::var hashmap(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var hashmap(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			lyramilk::data::string key = args[0];
 			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
 			
-			lyramilk::data::var::array ar;
+			lyramilk::data::array ar;
 			ar.reserve(2);
 			ar.push_back(lyramilk::data::var("redis",this));
 			ar.push_back(key);
 			return e->createobject("redis.hashmap",ar);
 		}
 
-		lyramilk::data::var zset(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var zset(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			lyramilk::data::string key = args[0];
 			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
 			
-			lyramilk::data::var::array ar;
+			lyramilk::data::array ar;
 			ar.reserve(2);
 			ar.push_back(lyramilk::data::var("redis",this));
 			ar.push_back(key);
 			return e->createobject("redis.zset",ar);
 		}
 
-		lyramilk::data::var list(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var list(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			lyramilk::data::string key = args[0];
 			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
 			
-			lyramilk::data::var::array ar;
+			lyramilk::data::array ar;
 			ar.reserve(2);
 			ar.push_back(lyramilk::data::var("redis",this));
 			ar.push_back(key);
@@ -283,7 +283,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 
 		struct redis_args
 		{
-			const lyramilk::data::var::array& param;
+			const lyramilk::data::array& param;
 			lyramilk::script::engine* eng;
 		};
 
@@ -372,9 +372,9 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			lyramilk::data::string addr = rets[2];
 			lyramilk::data::string cmd = lyramilk::teapoy::lowercase(rets[3]);
 			redis_args* p = (redis_args*)param;
-			lyramilk::data::var::array ar;
+			lyramilk::data::array ar;
 			ar.reserve(4);
-			lyramilk::data::var::array cmds;
+			lyramilk::data::array cmds;
 			cmds.reserve(rets.size() - 3);
 			cmds.push_back(cmd);
 			for(lyramilk::data::strings::iterator it = rets.begin()+4;it!=rets.end();++it){
@@ -388,7 +388,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			return true;
 		}
 
-		lyramilk::data::var monitor(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var monitor(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			if(c->is_ssdb()){
 				throw lyramilk::exception(D("ssdb不支持monitor操作"));
@@ -396,7 +396,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_user);
 			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
-			lyramilk::data::var::array ar;
+			lyramilk::data::array ar;
 			ar.push_back("monitor");
 			redis_args rparam = {param:args,eng:e};
 			c->async_exec(ar,callback_monitor,&rparam,true);
@@ -406,13 +406,13 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 		static bool callback_subscribe(bool success,const lyramilk::data::var& v,void* param)
 		{
 			redis_args* p = (redis_args*)param;
-			lyramilk::data::var::array ar;
+			lyramilk::data::array ar;
 			ar.push_back(v);
 			p->eng->call(p->param[1],ar);
 			return true;
 		}
 
-		lyramilk::data::var subscribe(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var subscribe(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			if(c->is_ssdb()){
 				throw lyramilk::exception(D("ssdb不支持subscribe操作"));
@@ -421,8 +421,8 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_array);
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_user);
 			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
-			const lyramilk::data::var::array& args0 = args[0];
-			lyramilk::data::var::array ar;
+			const lyramilk::data::array& args0 = args[0];
+			lyramilk::data::array ar;
 			ar.push_back("subscribe");
 			ar.insert(ar.end(),args0.begin(),args0.end());
 			redis_args rparam = {param:args,eng:e};
@@ -451,7 +451,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 		}
 	};
 
-	class redis_zset_iterator
+	class redis_zset_iterator:public lyramilk::script::sclass
 	{
 		lyramilk::log::logss log;
 		redis* predis;
@@ -467,11 +467,11 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 		bool reverse;
 		std::queue<std::pair<lyramilk::data::string,lyramilk::data::var> > dq;
 	  public:
-		static void* ctr(const lyramilk::data::var::array& args)
+		static lyramilk::script::sclass* ctr(const lyramilk::data::array& args)
 		{
 			return new redis_zset_iterator((redis*)args[0].userdata("redis"),args[1],args[2],args[3],args[4]);
 		}
-		static void dtr(void* p)
+		static void dtr(lyramilk::script::sclass* p)
 		{
 			delete (redis_zset_iterator*)p;
 		}
@@ -494,8 +494,8 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 		bool sync()
 		{
 			if(!dq.empty()) return true;
-			lyramilk::data::var::array cmd;
-			lyramilk::data::var::array cmd2;
+			lyramilk::data::array cmd;
+			lyramilk::data::array cmd2;
 			cmd.reserve(8);
 			cmd2.reserve(3);
 			if(this->reverse){
@@ -517,7 +517,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			cmd.push_back(unit);
 			lyramilk::data::var vret;
 			if(predis->c->exec(cmd,vret)){
-				lyramilk::data::var::array& ret = vret;
+				lyramilk::data::array& ret = vret;
 				for(std::size_t i=0;i<ret.size();i+=2){
 					lyramilk::data::string k = ret[i];
 					lyramilk::data::string s = ret[i+1];
@@ -556,7 +556,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			return false;
 		}
 
-		lyramilk::data::var ok(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var ok(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			if(cursor == this->start){
 				sync();
@@ -564,18 +564,18 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			return isok;
 		}
 
-		lyramilk::data::var value(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var value(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			return zset_item_key;
 		}
 
-		lyramilk::data::var score(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var score(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			return zset_item_score;
 		}
 
 
-		lyramilk::data::var next(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var next(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			isok = false;
 			if(dq.size() == 0 && !sync()) return false;
@@ -601,18 +601,18 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 	};
 
 
-	class redis_zset
+	class redis_zset:public lyramilk::script::sclass
 	{
 		lyramilk::log::logss log;
 		lyramilk::data::string key;
 		redis* predis;
 	  public:
-		static void* ctr(const lyramilk::data::var::array& args)
+		static lyramilk::script::sclass* ctr(const lyramilk::data::array& args)
 		{
 			assert(args.size() == 2);
 			return new redis_zset((redis*)args[0].userdata("redis"),args[1]);
 		}
-		static void dtr(void* p)
+		static void dtr(lyramilk::script::sclass* p)
 		{
 			delete (redis_zset*)p;
 		}
@@ -627,12 +627,12 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 		{
 		}
 
-		lyramilk::data::var getkey(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var getkey(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			return key;
 		}
 
-		lyramilk::data::var scan(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var scan(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			lyramilk::data::uint64 startof = 0;
 			lyramilk::data::uint64 unit = 20;
@@ -652,7 +652,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			}
 			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
 			
-			lyramilk::data::var::array ar;
+			lyramilk::data::array ar;
 			ar.reserve(5);
 			ar.push_back(lyramilk::data::var("redis",predis));
 			ar.push_back(key);
@@ -662,7 +662,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			return e->createobject("redis.zset.iterator",ar);
 		}
 
-		lyramilk::data::var rscan(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var rscan(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			lyramilk::data::uint64 startof = 0;
 			lyramilk::data::uint64 unit = 20;
@@ -681,7 +681,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 				unit = v;
 			}
 			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
-			lyramilk::data::var::array ar;
+			lyramilk::data::array ar;
 			ar.reserve(5);
 			ar.push_back(lyramilk::data::var("redis",predis));
 			ar.push_back(key);
@@ -691,7 +691,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			return e->createobject("redis.zset.iterator",ar);
 		}
 
-		lyramilk::data::var add(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var add(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			if(predis->readonly()) throw lyramilk::exception(D("redis.zset.%s：禁止向只读Redis实例写入数据",__FUNCTION__));
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_uint);
@@ -706,7 +706,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 				}
 			}
 
-			lyramilk::data::var::array cmd;
+			lyramilk::data::array cmd;
 			cmd.reserve(4);
 			cmd.push_back("zadd");
 			cmd.push_back(key);
@@ -717,12 +717,12 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			return vret;
 		}
 
-		lyramilk::data::var remove(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var remove(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			if(predis->readonly()) throw lyramilk::exception(D("redis.zset.%s：禁止向只读Redis实例写入数据",__FUNCTION__));
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			lyramilk::data::string str = args[0];
-			lyramilk::data::var::array cmd;
+			lyramilk::data::array cmd;
 			cmd.reserve(3);
 			cmd.push_back("zrem");
 			cmd.push_back(key);
@@ -732,9 +732,9 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			return vret;
 		}
 
-		lyramilk::data::var size(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var size(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
-			lyramilk::data::var::array cmd;
+			lyramilk::data::array cmd;
 			cmd.reserve(2);
 			cmd.push_back("zcard");
 			cmd.push_back(key);
@@ -743,10 +743,10 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			return vret;
 		}
 
-		lyramilk::data::var count(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var count(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			if(args.size() == 0){
-				lyramilk::data::var::array cmd;
+				lyramilk::data::array cmd;
 				cmd.reserve(4);
 				cmd.push_back("zcount");
 				cmd.push_back(key);
@@ -757,7 +757,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 				return vret;
 			}
 			if(args.size() == 1){
-				lyramilk::data::var::array cmd;
+				lyramilk::data::array cmd;
 				cmd.reserve(4);
 				cmd.push_back("zcount");
 				cmd.push_back(key);
@@ -767,7 +767,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 				if(!predis->c->exec(cmd,vret)) return lyramilk::data::var::nil;
 				return vret;
 			}
-			lyramilk::data::var::array cmd;
+			lyramilk::data::array cmd;
 			cmd.reserve(4);
 			cmd.push_back("zcount");
 			cmd.push_back(key);
@@ -778,11 +778,11 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			return vret;
 		}
 
-		lyramilk::data::var clear(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var clear(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			if(predis->readonly()) throw lyramilk::exception(D("redis.zset.%s：禁止向只读Redis实例写入数据",__FUNCTION__));
 			if(predis->is_ssdb()){
-				lyramilk::data::var::array cmd;
+				lyramilk::data::array cmd;
 				cmd.reserve(2);
 				cmd.push_back("zclear");
 				cmd.push_back(key);
@@ -790,7 +790,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 				if(!predis->c->exec(cmd,vret)) return lyramilk::data::var::nil;
 				return vret.size() > 0 && vret[0] > 0;
 			}
-			lyramilk::data::var::array cmd;
+			lyramilk::data::array cmd;
 			cmd.reserve(2);
 			cmd.push_back("del");
 			cmd.push_back(key);
@@ -799,10 +799,10 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			return vret > 0;
 		}
 
-		lyramilk::data::var score(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var score(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
-			lyramilk::data::var::array cmd;
+			lyramilk::data::array cmd;
 			cmd.reserve(3);
 			cmd.push_back("zscore");
 			cmd.push_back(key);
@@ -820,11 +820,11 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			return vret;
 		}
 
-		lyramilk::data::var at(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var at(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_int);
 			lyramilk::data::int64 i = args[0];
-			lyramilk::data::var::array cmd;
+			lyramilk::data::array cmd;
 			cmd.reserve(4);
 			cmd.push_back("zrange");
 			cmd.push_back(key);
@@ -838,10 +838,10 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			return lyramilk::data::var::nil;
 		}
 
-		lyramilk::data::var rank(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var rank(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
-			lyramilk::data::var::array cmd;
+			lyramilk::data::array cmd;
 			cmd.reserve(3);
 			cmd.push_back("zrank");
 			cmd.push_back(key);
@@ -851,7 +851,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			return vret;
 		}
 
-		lyramilk::data::var random(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var random(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_uint);
 			lyramilk::data::uint64 n = args[0];
@@ -860,7 +860,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			srand(__rdtsc());
 
 			std::map<lyramilk::data::uint64,bool> m;
-			lyramilk::data::var::array ret;
+			lyramilk::data::array ret;
 			if(max == 0) return ret;
 			ret.reserve(n);
 			lyramilk::data::int64 hp = 10;
@@ -873,7 +873,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 				lyramilk::data::uint64 index = rand() % max;
 				std::pair<std::map<lyramilk::data::uint64,bool>::iterator,bool> checkr = m.insert(std::pair<lyramilk::data::uint64,bool>(index,true));
 				if(checkr.second){
-					lyramilk::data::var::array ar;
+					lyramilk::data::array ar;
 					ar.push_back(index);
 					lyramilk::data::var v = at(ar,env);
 					if(v.type() == lyramilk::data::var::t_str){
@@ -881,7 +881,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 
 						if(e){
 							//转换函数
-							lyramilk::data::var::array ar;
+							lyramilk::data::array ar;
 							ar.push_back(str);
 							lyramilk::data::var v = e->call(args[1],ar);
 							lyramilk::data::var::vt t = v.type();
@@ -920,24 +920,24 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 		}
 	};
 
-	class redis_hmap_iterator
+	class redis_hmap_iterator:public lyramilk::script::sclass
 	{
 		lyramilk::log::logss log;
 		redis* predis;
 		lyramilk::data::string key;
 		lyramilk::data::string sitem_value;
-		lyramilk::data::var::array keys;
+		lyramilk::data::array keys;
 
 		bool isok;
 		bool reverse;
 		lyramilk::data::uint64 cursor;
 		lyramilk::data::uint64 start;
 	  public:
-		static void* ctr(const lyramilk::data::var::array& args)
+		static lyramilk::script::sclass* ctr(const lyramilk::data::array& args)
 		{
 			return new redis_hmap_iterator((redis*)args[0].userdata("redis"),args[1],args[2],args[3]);
 		}
-		static void dtr(void* p)
+		static void dtr(lyramilk::script::sclass* p)
 		{
 			delete (redis_hmap_iterator*)p;
 		}
@@ -959,7 +959,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 		bool sync()
 		{
 			if(!isok){
-				lyramilk::data::var::array cmd;
+				lyramilk::data::array cmd;
 				cmd.push_back("hkeys");
 				cmd.push_back(key);
 				lyramilk::data::var vret;
@@ -970,7 +970,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			return true;
 		}
 
-		lyramilk::data::var ok(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var ok(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			if(cursor == this->start && keys.empty()){
 				sync();
@@ -983,7 +983,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			return false;
 		}
 
-		lyramilk::data::var next(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var next(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			sitem_value.clear();
 			if(cursor < keys.size()){
@@ -996,15 +996,15 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			return false;
 		}
 
-		lyramilk::data::var item_key(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var item_key(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			return keys[reverse?(keys.size() - cursor - 1):cursor];
 		}
 
-		lyramilk::data::var item_value(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var item_value(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			if(sitem_value.empty()){
-				lyramilk::data::var::array cmd;
+				lyramilk::data::array cmd;
 				cmd.push_back("hget");
 				cmd.push_back(key);
 				cmd.push_back(keys[cursor]);
@@ -1027,7 +1027,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 		}
 	};
 
-	class redis_hmap_hscan_iterator
+	class redis_hmap_hscan_iterator:public lyramilk::script::sclass
 	{
 		lyramilk::log::logss log;
 		redis* predis;
@@ -1037,11 +1037,11 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 		std::queue<std::pair<lyramilk::data::string,lyramilk::data::string> > smap;
 		bool iscompleted;
 	  public:
-		static void* ctr(const lyramilk::data::var::array& args)
+		static lyramilk::script::sclass* ctr(const lyramilk::data::array& args)
 		{
 			return new redis_hmap_hscan_iterator((redis*)args[0].userdata("redis"),args[1],args[2]);
 		}
-		static void dtr(void* p)
+		static void dtr(lyramilk::script::sclass* p)
 		{
 			delete (redis_hmap_hscan_iterator*)p;
 		}
@@ -1064,19 +1064,19 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			do{
 				if(iscompleted) return !smap.empty();
 				if(smap.empty()){
-					lyramilk::data::var::array cmd;
+					lyramilk::data::array cmd;
 					cmd.push_back("hscan");
 					cmd.push_back(key);
 					cmd.push_back(cursor);
 					lyramilk::data::var vret;
 					if(!predis->c->exec(cmd,vret)) return false;
 					if(vret.type() != lyramilk::data::var::t_array) return false;
-					lyramilk::data::var::array& ar = vret;
+					lyramilk::data::array& ar = vret;
 					cursor = ar[0];
 					if(cursor == 0){
 						iscompleted = true;
 					}
-					lyramilk::data::var::array& data = ar[1];
+					lyramilk::data::array& data = ar[1];
 
 					if(data.size() % 2 != 0) return false;
 
@@ -1093,12 +1093,12 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			return false;
 		}
 
-		lyramilk::data::var ok(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var ok(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			return sync();
 		}
 
-		lyramilk::data::var next(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var next(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			if(sync()){
 				smap.pop();
@@ -1106,13 +1106,13 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			return sync();
 		}
 
-		lyramilk::data::var item_key(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var item_key(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			if(!sync()) return lyramilk::data::var::nil;
 			return smap.front().first;
 		}
 
-		lyramilk::data::var item_value(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var item_value(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			if(!sync()) return lyramilk::data::var::nil;
 			return smap.front().second;
@@ -1130,17 +1130,17 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 		}
 	};
 
-	class redis_hmap
+	class redis_hmap:public lyramilk::script::sclass
 	{
 		lyramilk::log::logss log;
 		lyramilk::data::string key;
 		redis* predis;
 	  public:
-		static void* ctr(const lyramilk::data::var::array& args)
+		static lyramilk::script::sclass* ctr(const lyramilk::data::array& args)
 		{
 			return new redis_hmap((redis*)args[0].userdata("redis"),args[1]);
 		}
-		static void dtr(void* p)
+		static void dtr(lyramilk::script::sclass* p)
 		{
 			delete (redis_hmap*)p;
 		}
@@ -1155,12 +1155,12 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 		{
 		}
 
-		lyramilk::data::var getkey(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var getkey(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			return key;
 		}
 
-		lyramilk::data::var scan(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var scan(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			lyramilk::data::uint64 startof = 0;
 			if(args.size() > 0){
@@ -1173,7 +1173,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
 			//if(startof == 0 && !predis->is_ssdb() && predis->c->version() >= "2.8.0"){
 			if(startof == 0 && !predis->is_ssdb() && predis->c->version() >= "2.8.0" && predis->c->testcmd("hscan")){
-				lyramilk::data::var::array ar;
+				lyramilk::data::array ar;
 				ar.reserve(4);
 				ar.push_back(lyramilk::data::var("redis",predis));
 				ar.push_back(key);
@@ -1181,7 +1181,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 				return e->createobject("redis.hashmap.hscan_iterator",ar);
 			}
 
-			lyramilk::data::var::array ar;
+			lyramilk::data::array ar;
 			ar.reserve(4);
 			ar.push_back(lyramilk::data::var("redis",predis));
 			ar.push_back(key);
@@ -1190,10 +1190,10 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			return e->createobject("redis.hashmap.iterator",ar);
 		}
 
-		lyramilk::data::var get(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var get(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
-			lyramilk::data::var::array cmd;
+			lyramilk::data::array cmd;
 			cmd.reserve(3);
 			cmd.push_back("hget");
 			cmd.push_back(key);
@@ -1203,10 +1203,10 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			return vret;
 		}
 
-		lyramilk::data::var gets(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var gets(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
-			lyramilk::data::var::array cmd;
+			lyramilk::data::array cmd;
 			cmd.reserve(2 + args.size());
 			cmd.push_back("hmget");
 			cmd.push_back(key);
@@ -1215,16 +1215,15 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			}
 			lyramilk::data::var vret;
 			if(!predis->c->exec(cmd,vret)) return lyramilk::data::var::nil;
-COUT << vret << std::endl;
 			return vret;
 		}
 
-		lyramilk::data::var set(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var set(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			if(predis->readonly()) throw lyramilk::exception(D("redis.hashmap.%s：禁止向只读Redis实例写入数据",__FUNCTION__));
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_str);
-			lyramilk::data::var::array cmd;
+			lyramilk::data::array cmd;
 			cmd.reserve(4);
 			cmd.push_back("hset");
 			cmd.push_back(key);
@@ -1235,11 +1234,11 @@ COUT << vret << std::endl;
 			return vret;
 		}
 
-		lyramilk::data::var remove(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var remove(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			if(predis->readonly()) throw lyramilk::exception(D("redis.hashmap.%s：禁止向只读Redis实例写入数据",__FUNCTION__));
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
-			lyramilk::data::var::array cmd;
+			lyramilk::data::array cmd;
 			cmd.reserve(3);
 			cmd.push_back("hdel");
 			cmd.push_back(key);
@@ -1249,9 +1248,9 @@ COUT << vret << std::endl;
 			return vret == 1;
 		}
 
-		lyramilk::data::var size(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var size(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
-			lyramilk::data::var::array cmd;
+			lyramilk::data::array cmd;
 			cmd.reserve(2);
 			cmd.push_back("hlen");
 			cmd.push_back(key);
@@ -1260,10 +1259,10 @@ COUT << vret << std::endl;
 			return vret;
 		}
 
-		lyramilk::data::var exist(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var exist(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
-			lyramilk::data::var::array cmd;
+			lyramilk::data::array cmd;
 			cmd.reserve(3);
 			cmd.push_back("hexists");
 			cmd.push_back(key);
@@ -1273,11 +1272,11 @@ COUT << vret << std::endl;
 			return vret;
 		}
 
-		lyramilk::data::var incr(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var incr(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_int);
-			lyramilk::data::var::array cmd;
+			lyramilk::data::array cmd;
 			cmd.reserve(4);
 			cmd.push_back("hincrby");
 			cmd.push_back(key);
@@ -1288,12 +1287,12 @@ COUT << vret << std::endl;
 			return vret;
 		}
 
-		lyramilk::data::var decr(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var decr(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_int);
 			lyramilk::data::int64 v = args[1];
-			lyramilk::data::var::array cmd;
+			lyramilk::data::array cmd;
 			cmd.reserve(4);
 			cmd.push_back("hincrby");
 			cmd.push_back(key);
@@ -1304,11 +1303,11 @@ COUT << vret << std::endl;
 			return vret;
 		}
 
-		lyramilk::data::var clear(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var clear(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			if(predis->readonly()) throw lyramilk::exception(D("redis.hashmap.%s：禁止向只读Redis实例写入数据",__FUNCTION__));
 			if(predis->is_ssdb()){
-				lyramilk::data::var::array cmd;
+				lyramilk::data::array cmd;
 				cmd.reserve(2);
 				cmd.push_back("hclear");
 				cmd.push_back(key);
@@ -1316,7 +1315,7 @@ COUT << vret << std::endl;
 				if(!predis->c->exec(cmd,vret)) return lyramilk::data::var::nil;
 				return vret.size() > 0 && vret[0] > 0;
 			}
-			lyramilk::data::var::array cmd;
+			lyramilk::data::array cmd;
 			cmd.reserve(2);
 			cmd.push_back("del");
 			cmd.push_back(key);
@@ -1346,7 +1345,7 @@ COUT << vret << std::endl;
 
 	///////////////////////////////
 
-	class redis_list_iterator
+	class redis_list_iterator:public lyramilk::script::sclass
 	{
 		lyramilk::log::logss log;
 		lyramilk::data::string key;
@@ -1359,11 +1358,11 @@ COUT << vret << std::endl;
 		lyramilk::data::int64 start;
 		lyramilk::data::string list_item_value;
 	  public:
-		static void* ctr(const lyramilk::data::var::array& args)
+		static lyramilk::script::sclass* ctr(const lyramilk::data::array& args)
 		{
 			return new redis_list_iterator((redis*)args[0].userdata("redis"),args[1],args[2],args[3]);
 		}
-		static void dtr(void* p)
+		static void dtr(lyramilk::script::sclass* p)
 		{
 			delete (redis_list_iterator*)p;
 		}
@@ -1385,7 +1384,7 @@ COUT << vret << std::endl;
 		bool sync()
 		{
 			if(!dq.empty()) return true;
-			lyramilk::data::var::array cmd;
+			lyramilk::data::array cmd;
 			cmd.reserve(4);
 			if(this->reverse){
 				cmd.push_back("lrange");
@@ -1400,7 +1399,7 @@ COUT << vret << std::endl;
 			}
 			lyramilk::data::var vret;
 			if(predis->c->exec(cmd,vret)){
-				lyramilk::data::var::array& ret = vret;
+				lyramilk::data::array& ret = vret;
 				for(std::size_t i=0;i<ret.size();++i){
 					lyramilk::data::string v = ret[i];
 					dq.push_back(v);
@@ -1424,7 +1423,7 @@ COUT << vret << std::endl;
 			return false;
 		}
 
-		lyramilk::data::var ok(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var ok(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			if(cursor == start){
 				sync();
@@ -1433,12 +1432,12 @@ COUT << vret << std::endl;
 
 		}
 
-		lyramilk::data::var value(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var value(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			return list_item_value;
 		}
 
-		lyramilk::data::var next(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var next(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			isok = false;
 			if(dq.size() == 0 && !sync()) return false;
@@ -1464,17 +1463,17 @@ COUT << vret << std::endl;
 		}
 	};
 
-	class redis_list
+	class redis_list:public lyramilk::script::sclass
 	{
 		lyramilk::log::logss log;
 		lyramilk::data::string key;
 		redis* predis;
 	  public:
-		static void* ctr(const lyramilk::data::var::array& args)
+		static lyramilk::script::sclass* ctr(const lyramilk::data::array& args)
 		{
 			return new redis_list((redis*)args[0].userdata("redis"),args[1]);
 		}
-		static void dtr(void* p)
+		static void dtr(lyramilk::script::sclass* p)
 		{
 			delete (redis_list*)p;
 		}
@@ -1489,16 +1488,16 @@ COUT << vret << std::endl;
 		{
 		}
 
-		lyramilk::data::var getkey(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var getkey(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			return key;
 		}
 
-		lyramilk::data::var push_back(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var push_back(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			if(predis->readonly()) throw lyramilk::exception(D("redis.list.%s：禁止向只读Redis实例写入数据",__FUNCTION__));
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
-			lyramilk::data::var::array cmd;
+			lyramilk::data::array cmd;
 			cmd.reserve(3);
 			cmd.push_back("rpush");
 			cmd.push_back(key);
@@ -1508,11 +1507,11 @@ COUT << vret << std::endl;
 			return vret;
 		}
 
-		lyramilk::data::var push_front(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var push_front(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			if(predis->readonly()) throw lyramilk::exception(D("redis.list.%s：禁止向只读Redis实例写入数据",__FUNCTION__));
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
-			lyramilk::data::var::array cmd;
+			lyramilk::data::array cmd;
 			cmd.reserve(3);
 			cmd.push_back("lpush");
 			cmd.push_back(key);
@@ -1522,10 +1521,10 @@ COUT << vret << std::endl;
 			return vret;
 		}
 
-		lyramilk::data::var pop_back(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var pop_back(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			if(predis->readonly()) throw lyramilk::exception(D("redis.list.%s：禁止向只读Redis实例写入数据",__FUNCTION__));
-			lyramilk::data::var::array cmd;
+			lyramilk::data::array cmd;
 			cmd.reserve(2);
 			cmd.push_back("rpop");
 			cmd.push_back(key);
@@ -1534,10 +1533,10 @@ COUT << vret << std::endl;
 			return vret;
 		}
 
-		lyramilk::data::var pop_front(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var pop_front(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			if(predis->readonly()) throw lyramilk::exception(D("redis.list.%s：禁止向只读Redis实例写入数据",__FUNCTION__));
-			lyramilk::data::var::array cmd;
+			lyramilk::data::array cmd;
 			cmd.reserve(2);
 			cmd.push_back("lpop");
 			cmd.push_back(key);
@@ -1546,9 +1545,9 @@ COUT << vret << std::endl;
 			return vret;
 		}
 
-		lyramilk::data::var front(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var front(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
-			lyramilk::data::var::array cmd;
+			lyramilk::data::array cmd;
 			cmd.reserve(3);
 			cmd.push_back("lindex");
 			cmd.push_back(key);
@@ -1558,9 +1557,9 @@ COUT << vret << std::endl;
 			return vret;
 		}
 
-		lyramilk::data::var back(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var back(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
-			lyramilk::data::var::array cmd;
+			lyramilk::data::array cmd;
 			cmd.reserve(3);
 			cmd.push_back("lindex");
 			cmd.push_back(key);
@@ -1570,10 +1569,10 @@ COUT << vret << std::endl;
 			return vret;
 		}
 
-		lyramilk::data::var at(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var at(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_int);
-			lyramilk::data::var::array cmd;
+			lyramilk::data::array cmd;
 			cmd.reserve(3);
 			cmd.push_back("lindex");
 			cmd.push_back(key);
@@ -1583,9 +1582,9 @@ COUT << vret << std::endl;
 			return vret;
 		}
 
-		lyramilk::data::var size(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var size(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
-			lyramilk::data::var::array cmd;
+			lyramilk::data::array cmd;
 			cmd.reserve(2);
 			cmd.push_back("llen");
 			cmd.push_back(key);
@@ -1594,7 +1593,7 @@ COUT << vret << std::endl;
 			return vret;
 		}
 
-		lyramilk::data::var scan(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var scan(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			lyramilk::data::uint64 startof = 0;
 			if(args.size() > 0){
@@ -1606,7 +1605,7 @@ COUT << vret << std::endl;
 			}
 			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
 			
-			lyramilk::data::var::array ar;
+			lyramilk::data::array ar;
 			ar.reserve(4);
 			ar.push_back(lyramilk::data::var("redis",predis));
 			ar.push_back(key);
@@ -1615,7 +1614,7 @@ COUT << vret << std::endl;
 			return e->createobject("redis.list.iterator",ar);
 		}
 
-		lyramilk::data::var rscan(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var rscan(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			lyramilk::data::uint64 startof = 0;
 			if(args.size() > 0){
@@ -1627,7 +1626,7 @@ COUT << vret << std::endl;
 			}
 			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
 			
-			lyramilk::data::var::array ar;
+			lyramilk::data::array ar;
 			ar.reserve(4);
 			ar.push_back(lyramilk::data::var("redis",predis));
 			ar.push_back(key);
@@ -1636,11 +1635,11 @@ COUT << vret << std::endl;
 			return e->createobject("redis.list.iterator",ar);
 		}
 
-		lyramilk::data::var clear(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var clear(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			if(predis->readonly()) throw lyramilk::exception(D("redis.list.%s：禁止向只读Redis实例写入数据",__FUNCTION__));
 			if(predis->is_ssdb()){
-				lyramilk::data::var::array cmd;
+				lyramilk::data::array cmd;
 				cmd.reserve(2);
 				cmd.push_back("qclear");
 				cmd.push_back(key);
@@ -1649,7 +1648,7 @@ COUT << vret << std::endl;
 				return vret.size() > 0 && vret[0] > 0;
 			}
 
-			lyramilk::data::var::array cmd;
+			lyramilk::data::array cmd;
 			cmd.reserve(2);
 			cmd.push_back("del");
 			cmd.push_back(key);
@@ -1658,7 +1657,7 @@ COUT << vret << std::endl;
 			return vret > 0;
 		}
 
-		lyramilk::data::var random(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var random(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_uint);
 			lyramilk::data::uint64 n = args[0];
@@ -1667,7 +1666,7 @@ COUT << vret << std::endl;
 			srand(__rdtsc());
 
 			std::map<lyramilk::data::uint64,bool> m;
-			lyramilk::data::var::array ret;
+			lyramilk::data::array ret;
 			if(max == 0) return ret;
 			ret.reserve(n);
 			lyramilk::data::int64 hp = 10;
@@ -1680,7 +1679,7 @@ COUT << vret << std::endl;
 				lyramilk::data::uint64 index = rand() % max;
 				std::pair<std::map<lyramilk::data::uint64,bool>::iterator,bool> checkr = m.insert(std::pair<lyramilk::data::uint64,bool>(index,true));
 				if(checkr.second){
-					lyramilk::data::var::array ar;
+					lyramilk::data::array ar;
 					ar.push_back(index);
 					lyramilk::data::var v = at(ar,env);
 					if(v.type() == lyramilk::data::var::t_str){
@@ -1688,7 +1687,7 @@ COUT << vret << std::endl;
 
 						if(e){
 							//转换函数
-							lyramilk::data::var::array ar;
+							lyramilk::data::array ar;
 							ar.push_back(str);
 							lyramilk::data::var v = e->call(args[1],ar);
 							lyramilk::data::var::vt t = v.type();
@@ -1729,17 +1728,17 @@ COUT << vret << std::endl;
 		}
 	};
 
-	class redis_kv
+	class redis_kv:public lyramilk::script::sclass
 	{
 		lyramilk::log::logss log;
 		lyramilk::data::string key;
 		redis* predis;
 	  public:
-		static void* ctr(const lyramilk::data::var::array& args)
+		static lyramilk::script::sclass* ctr(const lyramilk::data::array& args)
 		{
 			return new redis_kv((redis*)args[0].userdata("redis"),args[1]);
 		}
-		static void dtr(void* p)
+		static void dtr(lyramilk::script::sclass* p)
 		{
 			delete (redis_kv*)p;
 		}
@@ -1754,14 +1753,14 @@ COUT << vret << std::endl;
 		{
 		}
 
-		lyramilk::data::var getkey(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var getkey(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			return key;
 		}
 
-		lyramilk::data::var get(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var get(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
-			lyramilk::data::var::array cmd;
+			lyramilk::data::array cmd;
 			cmd.reserve(2);
 			cmd.push_back("get");
 			cmd.push_back(key);
@@ -1770,11 +1769,11 @@ COUT << vret << std::endl;
 			return vret;
 		}
 
-		lyramilk::data::var set(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var set(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			if(predis->readonly()) throw lyramilk::exception(D("redis.kv.%s：禁止向只读Redis实例写入数据",__FUNCTION__));
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
-			lyramilk::data::var::array cmd;
+			lyramilk::data::array cmd;
 			cmd.reserve(3);
 			cmd.push_back("set");
 			cmd.push_back(key);
@@ -1784,10 +1783,10 @@ COUT << vret << std::endl;
 			return vret;
 		}
 
-		lyramilk::data::var incr(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var incr(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			if(predis->readonly()) throw lyramilk::exception(D("redis.kv.%s：禁止向只读Redis实例写入数据",__FUNCTION__));
-			lyramilk::data::var::array cmd;
+			lyramilk::data::array cmd;
 			cmd.reserve(2);
 			cmd.push_back("incr");
 			cmd.push_back(key);
@@ -1796,10 +1795,10 @@ COUT << vret << std::endl;
 			return vret;
 		}
 
-		lyramilk::data::var decr(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var decr(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			if(predis->readonly()) throw lyramilk::exception(D("redis.kv.%s：禁止向只读Redis实例写入数据",__FUNCTION__));
-			lyramilk::data::var::array cmd;
+			lyramilk::data::array cmd;
 			cmd.reserve(2);
 			cmd.push_back("decr");
 			cmd.push_back(key);
@@ -1808,10 +1807,10 @@ COUT << vret << std::endl;
 			return vret;
 		}
 
-		lyramilk::data::var clear(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var clear(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			if(predis->readonly()) throw lyramilk::exception(D("redis.kv.%s：禁止向只读Redis实例写入数据",__FUNCTION__));
-			lyramilk::data::var::array cmd;
+			lyramilk::data::array cmd;
 			cmd.reserve(2);
 			cmd.push_back("del");
 			cmd.push_back(key);
