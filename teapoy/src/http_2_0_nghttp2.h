@@ -11,10 +11,10 @@
 
 namespace lyramilk{ namespace teapoy {
 
-	class http_2_0:public httpchannel
+	class http_2_0:public httpadapter
 	{
 	  protected:
-		bool hasdata;
+		bool closeconnect;
 		int32_t stream_id;
 		nghttp2_session *h2_session;
 		static nghttp2_session_callbacks* get_nghttp2_callbacks();
@@ -28,7 +28,7 @@ namespace lyramilk{ namespace teapoy {
 		static int on_data_chunk_recv_callback(nghttp2_session *session,uint8_t flags, int32_t stream_id,const uint8_t *data, size_t len,void *user_data);
 		static ssize_t data_prd_read_callback(nghttp2_session *session, int32_t stream_id, uint8_t *buf, size_t length,uint32_t *data_flags, nghttp2_data_source *source, void *user_data);
 	  public:
-		http_2_0();
+		http_2_0(std::ostream& oss);
 		virtual ~http_2_0();
 
 		virtual void dtr();
@@ -36,10 +36,18 @@ namespace lyramilk{ namespace teapoy {
 		virtual bool oninit(std::ostream& os);
 		virtual bool onrequest(const char* cache,int size,std::ostream& os);
 
+		virtual bool reset();
+		virtual bool call();
+
+		virtual bool send_bodydata(httpresponse* response,const char* p,lyramilk::data::uint32 l);
+		virtual bool send_header_with_chunk(httpresponse* response,lyramilk::data::uint32 code);
+		virtual bool send_header_with_length(httpresponse* response,lyramilk::data::uint32 code,lyramilk::data::uint64 content_length);
 	  public:
-		std::stringstream oss;
+		lyramilk::data::stringdict response_header;
+		lyramilk::data::strings response_cookies;
+		std::stringstream response_body;
 	  public:
-		static httpchannel_creater proto_info;
+		static httpadapter_creater proto_info;
 	 
 	};
 

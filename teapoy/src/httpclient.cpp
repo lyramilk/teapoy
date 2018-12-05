@@ -1,38 +1,12 @@
 #include "httpclient.h"
+#include "stringutil.h"
+
 #include <libmilk/log.h>
-#include <libmilk/multilanguage.h>
+#include <libmilk/dict.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <libmilk/codes.h>
-
-
-
-
-#include <sys/epoll.h>
-#include <sys/poll.h>
-
-#include <sys/ioctl.h>
-#include <sys/socket.h>
-#include <unistd.h>
-#include <arpa/inet.h>
-#include <netdb.h>
-#include <errno.h>
 #include <string.h>
-#include <cassert>
-
-#include <iostream>
-#include <streambuf>
-
-#ifdef OPENSSL_FOUND
-	#include <openssl/bio.h>
-	#include <openssl/crypto.h>
-	#include <openssl/evp.h>
-	#include <openssl/x509.h>
-	#include <openssl/x509v3.h>
-	#include <openssl/ssl.h>
-	#include <openssl/err.h>
-	#include <string.h>
-#endif
 
 
 
@@ -92,7 +66,7 @@ COUT << "raw=" << rawurl << ",scheme=" << scheme << ",host=" << host << ",port="
 	bool httpclient::get(const lyramilk::data::stringdict& headers)
 	{
 		lyramilk::data::stringstream ss;
-		ss <<	"GET " << url << " HTTP/1.0\r\n"
+		ss <<	"GET " << url << " HTTP/1.1\r\n"
 				"Content-Length: 0\r\n"
 				"Host: " << host << "\r\n"
 				"User-Agent: " "Teapoy/" TEAPOY_VERSION "\r\n";
@@ -116,16 +90,13 @@ COUT << "raw=" << rawurl << ",scheme=" << scheme << ",host=" << host << ",port="
 
 	int httpclient::get_response(lyramilk::data::stringdict* headers,lyramilk::data::string* body)
 	{
-		lyramilk::data::stringdict& h = *headers;
-		lyramilk::data::string& b = *body;
+		lyramilk::data::stringdict& response_headers = *headers;
 
-
-
-		lyramilk::netio::socket_stream ss(*this);
-		lyramilk::data::string request_header;
+		lyramilk::netio::socket_istream iss(this);
+		lyramilk::data::string response_header_str;
 		int parse_status = 0;
-		while(ss.good() && parse_status<4 ){
-			char c = ss.get();
+		while(iss.good() && parse_status<4 ){
+			char c = iss.get();
 
 			switch(parse_status){
 			  case 0:
@@ -157,18 +128,162 @@ COUT << "raw=" << rawurl << ",scheme=" << scheme << ",host=" << host << ",port="
 				}
 				break;
 			};
-			request_header.push_back(c);
+			response_header_str.push_back(c);
 		}
-		COUT << request_header << std::endl;
-		return 200;
+COUT << response_header_str << std::endl;
+		lyramilk::data::strings vheader = lyramilk::teapoy::split(response_header_str,"\r\n");
+
+		{
+			// 解析http头
+			lyramilk::data::strings::iterator it = vheader.begin();
+			lyramilk::data::string* laststr = nullptr;
+
+			if(it!=vheader.end()){
+				lyramilk::data::strings response_caption = lyramilk::teapoy::split(*it," ");
+				if(response_caption.size() == 3){
+					response_headers[":version"] = response_caption[0];
+					response_headers[":status"] = response_caption[1];
+				}
+			}
+
+			for(++it;it!=vheader.end();++it){
+				std::size_t pos = it->find_first_of(":");
+				if(pos != it->npos){
+					lyramilk::data::string key = lyramilk::teapoy::lowercase(lyramilk::teapoy::trim(it->substr(0,pos)," \t\r\n"));
+
+					lyramilk::data::string value = lyramilk::teapoy::trim(it->substr(pos + 1)," \t\r\n");
+					if(!key.empty() && !value.empty()){
+						laststr = &(response_headers[key] = value);
+					}
+				}else{
+					if(laststr){
+						(*laststr) += *it;
+					}
+				}
+			}
+		}
+
+		{
+			// 解析body
+			lyramilk::data::stringdict::iterator it = response_headers.find("content-length");
+			if(it!=response_headers.end()){
+				char* p;
+				lyramilk::data::int64 cl = strtoull(it->second.c_str(),&p,10);
+
+				while(iss.good() && cl > 0){
+					char buff[4096];
+					iss.read(buff,std::min((lyramilk::data::int64)sizeof(buff),cl));
+
+					lyramilk::data::int64 gc = iss.gcount();
+					if(gc > 0){
+						if(cl > gc){
+							cl -= gc;
+							body->append(buff,gc);
+						}else{
+							body->append(buff,cl);
+							return atoi(response_headers[":status"].c_str());
+						}
+					}
+				}
+
+				return atoi(response_headers[":status"].c_str());
+			}
+
+			it = response_headers.find("transfer-encoding");
+			if(it!=response_headers.end() && it->second == "chunked"){
+				lyramilk::data::string cls;
+
+				while(iss.good()){
+					cls.clear();
+					char c;
+					do{
+						c = iss.get();
+						cls.push_back(c);
+					}while(c != '\n');
+					char* p;
+					lyramilk::data::int64 cl = strtoull(cls.c_str(),&p,16);
+					if(cl == 0) break;
+					char buff[4096];
+					if(cl > 4096){
+						while(cl > 0){
+							iss.read(buff,std::min(4096ll,cl));
+							lyramilk::data::int64 gc = iss.gcount();
+							cl -= gc;
+							body->append(buff,gc);
+						}
+					}else{
+						iss.read(buff,cl);
+						lyramilk::data::int64 gc = iss.gcount();
+						cl -= gc;
+						body->append(buff,gc);
+					}
+
+					iss.get();
+					iss.get();
+				}
+				return atoi(response_headers[":status"].c_str());
+			}
+
+			it = response_headers.find("connection");
+			if(it!=response_headers.end() && it->second == "close"){
+				while(iss){
+					char buff[4096];
+					iss.read(buff,sizeof(buff));
+					body->append(buff,iss.gcount());
+				}
+				return atoi(response_headers[":status"].c_str());
+			}
+
+		}
+		return 404;
 	}
 
-	lyramilk::data::string httpclient::rcall(const char* url0,const lyramilk::data::stringdict& params,int timeout_msec)
+	lyramilk::data::string httpclient::rcall(const char* url0,int timeout_msec)
 	{
-		lyramilk::data::string url = makeurl(url0,params);
-
 		httpclient c;
-		c.open(url);
+		c.open(url0);
+
+		lyramilk::data::stringdict request_headers;
+		if(c.get(request_headers) && c.wait_response()){
+			lyramilk::data::stringdict response_headers;
+			lyramilk::data::string response_body;
+			lyramilk::data::string response_body_utf8;
+
+			int code = c.get_response(&response_headers,&response_body);
+			if(code == 200){
+				lyramilk::data::string& v = response_headers["content-type"]; 
+				lyramilk::data::strings vs = lyramilk::teapoy::split(v,";");
+				if(vs.size() == 2){
+					if(vs[0].find("text/") != vs[0].npos){
+
+						std::size_t pos = vs[1].find("charset=");
+						if(pos != vs[1].npos){
+							lyramilk::data::string charset = lyramilk::teapoy::trim(vs[1].substr(9)," \t\r\n");
+							try{
+								response_body_utf8 = lyramilk::data::iconv(response_body,charset,"utf8");
+							}catch(std::exception&e){
+								response_body_utf8 = response_body;
+							}
+							if(response_body_utf8.empty()){
+								response_body_utf8 = response_body;
+							}
+						}
+					}
+				}else{
+					response_body_utf8 = response_body;
+				}
+
+				return response_body_utf8;
+			}
+		}
+
+		return "";
+	}
+
+	lyramilk::data::chunk httpclient::rcallb(const char* url0,int timeout_msec)
+	{
+		httpclient c;
+		c.open(url0);
 
 		lyramilk::data::stringdict request_headers;
 		if(c.get(request_headers) && c.wait_response()){
@@ -177,17 +292,11 @@ COUT << "raw=" << rawurl << ",scheme=" << scheme << ",host=" << host << ",port="
 
 			int code = c.get_response(&response_headers,&response_body);
 			if(code == 200){
-				return response_body;
+				return lyramilk::data::chunk((const unsigned char*)response_body.c_str(),response_body.size());
 			}
 		}
 
-		return "";
-	}
-
-	lyramilk::data::chunk httpclient::rcallb(const char* url0,const lyramilk::data::stringdict& params,int timeout_msec)
-	{
-		lyramilk::data::string url = makeurl(url0,params);
-		TODO();
+		return lyramilk::data::chunk();
 	}
 
 
@@ -210,6 +319,29 @@ COUT << "raw=" << rawurl << ",scheme=" << scheme << ",host=" << host << ",port="
 				ssurl << "&";
 			}
 			ssurl << urlcomponent->encode(it->first) << "=" << urlcomponent->encode(it->second);
+		}
+		return ssurl.str();
+	}
+
+	lyramilk::data::string httpclient::makeurl(const char* url,const lyramilk::data::map& params)
+	{
+		static lyramilk::data::coding* urlcomponent = lyramilk::data::codes::instance()->getcoder("urlcomponent");
+		lyramilk::data::stringstream ssurl;
+		ssurl << url;
+		if(strchr(url,'?') == nullptr){
+			ssurl << "?";
+		}else{
+			ssurl << "&";
+		}
+		bool firstparam = true;
+		lyramilk::data::map::const_iterator it = params.begin();
+		for(;it!=params.end();++it){
+			if(firstparam){
+				firstparam = false;
+			}else{
+				ssurl << "&";
+			}
+			ssurl << urlcomponent->encode(it->first) << "=" << urlcomponent->encode(it->second.str());
 		}
 		return ssurl.str();
 	}

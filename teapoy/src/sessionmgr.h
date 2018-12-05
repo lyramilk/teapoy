@@ -44,7 +44,7 @@ namespace lyramilk{ namespace teapoy {
 		httpsession_manager();
 	  	virtual ~httpsession_manager();
 
-		virtual bool init(const lyramilk::data::var::map& info) = 0;
+		virtual bool init(const lyramilk::data::map& info) = 0;
 
 		virtual httpsessionptr get_session(const lyramilk::data::string& sessionid) = 0;
 		virtual void destory_session(httpsessionptr& ses) = 0;

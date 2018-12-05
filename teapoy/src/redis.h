@@ -10,7 +10,7 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 	/// 代表一个redis客户端。
 	typedef bool (*redis_client_watch_handler)(bool success,const lyramilk::data::var& v,void* args);
 	/// 代表一个redis监听器
-	typedef void (*redis_client_listener)(const lyramilk::data::string& addr,const lyramilk::data::var::array& cmd,bool success,const lyramilk::data::var& ret);
+	typedef void (*redis_client_listener)(const lyramilk::data::string& addr,const lyramilk::data::array& cmd,bool success,const lyramilk::data::var& ret);
 
 	class redis_client:public lyramilk::netio::client
 	{
@@ -38,9 +38,9 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 		/// 登录
 		bool auth(const lyramilk::data::string& password);
 		/// 执行redis命令，第二个参数为输出参数
-		bool exec(const lyramilk::data::var::array& cmd,lyramilk::data::var& ret);
+		bool exec(const lyramilk::data::array& cmd,lyramilk::data::var& ret);
 		/// 异步执行redis命令
-		bool async_exec(const lyramilk::data::var::array& cmd,redis_client_watch_handler h,void* args,bool thread_join = true);
+		bool async_exec(const lyramilk::data::array& cmd,redis_client_watch_handler h,void* args,bool thread_join = true);
 		/// 判断这个redis链接是不是指向一个ssdb数据库。
 		bool is_ssdb();
 		/// 判断这个redis链接是否支持指定的命令
@@ -48,9 +48,9 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 		/// 取得版本号。
 		lyramilk::data::string version();
 
-		bool parse(lyramilk::data::stringstream& is,lyramilk::data::var& v);
+		bool parse(lyramilk::data::istream& is,lyramilk::data::var& v);
 
-		void static default_listener(const lyramilk::data::string& addr,const lyramilk::data::var::array& cmd,bool success,const lyramilk::data::var& ret);
+		void static default_listener(const lyramilk::data::string& addr,const lyramilk::data::array& cmd,bool success,const lyramilk::data::var& ret);
 	};
 
 }}}

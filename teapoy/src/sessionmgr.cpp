@@ -47,7 +47,7 @@ namespace lyramilk{ namespace teapoy {
 		virtual ~httpsession_default()
 		{
 		}
-		virtual bool init(const lyramilk::data::var::map& info)
+		virtual bool init(const lyramilk::data::map& info)
 		{
 			return true;
 		}
@@ -62,12 +62,15 @@ namespace lyramilk{ namespace teapoy {
 			}else{
 				smap[key] = value;
 			}
+COUT << smap << "," << key << std::endl;
+			return true;
 		}
 
 		virtual lyramilk::data::string get(const lyramilk::data::string& key)
 		{
 			lyramilk::threading::mutex_sync _(lock);
 
+COUT << smap << "," << key << std::endl;
 			lyramilk::data::stringdict::const_iterator it = smap.find(key);
 			if(it == smap.end()){
 				return "";
@@ -109,7 +112,7 @@ namespace lyramilk{ namespace teapoy {
 		{
 		}
 
-		virtual bool init(const lyramilk::data::var::map& info)
+		virtual bool init(const lyramilk::data::map& info)
 		{
 			active(1);
 			return true;
@@ -117,11 +120,25 @@ namespace lyramilk{ namespace teapoy {
 
 		virtual httpsessionptr get_session(const lyramilk::data::string& sessionid)
 		{
+			{
+				std::map<lyramilk::data::string,httpsession_default*>::iterator it = mgr.begin();
+				for(;it!=mgr.end();++it){
+COUT << this << "己登记会话" << it->first << "=" << it->second << std::endl;
+				
+				}
+
+			
+			}
+
+
+
+
 			time_t tm_life = time(nullptr) + time_alive_seconds;
 			{
 				lyramilk::threading::mutex_sync _(lock.r());
 				std::map<lyramilk::data::string,httpsession_default*>::iterator it = mgr.find(sessionid);
 				if(it != mgr.end()){
+COUT << this << "查找会话" << sessionid << "成功" << std::endl;
 					it->second->tm_life = tm_life;
 					return it->second;
 				}
@@ -139,6 +156,7 @@ namespace lyramilk{ namespace teapoy {
 						lyramilk::threading::mutex_sync _(lock.w());
 						std::pair<std::map<lyramilk::data::string,httpsession_default*>::iterator,bool> r = mgr.insert(std::pair<lyramilk::data::string,httpsession_default*>(ins->sid,ins));
 						if(r.second){
+COUT << this << "插入会话" << r.first->first << "===" << r.first->second << "成功" << std::endl;
 							return r.first->second;
 						}
 					}

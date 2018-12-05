@@ -1,10 +1,11 @@
 #include "url_dispatcher.h"
 #include "stringutil.h"
 #include "mimetype.h"
-#include <libmilk/multilanguage.h>
+#include <libmilk/dict.h>
 #include <sys/stat.h>
 #include <errno.h>
 #include "teapoy_gzip.h"
+#include "util.h"
 
 #include <fstream>
 
@@ -30,17 +31,13 @@ namespace lyramilk{ namespace teapoy {
 
 		virtual bool call(httprequest* request,httpresponse* response,httpadapter* adapter,const lyramilk::data::string& real)
 		{
-			vcall(request,response,adapter,real);
+			url_selector_loger _("teapoy.web.static",adapter);
+			vcall(request,response,adapter,path_simplify(real));
 			return true;
 		}
 
 		void vcall(httprequest* request,httpresponse* response,httpadapter* adapter,const lyramilk::data::string& real)
 		{
-			if(real.find("/../") != real.npos){
-				adapter->send_header_with_length(nullptr,404,0);
-				return ;
-			}
-
 			struct stat st = {0};
 			if(0 !=::stat(real.c_str(),&st)){
 				if(errno == ENOENT){
@@ -67,8 +64,8 @@ namespace lyramilk{ namespace teapoy {
 			bool usecache = true;
 			if(nocache){
 				usecache = false;
-			/*}else if(st.st_size < 1024){
-				usecache = false;*/
+			}else if(st.st_size < threshold){
+				usecache = false;
 			}
 			lyramilk::data::string etag;
 			//	取得 ETag
@@ -89,10 +86,10 @@ namespace lyramilk{ namespace teapoy {
 				}
 			}
 
-			lyramilk::data::string mimetype = mime::getmimetype_byname(real);
+			lyramilk::data::string mimetype = mimetype::getmimetype_byname(real);
 			//	取得 Content-Type
 			if(mimetype.empty()){
-				mimetype = mime::getmimetype_byfile(real);
+				mimetype = mimetype::getmimetype_byfile(real);
 				if(mimetype.empty()){
 					mimetype = "application/octet-stream";
 				}

@@ -23,9 +23,10 @@ namespace lyramilk{ namespace teapoy
 		virtual bool wait_response();
 		virtual int get_response(lyramilk::data::stringdict* headers,lyramilk::data::string* body);
 
-		static lyramilk::data::string rcall(const char* url,const lyramilk::data::stringdict& params,int timeout_msec = 2000);
-		static lyramilk::data::chunk rcallb(const char* url,const lyramilk::data::stringdict& params,int timeout_msec = 2000);
+		static lyramilk::data::string rcall(const char* url,int timeout_msec = 2000);
+		static lyramilk::data::chunk rcallb(const char* url,int timeout_msec = 2000);
 		static lyramilk::data::string makeurl(const char* url,const lyramilk::data::stringdict& params);
+		static lyramilk::data::string makeurl(const char* url,const lyramilk::data::map& params);
 	};	
 }}
 

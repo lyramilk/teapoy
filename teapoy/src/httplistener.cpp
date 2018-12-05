@@ -4,7 +4,7 @@
 	#include <openssl/ssl.h>
 #endif
 #include <libmilk/log.h>
-#include <libmilk/multilanguage.h>
+#include <libmilk/dict.h>
 
 namespace lyramilk{ namespace teapoy {
 

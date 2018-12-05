@@ -5,7 +5,7 @@
 #include <libmilk/var.h>
 
 namespace lyramilk{ namespace teapoy {
-	class mime
+	class mimetype
 	{
 	  public:
 		static lyramilk::data::string getmimetype_byname(lyramilk::data::string filename);

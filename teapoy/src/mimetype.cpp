@@ -7,7 +7,7 @@ namespace lyramilk{ namespace teapoy {
 		static lyramilk::data::unordered_map<lyramilk::data::string,lyramilk::data::string> _mm;
 		return _mm;
 	}
-	lyramilk::data::string mime::getmimetype_byname(lyramilk::data::string filename)
+	lyramilk::data::string mimetype::getmimetype_byname(lyramilk::data::string filename)
 	{
 		std::size_t pos = filename.find_last_of('.');
 		if(filename.npos == pos) return "";
@@ -19,7 +19,7 @@ namespace lyramilk{ namespace teapoy {
 		return it->second;
 	}
 
-	lyramilk::data::string mime::getmimetype_bydata(const unsigned char* data,std::size_t size)
+	lyramilk::data::string mimetype::getmimetype_bydata(const unsigned char* data,std::size_t size)
 	{
 #ifdef LIBFILE_FOUND
 		magic_t magic = magic_open(MAGIC_MIME_TYPE);
@@ -41,7 +41,7 @@ namespace lyramilk{ namespace teapoy {
 #endif
 	}
 
-	lyramilk::data::string mime::getmimetype_byfile(lyramilk::data::string filepathname)
+	lyramilk::data::string mimetype::getmimetype_byfile(lyramilk::data::string filepathname)
 	{
 #ifdef LIBFILE_FOUND
 		magic_t magic = magic_open(MAGIC_MIME_TYPE);
@@ -63,7 +63,7 @@ namespace lyramilk{ namespace teapoy {
 #endif
 	}
 
-	void mime::define_mimetype_fileextname(lyramilk::data::string extname,lyramilk::data::string mimetype)
+	void mimetype::define_mimetype_fileextname(lyramilk::data::string extname,lyramilk::data::string mimetype)
 	{
 		lyramilk::data::unordered_map<lyramilk::data::string,lyramilk::data::string>& m = mimetypes();
 		m[extname] = mimetype;

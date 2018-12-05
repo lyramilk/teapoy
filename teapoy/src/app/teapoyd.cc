@@ -1,7 +1,7 @@
 #include <libmilk/json.h>
 #include <libmilk/scriptengine.h>
 #include <libmilk/log.h>
-#include <libmilk/multilanguage.h>
+#include <libmilk/dict.h>
 
 #include <signal.h>
 #include <iostream>
@@ -14,6 +14,7 @@
 
 #include <errno.h>
 #include <curl/curl.h>
+#include <pwd.h>
 
 #include "config.h"
 #include "script.h"
@@ -45,9 +46,9 @@ lyramilk::data::string get_env(const char* env,lyramilk::data::string def)
 	return strenv;
 }
 
-class lang_dict:public lyramilk::data::multilanguage::dict
+class lang_dict:public lyramilk::data::dict
 {
-	lyramilk::data::multilanguage::dict* old;
+	lyramilk::data::dict* old;
 	std::fstream fdict;
   public:
 	lang_dict()
@@ -73,14 +74,14 @@ class lang_dict:public lyramilk::data::multilanguage::dict
 	virtual void notify(lyramilk::data::string str)
 	{
 		/*
-		lyramilk::data::var::map m;
+		lyramilk::data::map m;
 
 		lyramilk::data::var v;
 		lyramilk::data::json j;
 		if(j.open(udictfile)){
 			try{
 				lyramilk::data::var v = j.path("/dict");
-				m = v.as<lyramilk::data::var::map>();
+				m = v.as<lyramilk::data::map>();
 			}catch(lyramilk::data::var::type_invalid& e){
 				j.clear();
 			}
@@ -315,23 +316,25 @@ class teapoy_log_logfile:public teapoy_log_base
 	}
 };
 
-class teapoy_loader
+class teapoy_loader:public lyramilk::script::sclass
 {
 	lyramilk::log::logss log;
 	std::vector<lyramilk::script::engine*> libs;
 	std::vector<void*> solibs;
+	lyramilk::data::string newroot;
   public:
-	static void* ctr(const lyramilk::data::var::array& args)
+	static lyramilk::script::sclass* ctr(const lyramilk::data::array& args)
 	{
 		return new teapoy_loader();
 	}
-	static void dtr(void* p)
+	static void dtr(lyramilk::script::sclass* p)
 	{
 		delete (teapoy_loader*)p;
 	}
 
 	teapoy_loader():log(lyramilk::klog,"teapoy.loader")
 	{
+		newroot = "/";
 	}
 
 	void init_log()
@@ -365,7 +368,7 @@ class teapoy_loader
 		}
 	}
 
-	lyramilk::data::var loadso(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+	lyramilk::data::var loadso(const lyramilk::data::array& args,const lyramilk::data::map& env)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 		lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
@@ -390,7 +393,8 @@ class teapoy_loader
 		}
 		return false;
 	}
-	lyramilk::data::var enable_log(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+
+	lyramilk::data::var enable_log(const lyramilk::data::array& args,const lyramilk::data::map& env)
 	{
 		if(logger == nullptr) init_log();
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
@@ -407,7 +411,7 @@ class teapoy_loader
 		return true;
 	}
 
-	lyramilk::data::var set_log_file(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+	lyramilk::data::var set_log_file(const lyramilk::data::array& args,const lyramilk::data::map& env)
 	{
 		if(!enable_console_logredirect){
 			if(!ondaemon){
@@ -434,10 +438,10 @@ class teapoy_loader
 
 
 	
-	lyramilk::data::var chroot(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+	lyramilk::data::var chroot(const lyramilk::data::array& args,const lyramilk::data::map& env)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
-		lyramilk::data::string newroot = args[0].str();
+		newroot = args[0].str();
 		if( 0 == ::chroot(newroot.c_str()) ){
 			::chdir("/");
 			log(lyramilk::log::debug,__FUNCTION__) << D("切换根目录到%s成功",newroot.c_str()) << std::endl;
@@ -446,8 +450,29 @@ class teapoy_loader
 		log(lyramilk::log::warning,__FUNCTION__) << D("切换根目录到%s失败:原因%s",newroot.c_str(),strerror(errno)) << std::endl;
 		return false;
 	}
+	
+	lyramilk::data::var su(const lyramilk::data::array& args,const lyramilk::data::map& env)
+	{
+		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
+		lyramilk::data::string username = args[0];
+		// useradd -s /sbin/nologin username
+		struct passwd *pw = getpwnam(username.c_str());
+		if(pw){
+			if(setgid(pw->pw_gid) == 0 && setuid(pw->pw_uid) == 0){
+				log(__FUNCTION__) << D("切换到用户[%s]",username.c_str()) << std::endl;
+				log(__FUNCTION__) << D("切换到用户组[%s]",username.c_str()) << std::endl;
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	lyramilk::data::var root(const lyramilk::data::array& args,const lyramilk::data::map& env)
+	{
+		return newroot;
+	}
 
-	lyramilk::data::var noexit(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+	lyramilk::data::var noexit(const lyramilk::data::array& args,const lyramilk::data::map& env)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_bool);
 		no_exit_mode = args[0];
@@ -572,6 +597,7 @@ int main(int argc,char* argv[])
 	signal(SIGPIPE, SIG_IGN);
 
 	lyramilk::teapoy::sni::js_extend::engine_load("js");
+	lyramilk::teapoy::sni::jshtml::engine_load("jshtml");
 
 	// 确定启动脚本的类型
 	if(launcher_script_type.empty()){
@@ -595,6 +621,8 @@ int main(int argc,char* argv[])
 		fn["enableLog"] = lyramilk::script::engine::functional<teapoy_loader,&teapoy_loader::enable_log>;
 		fn["setLogFile"] = lyramilk::script::engine::functional<teapoy_loader,&teapoy_loader::set_log_file>;
 		fn["chroot"] = lyramilk::script::engine::functional<teapoy_loader,&teapoy_loader::chroot>;
+		fn["su"] = lyramilk::script::engine::functional<teapoy_loader,&teapoy_loader::su>;
+		fn["root"] = lyramilk::script::engine::functional<teapoy_loader,&teapoy_loader::root>;
 		fn["noexit"] = lyramilk::script::engine::functional<teapoy_loader,&teapoy_loader::noexit>;
 		eng_main->define("Teapoy",fn,teapoy_loader::ctr,teapoy_loader::dtr);
 	}
@@ -602,7 +630,7 @@ int main(int argc,char* argv[])
 	lyramilk::teapoy::script_interface_master::instance()->apply(eng_main);
 	eng_main->load_file(launcher_script);
 
-	lyramilk::data::var::array ar;
+	lyramilk::data::array ar;
 	for(int i=0;i<argc;++i){
 		ar.push_back(argv[i]);
 	}

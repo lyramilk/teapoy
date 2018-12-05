@@ -2,7 +2,7 @@
 #define _lyramilk_teapoy_webservice_h_
 
 #include "config.h"
-#include "fcache.h"
+#include "mime.h"
 #include <libmilk/netaio.h>
 
 namespace lyramilk{ namespace teapoy {
@@ -14,19 +14,6 @@ namespace lyramilk{ namespace teapoy {
 	class httpresponse;
 	class httpsession;
 	class httpadapter;
-
-	struct httppart
-	{
-		stringdict header;
-		const char* body;
-		std::size_t body_length;
-
-		httppart();
-		~httppart();
-
-		lyramilk::data::string get(const lyramilk::data::string& field);
-		void set(const lyramilk::data::string& field,const lyramilk::data::string& value);
-	};
 
 	struct httpcookie
 	{
@@ -43,7 +30,7 @@ namespace lyramilk{ namespace teapoy {
 	};
 
 
-	class httprequest:public httppart
+	class httprequest:public mime
 	{
 		friend class http_1_0;
 		friend class http_1_1;
@@ -53,24 +40,25 @@ namespace lyramilk{ namespace teapoy {
 		httpadapter* adapter;
 		lyramilk::data::string fast_url;
 
-		lyramilk::data::var::map _cookies;
-		lyramilk::data::var::map _params;
+		lyramilk::data::map _cookies;
+		lyramilk::data::map _params;
+	  public:
+		lyramilk::data::string mode;
+		lyramilk::data::stringdict data;
 	  public:
 		httprequest();
-	  	~httprequest();
+	  	virtual ~httprequest();
 	  public:
+		bool reset();
 		lyramilk::data::string scheme();
 
-		lyramilk::data::var::map& cookies();
-		lyramilk::data::var::map& params();
+		lyramilk::data::map& cookies();
+		lyramilk::data::map& params();
 
 		lyramilk::data::string url();
 		void url(const lyramilk::data::string& paramurl);
 
 		lyramilk::data::string uri();
-	  public:
-		lyramilk::data::string mode;
-		lyramilk::data::stringdict data;
 	};
 
 	class httpresponse
@@ -79,13 +67,14 @@ namespace lyramilk{ namespace teapoy {
 		friend class http_1_1;
 		friend class http_2_0;
 		friend class aiohttpchannel;
-		httpadapter* adapter;
 	  public:
+		httpadapter* adapter;
 		stringdict header;
 	  public:
 		httpresponse();
-	  	~httpresponse();
-
+	  	virtual ~httpresponse();
+	  public:
+		bool reset();
 		lyramilk::data::string get(const lyramilk::data::string& field);
 		void set(const lyramilk::data::string& field,const lyramilk::data::string& value);
 	};
@@ -97,7 +86,7 @@ namespace lyramilk{ namespace teapoy {
 		httpsession();
 	  	virtual ~httpsession();
 
-		virtual bool init(const lyramilk::data::var::map& info) = 0;
+		virtual bool init(const lyramilk::data::map& info) = 0;
 
 		virtual bool set(const lyramilk::data::string& key,const lyramilk::data::string& value) = 0;
 		virtual lyramilk::data::string get(const lyramilk::data::string& key) = 0;
@@ -111,23 +100,24 @@ namespace lyramilk{ namespace teapoy {
 
 	class httpadapter
 	{
-		std::map<lyramilk::data::string,httpcookie> cookies;
 	  public:
 		static const char* get_error_code_desc(int code);
 	  public:
+		std::map<lyramilk::data::string,httpcookie> cookies;
 		httplistener* service;
 		aiohttpchannel* channel;
 		httprequest* request;
 		httpresponse* response;
 
 		bool is_responsed;
-	  public:
+	  protected:
 		std::ostream& os;
 	  public:
 		httpadapter(std::ostream& oss);
 		virtual ~httpadapter();
 
 
+		void cookie_from_request();
 		void set_cookie(const lyramilk::data::string& key,const lyramilk::data::string& value);
 		lyramilk::data::string get_cookie(const lyramilk::data::string& key);
 
@@ -139,6 +129,7 @@ namespace lyramilk{ namespace teapoy {
 
 		virtual bool oninit(std::ostream& os) = 0;
 		virtual bool onrequest(const char* cache,int size,std::ostream& os) = 0;
+		virtual bool reset() = 0;
 	  public:
 		virtual bool send_bodydata(httpresponse* response,const char* p,lyramilk::data::uint32 l);	//发送数据
 
@@ -157,6 +148,7 @@ namespace lyramilk{ namespace teapoy {
 
 	typedef httpadapter* (*httpadapterctr)(std::ostream& oss);
 	typedef void (*httpadapterdtr)(httpadapter* ptr);
+
 	struct httpadapter_creater
 	{
 		lyramilk::data::string name;
@@ -164,13 +156,12 @@ namespace lyramilk{ namespace teapoy {
 		httpadapterdtr dtr;
 	};
 
-	class aiohttpchannel:public lyramilk::netio::aiosession2
+	class aiohttpchannel:public lyramilk::netio::aiosession_sync
 	{
 	  protected:
 		friend class httplistener;
-		httpadapter* handler;
+		httpadapter* adapter;
 		httplistener* service;
-		bool pending;
 	  public:
 		stringdict default_response_header;
 	  public:

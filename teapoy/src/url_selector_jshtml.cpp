@@ -10,21 +10,21 @@
 
 namespace lyramilk{ namespace teapoy {
 
-	class url_selector_js:public url_regex_selector
+	class url_selector_jshtml:public url_regex_selector
 	{
 		lyramilk::script::engines* pool;
 	  public:
-		url_selector_js(lyramilk::script::engines* es)
+		url_selector_jshtml(lyramilk::script::engines* es)
 		{
 			pool = es;
 		}
 
-		virtual ~url_selector_js()
+		virtual ~url_selector_jshtml()
 		{}
 
 		virtual bool call(httprequest* request,httpresponse* response,httpadapter* adapter,const lyramilk::data::string& real)
 		{
-			url_selector_loger _("teapoy.web.js",adapter);
+			url_selector_loger _("teapoy.web.jshtml",adapter);
 			return vcall(request,response,adapter,real);
 		}
 
@@ -32,7 +32,7 @@ namespace lyramilk{ namespace teapoy {
 		{
 			lyramilk::script::engines::ptr p = pool->get();
 			if(!p->load_file(real)){
-				lyramilk::klog(lyramilk::log::warning,"teapoy.web.js") << D("加载文件%s失败",real.c_str()) << std::endl;
+				lyramilk::klog(lyramilk::log::warning,"teapoy.web.jshtml") << D("加载文件%s失败",real.c_str()) << std::endl;
 				return false;
 			}
 
@@ -40,14 +40,14 @@ namespace lyramilk{ namespace teapoy {
 			lyramilk::data::uint32 response_code = 200;
 			lyramilk::data::array ar;
 			{
-				response->set("Content-Type","application/json;charset=utf8");
-
 				lyramilk::data::var jsin_adapter_param("..http.session.adapter",adapter);
 				jsin_adapter_param.userdata("..http.session.response.stream",&(std::ostream&)ss);
 				jsin_adapter_param.userdata("..http.session.response.code",&response_code);
 
 				lyramilk::data::array jsin_param;
 				jsin_param.push_back(jsin_adapter_param);
+
+				response->set("Content-Type","text/html;charset=utf-8");
 
 				ar.push_back(p->createobject("HttpRequest",jsin_param));
 				ar.push_back(p->createobject("HttpResponse",jsin_param));
@@ -69,7 +69,6 @@ namespace lyramilk{ namespace teapoy {
 					request->set("Connection","close");
 				}
 			}
-
 
 			if(response_code > 0){
 				bool usedgzip = false;
@@ -98,20 +97,20 @@ namespace lyramilk{ namespace teapoy {
 
 		static url_selector* ctr(void*)
 		{
-			lyramilk::script::engines* es = engine_pool::instance()->get("js");
-			if(es)return new url_selector_js(es);
+			lyramilk::script::engines* es = engine_pool::instance()->get("jshtml");
+			if(es)return new url_selector_jshtml(es);
 			return nullptr;
 		}
 
 		static void dtr(url_selector* p)
 		{
-			delete (url_selector_js*)p;
+			delete (url_selector_jshtml*)p;
 		}
 	};
 
 	static __attribute__ ((constructor)) void __init()
 	{
-		url_selector_factory::instance()->define("js",url_selector_js::ctr,url_selector_js::dtr);
+		url_selector_factory::instance()->define("jshtml",url_selector_jshtml::ctr,url_selector_jshtml::dtr);
 	}
 
 }}

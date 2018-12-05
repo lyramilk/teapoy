@@ -10,15 +10,15 @@ namespace lyramilk{ namespace teapoy {
 	{
 	  protected:
 		char *p;
-		char static_cache[4096];
-		bool usefile;
+		char static_cache[65536];
 		int fd;
 	  	void *memory_mapping;
 		std::size_t memory_mapping_length;
+
 	  public:
 		fcache();
 	  	virtual ~fcache();
-		virtual std::size_t write(const void* data,std::size_t datasize);
+		virtual int write(const void* data,int datasize);
 
 		virtual bool invalid_mapping();
 		virtual const char* data();

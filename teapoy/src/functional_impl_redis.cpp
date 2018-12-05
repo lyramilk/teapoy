@@ -7,9 +7,9 @@ namespace lyramilk{ namespace teapoy {
 	//	functional_impl_redis_instance
 	#define FUNCTIONAL_TYPE	"redis"
 
-	bool functional_impl_redis_instance::init(const lyramilk::data::var::map& cm)
+	bool functional_impl_redis_instance::init(const lyramilk::data::map& cm)
 	{
-		lyramilk::data::var::map m = cm;
+		lyramilk::data::map m = cm;
 		redis::redis_client* s = new redis::redis_client;
 
 		if(!s->open(m["host"].str(),m["port"].conv(-1))){
@@ -29,7 +29,7 @@ namespace lyramilk{ namespace teapoy {
 		return true;
 	}
 
-	lyramilk::data::var functional_impl_redis_instance::exec(const lyramilk::data::var::array& ar)
+	lyramilk::data::var functional_impl_redis_instance::exec(const lyramilk::data::array& ar)
 	{
 		if(!c) return lyramilk::data::var::nil;
 		if(ar.empty() || !ar[0].type_like(lyramilk::data::var::t_str)){
@@ -60,7 +60,7 @@ namespace lyramilk{ namespace teapoy {
 	functional_impl_redis::~functional_impl_redis()
 	{}
 
-	bool functional_impl_redis::init(const lyramilk::data::var::map& m)
+	bool functional_impl_redis::init(const lyramilk::data::map& m)
 	{
 		info = m;
 		return true;

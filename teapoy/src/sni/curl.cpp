@@ -2,7 +2,7 @@
 #include "httpclient.h"
 #include <libmilk/var.h>
 #include <libmilk/log.h>
-#include <libmilk/multilanguage.h>
+#include <libmilk/dict.h>
 
 #include <curl/curl.h>
 #include <curl/easy.h>
@@ -19,17 +19,17 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 
 	lyramilk::log::logss static log_curl(lyramilk::klog,"teapoy.native.curl");
 
-	class httpclient
+	class httpclient:public lyramilk::script::sclass
 	{
 		lyramilk::log::logss log;
 		lyramilk::data::string url;
 		lyramilk::data::string lasterror;
 	  public:
-		static void* ctr(const lyramilk::data::var::array& args)
+		static lyramilk::script::sclass* ctr(const lyramilk::data::array& args)
 		{
 			return new httpclient(args[0]);
 		}
-		static void dtr(void* p)
+		static void dtr(lyramilk::script::sclass* p)
 		{
 			delete (httpclient*)p;
 		}
@@ -50,7 +50,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return size;
 		}
 
-		lyramilk::data::var get(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var get(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			lyramilk::data::stringstream ss;
 			CURL *c = curl_easy_init();
@@ -68,7 +68,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return ss.str();
 		}
 
-		lyramilk::data::var post(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var post(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			lyramilk::data::string postdata = args[0];
@@ -90,7 +90,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return ss.str();
 		}
 
-		lyramilk::data::var download(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var download(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			lyramilk::data::string downloaddir = args[0];
@@ -136,7 +136,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return filename;
 		}
 
-		lyramilk::data::var upload(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var upload(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_str);
@@ -177,27 +177,39 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return ss.str();
 		}
 
-		lyramilk::data::var todo(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var todo(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			TODO();
 		}
 
 
 
-		static lyramilk::data::var curl_return_bin(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		static lyramilk::data::var curl_return_bin(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log_curl,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			lyramilk::data::string url = args[0].str();
-			lyramilk::data::stringdict params;
-			return lyramilk::teapoy::httpclient::rcallb(url.c_str(),params);
+			if(args.size() > 1){
+				MILK_CHECK_SCRIPT_ARGS_LOG(log_curl,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_map);
+				const lyramilk::data::map& params = args[1];
+
+				lyramilk::data::string fullurl = lyramilk::teapoy::httpclient::makeurl(url.c_str(),params);
+				return lyramilk::teapoy::httpclient::rcallb(fullurl.c_str());
+			}
+			return lyramilk::teapoy::httpclient::rcallb(url.c_str());
 		}
 
-		static lyramilk::data::var curl_return_str(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		static lyramilk::data::var curl_return_str(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log_curl,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			lyramilk::data::string url = args[0].str();
-			lyramilk::data::stringdict params;
-			return lyramilk::teapoy::httpclient::rcall(url.c_str(),params);
+			if(args.size() > 1){
+				MILK_CHECK_SCRIPT_ARGS_LOG(log_curl,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_map);
+				const lyramilk::data::map& params = args[1];
+
+				lyramilk::data::string fullurl = lyramilk::teapoy::httpclient::makeurl(url.c_str(),params);
+				return lyramilk::teapoy::httpclient::rcall(fullurl.c_str());
+			}
+			return lyramilk::teapoy::httpclient::rcall(url.c_str());
 		}
 
 		static int define(lyramilk::script::engine* p)

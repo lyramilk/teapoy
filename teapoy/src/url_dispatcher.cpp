@@ -1,8 +1,9 @@
 #include "url_dispatcher.h"
 #include "webservice.h"
 #include <libmilk/log.h>
-#include <libmilk/multilanguage.h>
+#include <libmilk/dict.h>
 #include <sys/stat.h>
+#include <cassert>
 
 namespace lyramilk{ namespace teapoy {
 
@@ -13,6 +14,22 @@ namespace lyramilk{ namespace teapoy {
 
 	url_selector::~url_selector()
 	{
+	}
+
+
+	///	url_selector_loger
+	url_selector_loger::url_selector_loger(lyramilk::data::string prefix,httpadapter* adapter)
+	{
+		td.mark();
+		this->prefix = prefix;
+		this->adapter = adapter;
+	}
+
+	url_selector_loger::~url_selector_loger()
+	{
+		//lyramilk::klog(lyramilk::log::trace,prefix) << D("%s:%u-->%s 耗时%.3f(毫秒)",req->dest().c_str(),req->dest_port(),req->url().c_str(),double(td.diff()) / 1000000) << std::endl;
+		lyramilk::netio::netaddress addr = adapter->channel->dest();
+		lyramilk::klog(lyramilk::log::trace,prefix) << D("%s:%u-->%s 耗时%.3f(毫秒)",addr.ip_str().c_str(),addr.port,adapter->request->url().c_str(),double(td.diff()) / 1000000) << std::endl;
 	}
 
 	///	url_regex_selector
@@ -76,7 +93,7 @@ namespace lyramilk{ namespace teapoy {
 		int rc = pcre_exec(regex_handler,nullptr,url.c_str(),url.size(),0,0,ov,256);
 		if(rc > 0){
 			real->clear();
-			for(lyramilk::data::var::array::const_iterator it = url_to_path_rule.begin();it!=url_to_path_rule.end();++it){
+			for(lyramilk::data::array::const_iterator it = url_to_path_rule.begin();it!=url_to_path_rule.end();++it){
 				if(it->type() == lyramilk::data::var::t_str){
 					real->append(it->str());
 				}else if(it->type_like(lyramilk::data::var::t_int)){

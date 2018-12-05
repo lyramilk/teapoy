@@ -1,6 +1,6 @@
 ﻿#定义工程名及版本
 project(teapoy)
-set(version 2.0.1)
+set(version 2.0.3)
 set(soversion 2.0)
 
 
@@ -162,6 +162,12 @@ if(NGHTTP2_FOUND)
 	list(APPEND LIBS_DEPENDS ${NGHTTP2_LDFLAGS})
 	list(APPEND INCS_DEPENDS ${NGHTTP2_CFLAGS})
 	list(APPEND CONFIG_MACROS NGHTTP2_FOUND)
+	list(REMOVE_ITEM src_cpps src/http_2_0_hpack_huffman.cpp)
+	list(REMOVE_ITEM src_cpps src/http_2_0_hpack.cpp)
+	list(REMOVE_ITEM src_cpps src/http_2_0_hpack.cpp)
+else()
+	list(REMOVE_ITEM src_cpps src/http_2_0_nghttp2.cpp)
+	list(REMOVE_ITEM src_cpps src/http_2_0_nghttp2.h)
 endif()
 
 if(CAVEDB_FOUND)
@@ -218,7 +224,7 @@ endforeach()
 
 set(CMAKE_LIBS_DEPENDS ${LIBS_DEPENDS})
 
-message(${CMAKE_LIBS_DEPENDS})
+#message(${CMAKE_LIBS_DEPENDS})
 
 foreach(v ${CONFIG_MACROS})
 	set(CMAKE_CONFIG_MACROS "${CMAKE_CONFIG_MACROS}#define ${v}\n")
@@ -236,7 +242,7 @@ set_target_properties(${PROJECT_NAME} PROPERTIES VERSION ${version} SOVERSION ${
 
 #对libmilk的依赖
 if(NOT ${LIBMILK_CFLAGS})
-	add_custom_target(milk COMMAND make -C /usr/local/src/libmilk/build)
+	add_custom_target(milk COMMAND make -C /data/src/libmilk/build/)
 	add_dependencies(${PROJECT_NAME} milk)
 endif()
 

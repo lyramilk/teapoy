@@ -1,6 +1,6 @@
 #include <libmilk/scriptengine.h>
 #include <libmilk/log.h>
-#include <libmilk/multilanguage.h>
+#include <libmilk/dict.h>
 #include "script.h"
 #include <fstream>
 #include <sys/stat.h>
@@ -9,21 +9,21 @@ namespace lyramilk{ namespace teapoy
 {
 	static lyramilk::log::logss log(lyramilk::klog,"teapoy.console");
 
-	lyramilk::data::var test(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+	lyramilk::data::var test(const lyramilk::data::array& args,const lyramilk::data::map& env)
 	{
 		if(args.size() > 0) return args[0];
 		return "test";
 	}
 
-	class console
+	class console:public lyramilk::script::sclass
 	{
 	  public:
 
-		static void* ctr(const lyramilk::data::var::array& args)
+		static lyramilk::script::sclass* ctr(const lyramilk::data::array& args)
 		{
 			return new console();
 		}
-		static void dtr(void* p)
+		static void dtr(lyramilk::script::sclass* p)
 		{
 			delete (console*)p;
 		}
@@ -32,14 +32,14 @@ namespace lyramilk{ namespace teapoy
 		{
 		}
 
-		~console()
+		virtual ~console()
 		{}
 
-		lyramilk::data::var log(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var log(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			lyramilk::data::string str;
 			str.reserve(4096);
-			for(lyramilk::data::var::array::const_iterator it = args.begin();it!=args.end();++it){
+			for(lyramilk::data::array::const_iterator it = args.begin();it!=args.end();++it){
 				str += it->str();
 			}
 			str.push_back('\n');
@@ -56,7 +56,7 @@ namespace lyramilk{ namespace teapoy
 			return true;
 		}
 
-		lyramilk::data::var logx(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var logx(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			if(args.size() == 0 ) return true;
 			lyramilk::data::string clr = args[0];
@@ -92,7 +92,7 @@ namespace lyramilk{ namespace teapoy
 			}
 
 			str.reserve(4096);
-			for(lyramilk::data::var::array::const_iterator it = args.begin() + 1;it!=args.end();++it){
+			for(lyramilk::data::array::const_iterator it = args.begin() + 1;it!=args.end();++it){
 				str += it->str();
 			}
 			str.push_back('\n');
@@ -123,11 +123,11 @@ namespace lyramilk{ namespace teapoy
 		}
 	};
 
-	lyramilk::data::var echo(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+	lyramilk::data::var echo(const lyramilk::data::array& args,const lyramilk::data::map& env)
 	{
 			lyramilk::data::string str;
 			str.reserve(4096);
-			for(lyramilk::data::var::array::const_iterator it = args.begin();it!=args.end();++it){
+			for(lyramilk::data::array::const_iterator it = args.begin();it!=args.end();++it){
 				str += it->str();
 			}
 			str.push_back('\n');
@@ -146,13 +146,13 @@ namespace lyramilk{ namespace teapoy
 
 
 
-	class file
+	class file:public lyramilk::script::sclass
 	{
 		lyramilk::log::logss log;
 		FILE* fp;
 		lyramilk::data::string filename;
 	  public:
-		static void* ctr(const lyramilk::data::var::array& args)
+		static lyramilk::script::sclass* ctr(const lyramilk::data::array& args)
 		{
 			if(args.size() == 0) return new file();
 			if(args.size() == 1){
@@ -168,7 +168,7 @@ namespace lyramilk{ namespace teapoy
 			}
 			return nullptr;
 		}
-		static void dtr(void* p)
+		static void dtr(lyramilk::script::sclass* p)
 		{
 			delete (file*)p;
 		}
@@ -178,7 +178,7 @@ namespace lyramilk{ namespace teapoy
 			fp = nullptr;
 		}
 
-		~file()
+		virtual ~file()
 		{
 			if(fp) fclose(fp);
 		}
@@ -200,7 +200,7 @@ namespace lyramilk{ namespace teapoy
 			return fp != nullptr;
 		}
 
-		lyramilk::data::var open(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var open(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			if(args.size() == 1){
@@ -210,7 +210,7 @@ namespace lyramilk{ namespace teapoy
 			return open(args[0].str().c_str(),args[1].str().c_str());
 		}
 
-		lyramilk::data::var isdir(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var isdir(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			struct stat st = {0};
 			if(stat(filename.c_str(),&st) == -1){
@@ -219,18 +219,18 @@ namespace lyramilk{ namespace teapoy
 			return (st.st_mode & S_IFDIR) != 0;
 		}
 
-		lyramilk::data::var close(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var close(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			::fclose(fp);
 			return true;
 		}
 
-		lyramilk::data::var good(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var good(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			return fp != nullptr;
 		}
 
-		lyramilk::data::var read(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var read(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_uint);
 			if(!fp) throw lyramilk::exception(D("文件未打开"));
@@ -245,7 +245,7 @@ namespace lyramilk{ namespace teapoy
 			return cb;
 		}
 
-		lyramilk::data::var reads(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var reads(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_uint);
 			if(!fp) throw lyramilk::exception(D("文件未打开"));
@@ -260,7 +260,7 @@ namespace lyramilk{ namespace teapoy
 			return cb;
 		}
 
-		lyramilk::data::var readline(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var readline(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			if(!fp) throw lyramilk::exception(D("文件未打开"));
 			lyramilk::data::string ret;
@@ -277,7 +277,7 @@ namespace lyramilk{ namespace teapoy
 			return ret;
 		}
 
-		lyramilk::data::var write(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var write(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_bin);
 			if(!fp) throw lyramilk::exception(D("文件未打开"));
@@ -285,7 +285,7 @@ namespace lyramilk{ namespace teapoy
 			return fwrite(cb.c_str(),1,cb.size(),fp);
 		}
 
-		lyramilk::data::var writes(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var writes(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			if(!fp) throw lyramilk::exception(D("文件未打开"));

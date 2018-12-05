@@ -2,6 +2,7 @@
 #include "stringutil.h"
 #include "httplistener.h"
 #include "url_dispatcher.h"
+#include "fcache.h"
 
 
 namespace lyramilk{ namespace teapoy {
@@ -26,6 +27,11 @@ namespace lyramilk{ namespace teapoy {
 	{
 	}
 
+	bool http_1_0::reset()
+	{
+		return request->reset() && response->reset() && httpadapter::reset();
+	}
+
 	void http_1_0::dtr()
 	{
 		lyramilk::teapoy::dtr((httpadapter*)this);
@@ -38,30 +44,29 @@ namespace lyramilk{ namespace teapoy {
 
 	bool http_1_0::onrequest(const char* cache,int size,std::ostream& os)
 	{
-		int surplus = 0;
-		parse_result r = parse_request(cache,size,&surplus);
-		if(r != pr_ok){
-			if(r == pr_continue){
+		int bytesused = 0;
+		mime_status r = request->write(cache,size,&bytesused);
+		if(r != ms_success){
+			if(r == ms_continue){
 				return true;
 			}
 			return false;
 		}
-
 		response->set("Connection",request->get("Connection"));
 
+		cookie_from_request();
 		if(!service->call(request,response,this)){
 			send_header_with_length(response,404,0);
 		}
 
 		lyramilk::data::string sconnect = response->get("Connection");
 	
-		if((!sconnect.empty()) && sconnect != "close"){
-			delete request_cache;
-			request_cache = nullptr;
-			if(surplus < 1){
+		if(sconnect == "keep-alive"){
+			reset();
+			if(bytesused == size){
 				return true;
 			}
-			return onrequest(cache + size - surplus,surplus,os);
+			return onrequest(cache + bytesused,size - bytesused,os);
 		}
 		return false;
 	}
@@ -85,6 +90,35 @@ namespace lyramilk{ namespace teapoy {
 			for(;it!=response->header.end();++it){
 				if(!it->second.empty()){
 					os << it->first << ": " << it->second << "\r\n";
+				}
+			}
+			{
+				std::map<lyramilk::data::string,httpcookie>::const_iterator it = response->adapter->cookies.begin();
+				for(;it!=response->adapter->cookies.end();++it){
+					os << "Set-Cookie: " << it->first << "=" << it->second.value;
+					if(it->second.expires != 0){
+						tm __t;
+						tm *t = localtime_r(&it->second.expires,&__t);
+						if(t){
+							os << ";expires=" << asctime(&__t);
+						}
+					}
+					if(it->second.max_age != 0){
+						os << ";max_age=" << it->second.max_age;
+					}
+					if(!it->second.domain.empty()){
+						os << ";domain=" << it->second.domain;
+					}
+					if(!it->second.path.empty()){
+						os << ";path=" << it->second.path;
+					}
+					if(it->second.secure){
+						os << ";Secure";
+					}
+					if(it->second.httponly){
+						os << ";HttpOnly";
+					}
+					os << "\r\n";
 				}
 			}
 		}
@@ -112,6 +146,35 @@ namespace lyramilk{ namespace teapoy {
 			for(;it!=response->header.end();++it){
 				if(!it->second.empty()){
 					os << it->first << ": " << it->second << "\r\n";
+				}
+			}
+			{
+				std::map<lyramilk::data::string,httpcookie>::const_iterator it = response->adapter->cookies.begin();
+				for(;it!=response->adapter->cookies.end();++it){
+					os << "Set-Cookie: " << it->first << "=" << it->second.value;
+					if(it->second.expires != 0){
+						tm __t;
+						tm *t = localtime_r(&it->second.expires,&__t);
+						if(t){
+							os << ";expires=" << asctime(&__t);
+						}
+					}
+					if(it->second.max_age != 0){
+						os << ";max_age=" << it->second.max_age;
+					}
+					if(!it->second.domain.empty()){
+						os << ";domain=" << it->second.domain;
+					}
+					if(!it->second.path.empty()){
+						os << ";path=" << it->second.path;
+					}
+					if(it->second.secure){
+						os << ";Secure";
+					}
+					if(it->second.httponly){
+						os << ";HttpOnly";
+					}
+					os << "\r\n";
 				}
 			}
 		}

@@ -8,11 +8,11 @@
 
 namespace lyramilk{ namespace teapoy {
 
-	class functional_impl_redis_instance:public functional_mutex
+	class functional_impl_redis_instance:public functional_nonreentrant
 	{
 	  public:
-		virtual bool init(const lyramilk::data::var::map& m);
-		virtual lyramilk::data::var exec(const lyramilk::data::var::array& ar);
+		virtual bool init(const lyramilk::data::map& m);
+		virtual lyramilk::data::var exec(const lyramilk::data::array& ar);
 		redis::redis_client* c;
 	  public:
 		functional_impl_redis_instance();
@@ -22,12 +22,12 @@ namespace lyramilk{ namespace teapoy {
 	class functional_impl_redis:public functional_multi
 	{
 		lyramilk::threading::mutex_spin l;
-		lyramilk::data::var::map info;
+		lyramilk::data::map info;
 	  public:
 		functional_impl_redis();
 	  	virtual ~functional_impl_redis();
 
-		virtual bool init(const lyramilk::data::var::map& m);
+		virtual bool init(const lyramilk::data::map& m);
 		virtual functional::ptr get_instance();
 		virtual lyramilk::data::string name();
 	  protected:

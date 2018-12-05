@@ -6,6 +6,7 @@
 #include <libmilk/var.h>
 #include <libmilk/gc.h>
 #include <libmilk/factory.h>
+#include <libmilk/testing.h>
 #include <pcre.h>
 #include "webservice.h"
 
@@ -23,6 +24,16 @@ namespace lyramilk{ namespace teapoy {
 		virtual bool hittest(httprequest* request,httpresponse* response,httpadapter* adapter) = 0;
 	};
 
+	class url_selector_loger
+	{
+		lyramilk::debug::nsecdiff td;
+		httpadapter* adapter;
+		lyramilk::data::string prefix;
+	  public:
+		url_selector_loger(lyramilk::data::string prefix,httpadapter* adapter);
+		~url_selector_loger();
+	};
+
 	class url_regex_selector:public url_selector
 	{
 	  protected:
@@ -32,7 +43,7 @@ namespace lyramilk{ namespace teapoy {
 	  	lyramilk::data::string regex_str;
 
 		lyramilk::data::string path_pattern;
-		lyramilk::data::var::array url_to_path_rule;
+		lyramilk::data::array url_to_path_rule;
 	  protected:
 		virtual bool hittest(httprequest* request,httpresponse* response,httpadapter* adapter);
 	  public:

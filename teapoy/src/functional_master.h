@@ -12,18 +12,31 @@ namespace lyramilk{ namespace teapoy {
 	class functional:public lyramilk::obj
 	{
 	  public:
-		virtual bool init(const lyramilk::data::var::map& m) = 0;
-		virtual lyramilk::data::var exec(const lyramilk::data::var::array& ar) = 0;
+		virtual bool init(const lyramilk::data::map& m) = 0;
+		virtual lyramilk::data::var exec(const lyramilk::data::array& ar) = 0;
 		virtual bool try_del();
 	  public:
 		typedef lyramilk::ptr<functional> ptr;
+	};
+
+	// 动作不可重入
+	class functional_nonreentrant:public functional
+	{
+		bool l;
+	  public:
+		functional_nonreentrant();
+	  	virtual ~functional_nonreentrant();
+		virtual void lock();
+		virtual void unlock();
+		virtual bool try_lock();
+		virtual bool try_del();
 	};
 
 	// 包装具体动作的池，多次获取实例应该可以得到线程安全的动作实力，如果动作本身不是线程安全的，池需要做出分配。
 	class functional_multi
 	{
 	  public:
-		virtual bool init(const lyramilk::data::var::map& m) = 0;
+		virtual bool init(const lyramilk::data::map& m) = 0;
 		virtual functional::ptr get_instance() = 0;
 		virtual lyramilk::data::string name() = 0;
 	};
@@ -43,18 +56,6 @@ namespace lyramilk{ namespace teapoy {
 	};
 
 
-	
-	class functional_mutex:public functional
-	{
-		bool l;
-	  public:
-		functional_mutex();
-	  	virtual ~functional_mutex();
-		virtual void lock();
-		virtual void unlock();
-		virtual bool try_lock();
-		virtual bool try_del();
-	};
 }}
 
 #endif

@@ -1,38 +1,21 @@
 #include <libmilk/var.h>
 #include "functional_master.h"
 #include <libmilk/log.h>
-#include <libmilk/multilanguage.h>
+#include <libmilk/dict.h>
 #include "script.h"
-/*
-#include <libmilk/codes.h>
-#include <libmilk/md5.h>
 
-#include <stdlib.h>
-
-#include "script.h"
-#include "stringutil.h"
-#include "webservice.h"
-
-#include <sys/stat.h>
-#include <errno.h>
-#include <fstream>
-
-#include "teapoy_gzip.h"
-#include "httplistener.h"
-#include "upstream_caller.h"
-*/
 namespace lyramilk{ namespace teapoy{ namespace native
 {
 	static lyramilk::log::logss log(lyramilk::klog,"teapoy.teapoy_functional");
 
 
 
-	class teapoy_functional
+	class teapoy_functional:public lyramilk::script::sclass
 	{
 		functional::ptr p;
 
 	  public:
-		static void* ctr(const lyramilk::data::var::array& args)
+		static lyramilk::script::sclass* ctr(const lyramilk::data::array& args)
 		{
 			lyramilk::teapoy::functional_multi* f = functional_master::instance()->get(args[0].str());
 			if(f){
@@ -47,7 +30,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			}
 			return nullptr;
 		}
-		static void dtr(void* p)
+		static void dtr(lyramilk::script::sclass* p)
 		{
 			delete (teapoy_functional*)p;
 		}
@@ -60,7 +43,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		{
 		}
 
-		lyramilk::data::var exec(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var exec(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			return p->exec(args);
 		}
@@ -76,14 +59,14 @@ namespace lyramilk{ namespace teapoy{ namespace native
 	};
 
 
-	class teapoy_functional_invoker
+	class teapoy_functional_invoker:public lyramilk::script::sclass
 	{
 	  public:
-		static void* ctr(const lyramilk::data::var::array& args)
+		static lyramilk::script::sclass* ctr(const lyramilk::data::array& args)
 		{
 			return new teapoy_functional_invoker();
 		}
-		static void dtr(void* p)
+		static void dtr(lyramilk::script::sclass* p)
 		{
 			delete (teapoy_functional_invoker*)p;
 		}
@@ -96,7 +79,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		{
 		}
 
-		lyramilk::data::var add(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var add(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_str);
@@ -109,7 +92,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 
 			if(args.size() > 2){
 				MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,2,lyramilk::data::var::t_map);
-				lyramilk::data::var::map info = args[2];
+				lyramilk::data::map info = args[2];
 				fun->init(info);
 			}
 
@@ -117,28 +100,39 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			return true;
 		}
 
-		lyramilk::data::var remove(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var remove(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			lyramilk::data::string key = args[0];
 			TODO();
 		}
 
-		lyramilk::data::var get(const lyramilk::data::var::array& args,const lyramilk::data::var::map& env)
+		lyramilk::data::var get(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
+			lyramilk::data::string key = args[0];
+
+			lyramilk::teapoy::functional_multi* f = functional_master::instance()->get(key);
+			lyramilk::data::string invoker_instance;
+			if(f){
+				invoker_instance = invoker_map::instance()->get(f->name());
+			}
+			if(invoker_instance.empty()){
+				invoker_instance = "..invoker.instance";
+			}
+
 			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
-			lyramilk::data::var::array ar;
+			lyramilk::data::array ar;
 			ar.reserve(1);
-			ar.push_back(args[0].str());
-			return e->createobject("..invoker.instance",ar);
+			ar.push_back(key);
+			return e->createobject(invoker_instance,ar);
 		}
 
 		static int define(lyramilk::script::engine* p)
 		{
 			lyramilk::script::engine::functional_map fn;
 			fn["add"] = lyramilk::script::engine::functional<teapoy_functional_invoker,&teapoy_functional_invoker::add>;
-			fn["remove"] = lyramilk::script::engine::functional<teapoy_functional_invoker,&teapoy_functional_invoker::remove>;
+			//fn["remove"] = lyramilk::script::engine::functional<teapoy_functional_invoker,&teapoy_functional_invoker::remove>;
 			fn["get"] = lyramilk::script::engine::functional<teapoy_functional_invoker,&teapoy_functional_invoker::get>;
 			p->define("invoker",fn,teapoy_functional_invoker::ctr,teapoy_functional_invoker::dtr);
 			return 1;

@@ -76,12 +76,22 @@ namespace lyramilk{ namespace teapoy {
 	{
 	}
 
+	bool httprequest::reset()
+	{
+		fast_url.clear();
+		_cookies.clear();
+		_params.clear();
+		mode.clear();
+		data.clear();
+		return mime::reset();
+	}
+
 	lyramilk::data::string httprequest::scheme()
 	{
 		return adapter->service->scheme;
 	}
 
-	lyramilk::data::var::map& httprequest::cookies()
+	lyramilk::data::map& httprequest::cookies()
 	{
 		if(!_cookies.empty()) return _cookies;
 		_cookies["..init"] = 1;
@@ -90,46 +100,62 @@ namespace lyramilk{ namespace teapoy {
 	}
 
 
-	lyramilk::data::var::map& httprequest::params()
+	lyramilk::data::map& httprequest::params()
 	{
 		if(!_params.empty()) return _params;
 		_params["..init"] = 1;
 
 		lyramilk::data::string urlparams;
 		lyramilk::data::string url = get(":path");
-COUT << url << std::endl;
 		std::size_t sz = url.find("?");
 		if(sz != url.npos){
 			urlparams = url.substr(sz + 1);
 		}
 
-		//解析请求正文中的参数
-		{
+		if(get_body_ptr() && get_body_size() > 0){
 			lyramilk::data::string s_mimetype = get("Content-Type");
-			lyramilk::data::string charset;
-			if(body && body_length > 0 && s_mimetype.find("www-form-urlencoded") != s_mimetype.npos){
-				std::size_t pos_charset = s_mimetype.find("charset=");
-				if(pos_charset!= s_mimetype.npos){
-					std::size_t pos_charset_bof = pos_charset + 8;
-					std::size_t pos_charset_eof = s_mimetype.find(";",pos_charset_bof);
-					if(pos_charset_eof != s_mimetype.npos){
-						charset = s_mimetype.substr(pos_charset_bof,pos_charset_eof - pos_charset_bof);
-					}else{
-						charset = s_mimetype.substr(pos_charset_bof);
+			// 拼接正文中的参数
+			{
+				if(s_mimetype.find("www-form-urlencoded") != s_mimetype.npos){
+					lyramilk::data::string charset;
+					std::size_t pos_charset = s_mimetype.find("charset=");
+					if(pos_charset!= s_mimetype.npos){
+						std::size_t pos_charset_bof = pos_charset + 8;
+						std::size_t pos_charset_eof = s_mimetype.find(";",pos_charset_bof);
+						if(pos_charset_eof != s_mimetype.npos){
+							charset = s_mimetype.substr(pos_charset_bof,pos_charset_eof - pos_charset_bof);
+						}else{
+							charset = s_mimetype.substr(pos_charset_bof);
+						}
 					}
-				}
 
-				lyramilk::data::string paramurl((const char*)body,body_length);
-				if(charset.find_first_not_of("UuTtFf-8") != charset.npos){
-					paramurl = lyramilk::data::codes::instance()->decode(charset,paramurl);
+					lyramilk::data::string paramurl((const char*)get_body_ptr(),get_body_size());
+					if(charset.find_first_not_of("UuTtFf-8") != charset.npos){
+						paramurl = lyramilk::data::codes::instance()->decode(charset,paramurl);
+					}
+					if(!urlparams.empty()){
+						urlparams.push_back('&');
+					}
+					urlparams += paramurl;
 				}
-				if(!urlparams.empty()){
-					urlparams.push_back('&');
+			}
+			// 解析文件上传中的参数
+			{
+				if(s_mimetype.find("multipart/form-data") != s_mimetype.npos){
+
+					std::size_t c = adapter->request->get_childs_count();
+					for(std::size_t i=0;i<c;++i){
+						mime* m = adapter->request->at(i);
+						if(m->get("Content-Type") != "") continue;
+
+					}
+					//ss;
 				}
-				urlparams += paramurl;
 			}
 		}
 
+
+		// 解析参数
 		lyramilk::data::strings param_fields = lyramilk::teapoy::split(urlparams,"&");
 		lyramilk::data::strings::iterator it = param_fields.begin();
 
@@ -146,9 +172,11 @@ COUT << url << std::endl;
 
 			lyramilk::data::var& parameters_of_key = _params[k];
 			parameters_of_key.type(lyramilk::data::var::t_array);
-			lyramilk::data::var::array& ar = parameters_of_key;
+			lyramilk::data::array& ar = parameters_of_key;
 			ar.push_back(v);
 		}
+
+
 		return _params;
 	}
 
@@ -177,6 +205,12 @@ COUT << url << std::endl;
 
 	httpresponse::~httpresponse()
 	{
+	}
+
+	bool httpresponse::reset()
+	{
+		header.clear();
+		return true;
 	}
 
 	lyramilk::data::string httpresponse::get(const lyramilk::data::string& field)
@@ -218,34 +252,6 @@ COUT << url << std::endl;
 		return _l > 0;
 	}
 
-	/// httppart
-	httppart::httppart()
-	{
-		body = nullptr;
-		body_length = 0;
-	}
-
-	httppart::~httppart()
-	{
-
-	}
-
-	lyramilk::data::string httppart::get(const lyramilk::data::string& field)
-	{
-		lyramilk::data::string lowercase_field = lowercase(field);
-
-		stringdict::const_iterator it = header.find(lowercase_field);
-		if(it != header.end()){
-			return it->second;
-		}
-		return "";
-	}
-
-	void httppart::set(const lyramilk::data::string& field,const lyramilk::data::string& value)
-	{
-		lyramilk::data::string lowercase_field = lowercase(field);
-		header[lowercase_field] = value;
-	}
 
 	//	httpcookie
 	httpcookie::httpcookie()
@@ -277,6 +283,23 @@ COUT << url << std::endl;
 		//LYRAMILK_STACK_TRACE(256);
 	}
 
+	bool httpadapter::reset()
+	{
+		is_responsed = false;
+		return true;
+	}
+	void httpadapter::cookie_from_request()
+	{
+		lyramilk::data::string cookiestr = request->get("Cookie");
+		lyramilk::data::strings cookielines = lyramilk::teapoy::split(cookiestr,";");
+		lyramilk::data::strings::iterator it = cookielines.begin();
+		for(;it!=cookielines.end();++it){
+			lyramilk::data::strings cookiekv = lyramilk::teapoy::split(*it,"=");
+			if(cookiekv.size() > 1){
+				set_cookie(lyramilk::teapoy::trim(cookiekv[0]," \t\r\n"),lyramilk::teapoy::trim(cookiekv[1]," \t\r\n"));
+			}
+		}
+	}
 
 	void httpadapter::set_cookie(const lyramilk::data::string& key,const lyramilk::data::string& value)
 	{
@@ -330,9 +353,8 @@ COUT << url << std::endl;
 
 	aiohttpchannel::aiohttpchannel()
 	{
-		handler = nullptr;
+		adapter = nullptr;
 		service = nullptr;
-		pending = false;
 
 		default_response_header["Server"] = "teapoy/" TEAPOY_VERSION;
 		default_response_header["Teapoy"] = TEAPOY_VERSION;
@@ -343,8 +365,8 @@ COUT << url << std::endl;
 
 	aiohttpchannel::~aiohttpchannel()
 	{
-		if(handler){
-			handler->dtr();
+		if(adapter){
+			adapter->dtr();
 		}
 	}
 
@@ -364,10 +386,10 @@ COUT << url << std::endl;
 			}
 #endif
 			if(len > 0){
-				handler = service->create_http_session_byprotocol(lyramilk::data::string(data,len),os);
-				if(handler){
-					init_handler(handler);
-					return handler->oninit(os);
+				adapter = service->create_http_session_byprotocol(lyramilk::data::string(data,len),os);
+				if(adapter){
+					init_handler(adapter);
+					return adapter->oninit(os);
 				}
 			}
 		}
@@ -377,16 +399,11 @@ COUT << url << std::endl;
 
 	bool aiohttpchannel::onrequest(const char* cache,int size,std::ostream& os)
 	{
-printf("%.*s\n",size,cache);
-		if(handler){
-			if(handler->onrequest(cache,size,os)){
-				if(!pending){
-					handler->dtr();
-				}
-				return true;
-			}
-			return false;
-
+#ifdef _DEBUG
+		printf("\t收到\x1b[36m%d\x1b[0m字节\n%.*s\n",size,size,cache);
+#endif
+		if(adapter){
+			return adapter->onrequest(cache,size,os);
 		}
 		int space = 0;
 		const char* httpver = nullptr;
@@ -405,72 +422,43 @@ printf("%.*s\n",size,cache);
 				break;
 			}
 		}
-
 		if(httpverbytes != 8){
 			os << "HTTP/1.0 505 HTTP Version Not Supported\r\nContent-Length: 0\r\n\r\n";
 			return false;
 		}
+
+
 		if(memcmp("HTTP/1.1",httpver,8) == 0){
-			handler = service->create_http_session_byprotocol("http/1.1",os);
-			if(handler){
-				init_handler(handler);
-				if(handler->onrequest(cache,size,os)){
-					if(!pending){
-						handler->dtr();
-					}
-					handler = nullptr;
-					return true;
-				}
-				return false;
-			}
+			adapter = service->create_http_session_byprotocol("http/1.1",os);
 		}
 		if(memcmp("HTTP/1.0",httpver,8) == 0){
-			handler = service->create_http_session_byprotocol("http/1.0",os);
-			if(handler){
-				init_handler(handler);
-				if(handler->onrequest(cache,size,os)){
-					if(!pending){
-						handler->dtr();
-					}
-					handler = nullptr;
-					return true;
-				}
-				return false;
-			}
+			adapter = service->create_http_session_byprotocol("http/1.0",os);
 		}
 		if(memcmp("HTTP/2.0",httpver,8) == 0){
-			handler = service->create_http_session_byprotocol("http/2.0",os);
-			if(handler){
-				init_handler(handler);
-				if(handler->onrequest(cache,size,os)){
-					if(!pending){
-						handler->dtr();
-					}
-					handler = nullptr;
-					return true;
-				}
-				return false;
-			}
+			adapter = service->create_http_session_byprotocol("http/2.0",os);
 		}
 
-		os << "HTTP/1.0 505 HTTP Version Not Supported\r\nContent-Length: 0\r\n\r\n";
-		return false;
+		if(adapter == nullptr){
+			os << "HTTP/1.0 505 HTTP Version Not Supported\r\nContent-Length: 0\r\n\r\n";
+			return false;
+		}
+		init_handler(adapter);
+		return adapter->onrequest(cache,size,os);
 	}
 
 	void aiohttpchannel::init_handler(httpadapter* handler)
 	{
-		handler->channel = this;
-		handler->service = service;
-		handler->request->adapter = handler;
-		handler->request->adapter = handler;
+		adapter->channel = this;
+		adapter->service = service;
+		adapter->request->adapter = handler;
+		adapter->response->adapter = handler;
 	}
 
 
 
 	bool aiohttpchannel::lock()
 	{
-		if(lyramilk::netio::aiosession2::lock()){
-			pending = true;
+		if(lyramilk::netio::aiosession::lock()){
 			return true;
 		}
 		return false;
@@ -478,8 +466,7 @@ printf("%.*s\n",size,cache);
 
 	bool aiohttpchannel::unlock()
 	{
-		if(lyramilk::netio::aiosession2::unlock()){
-			pending = false;
+		if(lyramilk::netio::aiosession::unlock()){
 			return true;
 		}
 		return false;

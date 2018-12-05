@@ -3,6 +3,7 @@
 
 #include <libmilk/scriptengine.h>
 #include <libmilk/factory.h>
+#include <libmilk/thread.h>
 
 namespace lyramilk{ namespace teapoy
 {
@@ -27,6 +28,19 @@ namespace lyramilk{ namespace teapoy
 	{
 	  public:
 		static engine_pool* instance();
+	};
+
+	class invoker_map
+	{
+		lyramilk::data::stringdict m;
+		mutable lyramilk::threading::mutex_rw l;
+	  public:
+		virtual void define(lyramilk::data::string name,lyramilk::data::string ptr);
+		virtual void undef(lyramilk::data::string name);
+		virtual lyramilk::data::array keys() const;
+		virtual lyramilk::data::string get(lyramilk::data::string name);
+
+		static invoker_map* instance();
 	};
 }}
 

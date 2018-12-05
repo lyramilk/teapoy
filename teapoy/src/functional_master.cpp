@@ -24,34 +24,34 @@ namespace lyramilk{ namespace teapoy {
 	}
 
 
-	// functional_mutex
+	// functional_nonreentrant
 
-	functional_mutex::functional_mutex()
+	functional_nonreentrant::functional_nonreentrant()
 	{
 		l = false;
 	}
 
-	functional_mutex::~functional_mutex()
+	functional_nonreentrant::~functional_nonreentrant()
 	{
 	}
 
-	void functional_mutex::lock()
+	void functional_nonreentrant::lock()
 	{
 		while(!__sync_bool_compare_and_swap(&l,false,true)){
 			usleep(10);
 		}
 	}
 
-	void functional_mutex::unlock()
+	void functional_nonreentrant::unlock()
 	{
 		l = false;
 	}
 
-	bool functional_mutex::try_lock()
+	bool functional_nonreentrant::try_lock()
 	{
 		return __sync_bool_compare_and_swap(&l,false,true);
 	}
-	bool functional_mutex::try_del()
+	bool functional_nonreentrant::try_del()
 	{
 		unlock();
 		return false;
