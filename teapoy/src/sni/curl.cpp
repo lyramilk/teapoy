@@ -3,6 +3,7 @@
 #include <libmilk/var.h>
 #include <libmilk/log.h>
 #include <libmilk/dict.h>
+#include <libmilk/codes.h>
 #include <curl/curl.h>
 #include <curl/easy.h>
 #include <fstream>
@@ -203,22 +204,54 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 	}
 
 	lyramilk::log::logss static log_curl(lyramilk::klog,"teapoy.native");
+
+
 	lyramilk::data::var curl(const lyramilk::data::array& args,const lyramilk::data::map& env)
 	{
+		static lyramilk::data::coding* urlcomponent = lyramilk::data::codes::instance()->getcoder("urlcomponent");
+
 		MILK_CHECK_SCRIPT_ARGS_LOG(log_curl,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 		lyramilk::data::string url = args[0].str();
-		lyramilk::data::stringstream ss;
+
+		lyramilk::data::stringstream ssurl;
+		ssurl << url;
+		int timeout_msec = 2000;
+
+		if(args.size() > 1 && args[1].type() == lyramilk::data::var::t_map){
+			const lyramilk::data::map& params = args[1];
+			if(!params.empty()){
+				if( url.find("?") != url.npos){
+					ssurl << "?";
+				}
+				lyramilk::data::map::const_iterator it = params.begin();
+				for(;it!=params.end();++it){
+					ssurl << "&" << urlcomponent->encode(it->first) << "=" << urlcomponent->encode(it->second);
+				}
+			}
+			if(args.size() > 2 && args[2].type_like(lyramilk::data::var::t_int)){
+				timeout_msec = args[2].conv(2000);
+			}
+		}
+
+		lyramilk::data::string newurl = ssurl.str();
+
+		lyramilk::data::ostringstream ss;
 		CURL *c = curl_easy_init();
-		curl_easy_setopt(c, CURLOPT_URL,url.c_str());
+		curl_easy_setopt(c, CURLOPT_TIMEOUT_MS, timeout_msec);
+		curl_easy_setopt(c, CURLOPT_NOSIGNAL, 1 );
+		curl_easy_setopt(c, CURLOPT_URL,newurl.c_str());
 		curl_easy_setopt(c, CURLOPT_WRITEFUNCTION, curl_writestream_callback);
-		curl_easy_setopt(c, CURLOPT_WRITEDATA, &ss);
-		//curl_easy_setopt(c, CURLOPT_ACCEPT_ENCODING, "");
+		curl_easy_setopt(c, CURLOPT_WRITEDATA, (std::ostream*)&ss);
+		
 		CURLcode res = curl_easy_perform(c);
 		curl_easy_cleanup(c);
-		if(res == CURLE_OK) return ss.str();
-		return lyramilk::data::var::nil;
-	}
 
+		if(res != CURLE_OK){
+			log_curl(lyramilk::log::error,"curl") << "err=" << curl_easy_strerror(res) << ",url=" << newurl << std::endl;
+			return "";
+		}
+		return ss.str();
+	}
 
 
 	static int define(lyramilk::script::engine* p)

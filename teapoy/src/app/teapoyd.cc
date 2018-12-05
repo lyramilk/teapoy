@@ -133,7 +133,7 @@ class teapoy_log_base:public lyramilk::log::logb
 class teapoy_log_stdio:public teapoy_log_base
 {
   public:
-	virtual void log(time_t ti,lyramilk::log::type ty,lyramilk::data::string usr,lyramilk::data::string app,lyramilk::data::string module,lyramilk::data::string str) const
+	virtual void log(time_t ti,lyramilk::log::type ty,const lyramilk::data::string& usr,const lyramilk::data::string& app,const lyramilk::data::string& module,const lyramilk::data::string& str) const
 	{
 		lyramilk::data::string cache;
 		cache.reserve(1024);
@@ -225,7 +225,7 @@ class teapoy_log_logfile:public teapoy_log_base
 		return fp != nullptr;
 	}
 
-	virtual void log(time_t ti,lyramilk::log::type ty,lyramilk::data::string usr,lyramilk::data::string app,lyramilk::data::string module,lyramilk::data::string str) const
+	virtual void log(time_t ti,lyramilk::log::type ty,const lyramilk::data::string& usr,const lyramilk::data::string& app,const lyramilk::data::string& module,const lyramilk::data::string& str) const
 	{
 		tm t;
 		localtime_r(&ti,&t);

@@ -74,12 +74,14 @@ namespace lyramilk{ namespace teapoy {
 				log(__FUNCTION__) << D("设置Mysql配置组[%s]成功",strgroup.c_str()) << std::endl;
 			}else{
 				log(lyramilk::log::warning,__FUNCTION__) << D("设置Mysql配置组[%s]失败：%s",strgroup.c_str(),mysql_error(p->_db_ptr)) << std::endl;
+				delete p;
 				return nullptr;
 			}
 		}
 
 		if(nullptr == mysql_real_connect(p->_db_ptr,nullptr,nullptr,nullptr,nullptr,0,nullptr,0)){
 			log(lyramilk::log::warning,__FUNCTION__) << D("建立连接失败：%s",mysql_error(p->_db_ptr)) << std::endl;
+			delete p;
 			return nullptr;
 		}
 		return p;
