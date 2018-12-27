@@ -30,9 +30,10 @@ namespace lyramilk{ namespace teapoy {
 
 	mysql_clients::mysql_clients(const lyramilk::data::var& cfg)
 	{
-		opts = cfg["opt"];
-		cnf = cfg.path("/cnf/file").str();
-		group = cfg.path("/cnf/group");
+		lyramilk::data::var v = cfg;
+		opts = v["opt"];
+		cnf = v.path("/cnf/file").str();
+		group = v.path("/cnf/group");
 	}
 
 	mysql_clients::~mysql_clients()

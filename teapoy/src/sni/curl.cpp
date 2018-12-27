@@ -220,7 +220,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 		if(args.size() > 1 && args[1].type() == lyramilk::data::var::t_map){
 			const lyramilk::data::map& params = args[1];
 			if(!params.empty()){
-				if( url.find("?") != url.npos){
+				if( url.find("?") == url.npos){
 					ssurl << "?";
 				}
 				lyramilk::data::map::const_iterator it = params.begin();
