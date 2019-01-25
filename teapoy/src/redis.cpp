@@ -182,6 +182,33 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 		ss.flush();
 		lyramilk::netio::socket_istream iss(this);
 		bool suc = parse(iss,ret);
+		if(!suc){
+			if(ret.type() == lyramilk::data::var::t_str){
+				lyramilk::data::string str = ret.str();
+				if(str.find("NOAUTH") == str.npos){
+					close();
+					return false;
+					/*
+					if(!pwd.empty()){
+						auth(pwd);
+						{
+							lyramilk::data::array::const_iterator it = cmd.begin();
+							lyramilk::netio::socket_ostream ss(this);
+							ss << "*" << cmd.size() << "\r\n";
+							for(;it!=cmd.end();++it){
+								lyramilk::data::string str = it->str();
+								ss << "$" << str.size() << "\r\n";
+								ss << str << "\r\n";
+							}
+							ss.flush();
+							lyramilk::netio::socket_istream iss(this);
+							suc = parse(iss,ret);
+						}
+					}*/
+
+				}
+			}
+		}
 		if(listener)listener(addr,cmd,suc,ret);
 		return suc;
 	}

@@ -1,5 +1,6 @@
 #include "script.h"
 #include "env.h"
+#include <cassert>
 #include <libmilk/log.h>
 #include <libmilk/dict.h>
 #include <libmilk/factory.h>

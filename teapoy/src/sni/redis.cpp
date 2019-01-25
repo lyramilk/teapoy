@@ -1,6 +1,7 @@
 #include "script.h"
 #include "env.h"
 #include "stringutil.h"
+#include <cassert>
 #include <libmilk/var.h>
 #include <iostream>
 #include <libmilk/log.h>
