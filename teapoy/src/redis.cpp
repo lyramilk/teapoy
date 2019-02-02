@@ -4,6 +4,8 @@
 #include <libmilk/log.h>
 #include <libmilk/dict.h>
 #include <libmilk/exception.h>
+#include <string.h>
+#include <errno.h>
 
 
 namespace lyramilk{ namespace teapoy{ namespace redis{
@@ -31,15 +33,15 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 	{
 		this->host = host;
 		this->port = port;
-		if(client::open(host,port)){
+
+		if(client::open(this->host,this->port)){
 			lyramilk::data::stringstream ss;
 			lyramilk::netio::netaddress naddr = dest();
 			ss << naddr.ip_str() << ":" << naddr.port;
 			addr = ss.str();
-//printf("redis(%s:%d) open\n",host.c_str(),port);
 			return true;
 		}
-		throw lyramilk::exception(D("redis(%s:%d)错误：网络错误",host.c_str(),port));
+		throw lyramilk::exception(D("redis(%s:%d)网络错误：%s\n",this->host.c_str(),this->port,strerror(errno)) );
 		return false;
 	}
 
@@ -163,12 +165,13 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 				throw lyramilk::exception(D("redis(%s)错误：响应格式错误",addr.c_str()));
 			}
 		}
-		throw lyramilk::exception(D("redis(%s)错误：网络错误",addr.c_str()));
+		throw lyramilk::exception(D("redis(%s)错误：协议错误",addr.c_str()));
 	}
 
 	bool redis_client::exec(const lyramilk::data::array& cmd,lyramilk::data::var& ret)
 	{
 		if(!isalive()){
+			lyramilk::klog(lyramilk::log::error,"redis_client::exec") << D("redis(%s:%d)断线重连",host.c_str(),port) << std::endl;
 			reconnect();
 		}
 		lyramilk::data::array::const_iterator it = cmd.begin();
@@ -181,31 +184,21 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 		}
 		ss.flush();
 		lyramilk::netio::socket_istream iss(this);
-		bool suc = parse(iss,ret);
+		bool suc = false;
+		
+		try{
+			suc = parse(iss,ret);
+		}catch(std::exception& e){
+			close();
+			throw e;
+		}
 		if(!suc){
 			if(ret.type() == lyramilk::data::var::t_str){
 				lyramilk::data::string str = ret.str();
-				if(str.find("NOAUTH") == str.npos){
+				if(str.find("NOAUTH") != str.npos){
 					close();
+					throw lyramilk::exception(D("redis(%s:%d)错误：%s",host.c_str(),port,str.c_str()));
 					return false;
-					/*
-					if(!pwd.empty()){
-						auth(pwd);
-						{
-							lyramilk::data::array::const_iterator it = cmd.begin();
-							lyramilk::netio::socket_ostream ss(this);
-							ss << "*" << cmd.size() << "\r\n";
-							for(;it!=cmd.end();++it){
-								lyramilk::data::string str = it->str();
-								ss << "$" << str.size() << "\r\n";
-								ss << str << "\r\n";
-							}
-							ss.flush();
-							lyramilk::netio::socket_istream iss(this);
-							suc = parse(iss,ret);
-						}
-					}*/
-
 				}
 			}
 		}
