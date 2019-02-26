@@ -2,6 +2,7 @@
 #include "stringutil.h"
 #include "mimetype.h"
 #include <libmilk/dict.h>
+#include <libmilk/stringutil.h>
 #include <sys/stat.h>
 #include <errno.h>
 #include "teapoy_gzip.h"
@@ -78,6 +79,9 @@ namespace lyramilk{ namespace teapoy {
 					etag = buff_etag;
 				}
 
+			}
+
+			if(usecache){
 				lyramilk::data::string sifetagnotmatch = request->get("If-None-Match");
 				if(sifetagnotmatch == etag){
 					response->set("Cache-Control","max-age=3600,public");
@@ -110,61 +114,80 @@ namespace lyramilk{ namespace teapoy {
 #endif
 			// range支持
 			lyramilk::data::uint64 filesize = st.st_size;
-			lyramilk::data::uint64 datacount = filesize;
-			lyramilk::data::int64 range_start = 0;
-			lyramilk::data::int64 range_end = -1;
-			bool is_range = false;
+			lyramilk::data::int64 datacount = filesize;
+
+
+			std::map<lyramilk::data::int64,lyramilk::data::int64> range_map;
+
 			if(gzipmode != CHUNKED_GZIP)
 			{
-				//取得分段下载的范围
-				lyramilk::data::string srange = request->get("Range");
-				bool has_range_start = false;
-				bool has_range_end = false;
-				if(!srange.empty()){
-					is_range = true;
-					lyramilk::data::strings range;
-					if(srange.compare(0,6,"bytes=") == 0){
-						range = lyramilk::teapoy::split(srange.substr(6),"-");
-					}
-					if(range.size() > 0 && !range[0].empty()){
-						range_start = lyramilk::data::var(range[0]);
-						has_range_start = true;
-					}
-
-					if(range.size() > 1 && !range[1].empty()){
-						range_end = lyramilk::data::var(range[1]);
-						has_range_end = true;
-					}
-					if(!has_range_start && !has_range_end){
-						is_range = false;
-					}
-
-					if(!has_range_start){
-						//最后range_end个字节
-						range_start = filesize - range_end;
-						range_end = filesize;
-					}
-					if(!has_range_end){
-						//从range_start到最后
-						range_end = filesize;
-					}
-					datacount = range_end-range_start;
-				}
-			}
-			if(is_range){
-				//判断分断下载是否因原文件修改而失效。
 				lyramilk::data::string sifrange = request->get("If-Range");
 				lyramilk::data::string sifmatch = request->get("If-Match");
 
-				if(sifrange != etag){
-					//Range失效
-					is_range = false;
-				}
+				do{
+					if(!sifrange.empty() && sifrange != etag){
+						//Range失效
+						break;
+					}
 
-				if(sifmatch != etag){
-					//Range失效
-					is_range = false;
-				}
+					if(!sifmatch.empty() && sifmatch != etag){
+						//Range失效
+						break;
+					}
+
+
+					//取得分段下载的范围
+					lyramilk::data::string srange = request->get("Range");
+					if(!srange.empty()){
+						if(srange.compare(0,6,"bytes=") == 0){
+							lyramilk::data::string sranges = srange.substr(6);
+							lyramilk::data::strings ranges = lyramilk::data::split(sranges,",");
+							lyramilk::data::strings::iterator it = ranges.begin();
+							for(;it!=ranges.end();++it){
+								lyramilk::data::strings range = lyramilk::data::split(*it,"-");
+								if(range.size() > 1){
+									if(range[0].empty()){
+										char* p;
+										lyramilk::data::int64 s = 0 - strtoll(range[1].c_str(),&p,10);
+										s += filesize;
+										range_map[s] = s;
+										continue;
+									}
+									if(range[1].empty()){
+										range[1] = "-1";
+									}
+									char* p;
+									lyramilk::data::int64 s = strtoll(range[0].c_str(),&p,10);
+									lyramilk::data::int64 t = strtoll(range[1].c_str(),&p,10);
+									if(s < 0){
+										s += filesize;
+									}
+									if(t < 0){
+										t += filesize;
+									}
+
+									range_map[s] = t;
+								}else if(range.size() == 1){
+									char* p;
+									lyramilk::data::int64 s = strtoll(range[0].c_str(),&p,10);
+									if(s < 0){
+										s += filesize;
+									}
+									range_map[s] = s;
+								}
+							}
+						}
+
+					}
+				}while(false);
+			}
+
+			bool is_range = false;
+			std::map<lyramilk::data::int64,lyramilk::data::int64>::iterator range_it = range_map.begin();
+			if(range_it!=range_map.end()){
+				//多分段处理起来比较麻烦，只处理第一分段。
+				is_range = true;
+				datacount = std::min(range_it->second + 1,(lyramilk::data::int64)filesize) - range_it->first;
 			}
 
 			//准备发送响应头
@@ -172,15 +195,14 @@ namespace lyramilk{ namespace teapoy {
 			if(gzipmode == NO_GZIP){
 				//lyramilk::data::multilanguage::dict::format("%llu",datacount):
 				if(is_range){
-					{
-						char cr[1024];
-						int icr = snprintf(cr,sizeof(cr),"%lld-%lld/%llu",range_start,range_end,filesize);
-						if(icr < 1){
-							adapter->send_header_with_length(nullptr,500,0);
-							return ;
-						}
-						response->set("Content-Range",cr);
+					char cr[1024];
+					int icr = snprintf(cr,sizeof(cr),"bytes %lld-%lld/%llu",range_it->first,std::min(range_it->second,(lyramilk::data::int64)filesize - 1),filesize);
+					if(icr < 1){
+						adapter->send_header_with_length(nullptr,500,0);
+						return ;
 					}
+					response->set("Content-Range",cr);
+				}else{
 					response->set("Accept-Ranges","bytes");
 				}
 			}else{
@@ -209,11 +231,11 @@ namespace lyramilk{ namespace teapoy {
 					return ;
 				}
 				if(is_range){
-					ifs.seekg(range_start,std::ifstream::beg);
+					ifs.seekg(range_it->first,std::ifstream::beg);
 				}
 				char buff[16384];
 				for(;ifs && datacount > 0;){
-					ifs.read(buff,sizeof(buff));
+					ifs.read(buff,std::min(sizeof(buff),(std::size_t)datacount));
 					lyramilk::data::int64 gcount = ifs.gcount();
 					if(gcount > 0){
 						datacount -= gcount;

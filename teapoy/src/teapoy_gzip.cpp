@@ -35,7 +35,7 @@ namespace lyramilk{ namespace teapoy
 					}else{
 						deflate(&strm, Z_NO_FLUSH);
 					}
-					unsigned int sz = sizeof(buff_chunkbody) - strm.avail_out;
+					int sz = sizeof(buff_chunkbody) - strm.avail_out;
 					if(sz > 0){
 						adapter->send_chunk(adapter->response,buff_chunkbody,sz);
 					}

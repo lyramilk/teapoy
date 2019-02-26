@@ -82,7 +82,21 @@ namespace lyramilk{ namespace teapoy {
 				}
 
 				header[":method"] = fields[0];
-				header[":path"] = fields[1];	//url
+				lyramilk::data::string path = fields[1];
+				{
+					static lyramilk::data::coding* code_url = lyramilk::data::codes::instance()->getcoder("url");
+					std::size_t pos_path_qmask = path.find('?');
+					if(pos_path_qmask == path.npos){
+						path = code_url->decode(path);
+					}else{
+						if(code_url){
+							lyramilk::data::string path1 = path.substr(0,pos_path_qmask);
+							lyramilk::data::string path2 = path.substr(pos_path_qmask + 1);
+							path = code_url->decode(path1) + "?" + path2;
+						}
+					}
+				}
+				header[":path"] = path;	//url
 				header[":version"] = fields[2];
 				pps = mp_head;
 			}else{

@@ -51,7 +51,14 @@ namespace lyramilk{ namespace teapoy {
 			}
 			return false;
 		}
-		response->set("Connection",request->get("Connection"));
+
+
+		lyramilk::data::string sreqconn = request->get("Connection");
+		if(sreqconn.empty()){
+			response->set("Connection","keep-alive");
+		}else{
+			response->set("Connection",sreqconn);
+		}
 
 		cookie_from_request();
 		if(!service->call(request,response,this)){
@@ -128,6 +135,7 @@ namespace lyramilk{ namespace teapoy {
 
 	bool http_1_1::send_header_with_length(httpresponse* response,lyramilk::data::uint32 code,lyramilk::data::uint64 content_length)
 	{
+		lyramilk::data::ostringstream os;
 		if(is_responsed) return false;
 		os <<	"HTTP/1.1 " << get_error_code_desc(code) << "\r\n"
 				"Content-Length: " << content_length << "\r\n";
@@ -179,6 +187,10 @@ namespace lyramilk{ namespace teapoy {
 		}
 		os << "\r\n";
 		os.flush();
+
+COUT << os.str() << std::endl;
+		this->os << os.str();
+		this->os.flush();
 		is_responsed = true;
 		return true;
 	}

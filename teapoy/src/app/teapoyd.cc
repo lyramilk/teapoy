@@ -23,7 +23,6 @@
 class teapoy_log_base;
 
 bool ondaemon = false;
-bool enable_console_logredirect = false;
 bool no_exit_mode;
 teapoy_log_base* logger = nullptr;
 lyramilk::script::engine* eng_main = nullptr;
@@ -32,7 +31,11 @@ lyramilk::data::string launcher_script;
 lyramilk::data::string dictfile;
 lyramilk::data::string dictfile_missing;
 
-std::map<lyramilk::data::string,bool> logswitch;
+bool enable_log_debug = true;
+bool enable_log_trace = false;
+bool enable_log_warning = false;
+bool enable_log_error = false;
+
 
 lyramilk::data::string get_env(const char* env,lyramilk::data::string def)
 {
@@ -95,224 +98,33 @@ class lang_dict:public lyramilk::data::dict
 	}
 };
 
-class teapoy_log_base:public lyramilk::log::logb
-{
-	lyramilk::log::logb* old;
-  public:
-	const bool *enable_log_debug;
-	const bool *enable_log_trace;
-	const bool *enable_log_warning;
-	const bool *enable_log_error;
-
-	teapoy_log_base()
-	{
-		old = lyramilk::klog.rebase(this);
-		enable_log_debug = &logswitch["debug"];
-		enable_log_trace = &logswitch["trace"];
-		enable_log_warning = &logswitch["warning"];
-		enable_log_error = &logswitch["error"];
-	}
-
-	virtual ~teapoy_log_base()
-	{
-		lyramilk::klog.rebase(old);
-	}
-
-	virtual bool ok()
-	{
-		return true;
-	}
-};
-
-class teapoy_log_stdio:public teapoy_log_base
+class teapoy_log_logfile:public lyramilk::log::logf
 {
   public:
-	virtual void log(time_t ti,lyramilk::log::type ty,lyramilk::data::string usr,lyramilk::data::string app,lyramilk::data::string module,lyramilk::data::string str) const
+	teapoy_log_logfile(lyramilk::data::string logfilepathfmt):lyramilk::log::logf(logfilepathfmt)
 	{
-		lyramilk::data::string cache;
-		cache.reserve(1024);
-		switch(ty){
-		  case lyramilk::log::debug:
-			if(!*enable_log_debug)return;
-			cache.append("\x1b[36m");
-			cache.append(strtime(ti));
-			cache.append(" [");
-			cache.append(module);
-			cache.append("] ");
-			cache.append(str);
-			cache.append("\x1b[0m");
-			fwrite(cache.c_str(),cache.size(),1,stdout);
-			break;
-		  case lyramilk::log::trace:
-			if(!*enable_log_trace)return;
-			cache.append("\x1b[37m");
-			cache.append(strtime(ti));
-			cache.append(" [");
-			cache.append(module);
-			cache.append("] ");
-			cache.append(str);
-			cache.append("\x1b[0m");
-			fwrite(cache.c_str(),cache.size(),1,stdout);
-			break;
-		  case lyramilk::log::warning:
-			if(!*enable_log_warning)return;
-			cache.append("\x1b[33m");
-			cache.append(strtime(ti));
-			cache.append(" [");
-			cache.append(module);
-			cache.append("] ");
-			cache.append(str);
-			cache.append("\x1b[0m");
-			fwrite(cache.c_str(),cache.size(),1,stdout);
-			break;
-		  case lyramilk::log::error:
-			if(!*enable_log_error)return;
-			cache.append("\x1b[31m");
-			cache.append(strtime(ti));
-			cache.append(" [");
-			cache.append(module);
-			cache.append("] ");
-			cache.append(str);
-			cache.append("\x1b[0m");
-			fwrite(cache.c_str(),cache.size(),1,stdout);
-			break;
-		}
-	}
-};
-
-class teapoy_log_logfile:public teapoy_log_base
-{
-	mutable FILE* fp;
-	lyramilk::data::string logfilepath;
-	lyramilk::data::string pidstr;
-	lyramilk::data::string str_debug;
-	lyramilk::data::string str_trace;
-	lyramilk::data::string str_warning;
-	lyramilk::data::string str_error;
-	mutable lyramilk::threading::mutex_os lock;
-	mutable tm daytime;
-  public:
-	teapoy_log_logfile(lyramilk::data::string logfilepath)
-	{
-		this->logfilepath = logfilepath;
-		fp = fopen(logfilepath.c_str(),"a");
-		if(!fp) fp = stdout;
-		pid_t pid = getpid();
-		lyramilk::data::stringstream ss;
-		ss << pid << " ";
-		pidstr = ss.str();
-		str_debug = "[" + D("debug") + "] ";
-		str_trace = "[" + D("trace") + "] ";
-		str_warning = "[" + D("warning") + "] ";
-		str_error = "[" + D("error") + "] ";
-
-		time_t stime = time(0);
-		daytime = *localtime(&stime);
 	}
 	virtual ~teapoy_log_logfile()
 	{
-		if(fp != stdout) fclose(fp);
 	}
 
-	virtual bool ok()
+	virtual void log(time_t ti,lyramilk::log::type ty,const lyramilk::data::string& usr,const lyramilk::data::string& app,const lyramilk::data::string& module,const lyramilk::data::string& str) const
 	{
-		return fp != nullptr;
-	}
-
-	virtual void log(time_t ti,lyramilk::log::type ty,lyramilk::data::string usr,lyramilk::data::string app,lyramilk::data::string module,lyramilk::data::string str) const
-	{
-		tm t;
-		localtime_r(&ti,&t);
-#if 1
-		if(daytime.tm_year != t.tm_year || daytime.tm_mon != t.tm_mon || daytime.tm_mday != t.tm_mday){
-			lyramilk::threading::mutex_sync _(lock);
-			if(daytime.tm_year != t.tm_year || daytime.tm_mon != t.tm_mon || daytime.tm_mday != t.tm_mday){
-				char buff[64];
-				snprintf(buff,sizeof(buff),".%04d%02d%02d",(1900 + daytime.tm_year),(daytime.tm_mon + 1),daytime.tm_mday);
-				daytime = t;
-				lyramilk::data::string destfilename = logfilepath;
-				destfilename.append(buff);
-				rename(logfilepath.c_str(),destfilename.c_str());
-				FILE* newfp = fopen(logfilepath.c_str(),"a");
-				if(newfp){
-					FILE* oldfp = fp;
-					fp = newfp;
-					if(oldfp && oldfp != stdout) fclose(oldfp);
-				}
-			}
-		}
-#else
-		if(daytime.tm_year != t.tm_year || daytime.tm_mon != t.tm_mon || daytime.tm_mday != t.tm_mday || daytime.tm_hour != t.tm_hour || daytime.tm_min != t.tm_min){
-			lyramilk::threading::mutex_sync _(lock);
-			if(daytime.tm_year != t.tm_year || daytime.tm_mon != t.tm_mon || daytime.tm_mday != t.tm_mday || daytime.tm_hour != t.tm_hour || daytime.tm_min != t.tm_min){
-				char buff[64];
-				snprintf(buff,sizeof(buff),".%04d%02d%02d%02d%02d",(1900 + daytime.tm_year),(daytime.tm_mon + 1),daytime.tm_mday,daytime.tm_hour,daytime.tm_min);
-				daytime = t;
-				lyramilk::data::string destfilename = logfilepath;
-				destfilename.append(buff);
-				rename(logfilepath.c_str(),destfilename.c_str());
-				FILE* newfp = fopen(logfilepath.c_str(),"a");
-				if(newfp){
-					FILE* oldfp = fp;
-					fp = newfp;
-					if(oldfp && oldfp != stdout) fclose(oldfp);
-				}
-			}
-		}
-#endif
-
-		lyramilk::data::string cache;
-		cache.reserve(1024);
 		switch(ty){
 		  case lyramilk::log::debug:
-			if(!*enable_log_debug)return;
-			cache.append(pidstr);
-			cache.append(str_debug);
-			cache.append(strtime(ti));
-			cache.append(" [");
-			cache.append(module);
-			cache.append("] ");
-			cache.append(str);
-			fwrite(cache.c_str(),cache.size(),1,fp);
-			fflush(fp);
+			if(!enable_log_debug)return;
 			break;
 		  case lyramilk::log::trace:
-			if(!*enable_log_trace)return;
-			cache.append(pidstr);
-			cache.append(str_trace);
-			cache.append(strtime(ti));
-			cache.append(" [");
-			cache.append(module);
-			cache.append("] ");
-			cache.append(str);
-			fwrite(cache.c_str(),cache.size(),1,fp);
-			fflush(fp);
+			if(!enable_log_trace)return;
 			break;
 		  case lyramilk::log::warning:
-			if(!*enable_log_warning)return;
-			cache.append(pidstr);
-			cache.append(str_warning);
-			cache.append(strtime(ti));
-			cache.append(" [");
-			cache.append(module);
-			cache.append("] ");
-			cache.append(str);
-			fwrite(cache.c_str(),cache.size(),1,fp);
-			fflush(fp);
+			if(!enable_log_warning)return;
 			break;
 		  case lyramilk::log::error:
-			if(!*enable_log_error)return;
-			cache.append(pidstr);
-			cache.append(str_error);
-			cache.append(strtime(ti));
-			cache.append(" [");
-			cache.append(module);
-			cache.append("] ");
-			cache.append(str);
-			fwrite(cache.c_str(),cache.size(),1,fp);
-			fflush(fp);
+			if(!enable_log_error)return;
 			break;
 		}
+		lyramilk::log::logf::log(ti,ty,usr,app,module,str);
 	}
 };
 
@@ -335,20 +147,6 @@ class teapoy_loader:public lyramilk::script::sclass
 	teapoy_loader():log(lyramilk::klog,"teapoy.loader")
 	{
 		newroot = "/";
-	}
-
-	void init_log()
-	{
-		if(logger == nullptr){
-			teapoy_log_base* logbase = new teapoy_log_stdio();
-			if(logbase && logbase->ok()){
-				if(logger)delete logger;
-				logger = logbase;
-				lyramilk::klog(lyramilk::log::debug,"teapoy.log") << D("切换日志成功") << std::endl;
-			}else{
-				lyramilk::klog(lyramilk::log::error,"teapoy.log") << D("切换日志失败") << std::endl;
-			}
-		}
 	}
 
 	virtual ~teapoy_loader()
@@ -396,13 +194,16 @@ class teapoy_loader:public lyramilk::script::sclass
 
 	lyramilk::data::var enable_log(const lyramilk::data::array& args,const lyramilk::data::map& env)
 	{
-		if(logger == nullptr) init_log();
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_bool);
 		lyramilk::data::string logtype = args[0];
 		bool isenable = args[1];
-		std::map<lyramilk::data::string,bool>::iterator it = logswitch.find(logtype);
-		logswitch[logtype] = isenable;
+
+		if(logtype == "debug")   enable_log_debug = isenable;
+		else if(logtype == "trace")   enable_log_trace = isenable;
+		else if(logtype == "warning") enable_log_warning = isenable;
+		else if(logtype == "error")   enable_log_error = isenable;
+
 		if(isenable){
 			log(__FUNCTION__) << D("允许日志<%s>",logtype.c_str()) << std::endl;
 		}else{
@@ -413,27 +214,24 @@ class teapoy_loader:public lyramilk::script::sclass
 
 	lyramilk::data::var set_log_file(const lyramilk::data::array& args,const lyramilk::data::map& env)
 	{
-		if(!enable_console_logredirect){
-			if(!ondaemon){
-				log(lyramilk::log::debug,__FUNCTION__) << D("控制台模式，自动忽略日志文件。") << std::endl;
-				return false;
-			}
-		}
 		if(!logfile.empty()){
 			return false;
 		}
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 		logfile = args[0].str();
 
-		teapoy_log_base* logbase = new teapoy_log_logfile(logfile);
-		if(logbase && logbase->ok()){
-			if(logger)delete logger;
-			logger = logbase;
+		lyramilk::log::logf* lf = new teapoy_log_logfile(logfile);
+
+		if(lf && lf->ok()){
+			lyramilk::klog.rebase(lf);
 			log(lyramilk::log::debug,__FUNCTION__) << D("切换日志成功") << std::endl;
-		}else{
-			log(lyramilk::log::error,__FUNCTION__) << D("切换日志失败:%s",logfile.c_str()) << std::endl;
+			return true;
 		}
-		return true;
+
+		if(lf) delete lf;
+
+		log(lyramilk::log::error,__FUNCTION__) << D("切换日志失败:%s",logfile.c_str()) << std::endl;
+		return false;
 	}
 
 
@@ -488,7 +286,6 @@ void useage(lyramilk::data::string selfname)
 	std::cout << "\t-s <file>\t" << gettext("start by script <file>") << std::endl;
 	std::cout << "\t-e <type>\t" << gettext("use engine type(eg. js,lua,...),default depending on extension name.") << std::endl;
 	std::cout << "\t-d       \t" << gettext("start as daemon") << std::endl;
-	std::cout << "\t-c       \t" << gettext("enable console mode use log redirect") << std::endl;
 	std::cout << "\t-t <file>\t" << gettext("translate string by <file>") << std::endl;
 	std::cout << "\t-u <file>\t" << gettext("which string can't be translate record to <file>") << std::endl;
 	std::cout << "\t-l <file>\t" << gettext("record log to <file>") << std::endl;
@@ -524,9 +321,6 @@ int main(int argc,char* argv[])
 			  case 'd':
 				isdaemon = true;
 				break;
-			  case 'c':
-				enable_console_logredirect = true;
-				break;
 			  case 't':
 				dictfile = optarg;
 				break;
@@ -551,7 +345,7 @@ int main(int argc,char* argv[])
 		launcher_script = argv[argi];
 	}
 	if(isdaemon){
-		::daemon(1,1);
+		::daemon(1,0);
 		int pid = 0;
 		do{
 			pid = fork();
@@ -569,6 +363,7 @@ int main(int argc,char* argv[])
 		if(!lyramilk::kdict.load(dictfile)){
 			lyramilk::klog(lyramilk::log::error,"teapoy.loader") << "load dictionary " << dictfile << " failed." << std::endl;
 		}else{
+			enable_log_debug = true;
 			lyramilk::klog(lyramilk::log::debug,"teapoy.loader") << "load dictionary " << dictfile << " success." << std::endl;
 		}
 	}
@@ -576,21 +371,15 @@ int main(int argc,char* argv[])
 	lyramilk::log::logss log(lyramilk::klog,"teapoy.loader");
 
 	if(ondaemon){
-		logswitch["debug"] = false;
-		logswitch["trace"] = true;
-		logswitch["warning"] = true;
-		logswitch["error"] = true;
-		if(!logfile.empty()){
-			teapoy_log_base* logbase = new teapoy_log_logfile(logfile);
-			if(logbase && logbase->ok()){
-				if(logger)delete logger;
-				logger = logbase;
-				log(lyramilk::log::debug,__FUNCTION__) << D("切换日志成功") << std::endl;
-			}else{
-				log(lyramilk::log::error,__FUNCTION__) << D("切换日志失败:%s",logfile.c_str()) << std::endl;
-			}
+		lyramilk::log::logf* lf = new teapoy_log_logfile(logfile);
+		if(lf && lf->ok()){
+			lyramilk::klog.rebase(lf);
+			log(lyramilk::log::debug,__FUNCTION__) << D("切换日志成功") << std::endl;
+		}else{
+			if(lf) delete lf;
+			log(lyramilk::log::error,__FUNCTION__) << D("切换日志失败:%s",logfile.c_str()) << std::endl;
 		}
-	}else if(!enable_console_logredirect){
+	}else{
 		log(lyramilk::log::debug,__FUNCTION__) << D("控制台模式，自动忽略日志文件。") << std::endl;
 	}
 
