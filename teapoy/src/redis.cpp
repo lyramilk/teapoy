@@ -174,19 +174,22 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 			lyramilk::klog(lyramilk::log::error,"redis_client::exec") << D("redis(%s:%d)断线重连",host.c_str(),port) << std::endl;
 			reconnect();
 		}
-		lyramilk::data::array::const_iterator it = cmd.begin();
-		lyramilk::netio::socket_ostream ss(this);
-		ss << "*" << cmd.size() << "\r\n";
-		for(;it!=cmd.end();++it){
-			lyramilk::data::string str = it->str();
-			ss << "$" << str.size() << "\r\n";
-			ss << str << "\r\n";
+
+		{
+			lyramilk::data::array::const_iterator it = cmd.begin();
+			lyramilk::netio::socket_ostream ss(this);
+			ss << "*" << cmd.size() << "\r\n";
+			for(;it!=cmd.end();++it){
+				lyramilk::data::string str = it->str();
+				ss << "$" << str.size() << "\r\n";
+				ss << str << "\r\n";
+			}
+			ss.flush();
 		}
-		ss.flush();
-		lyramilk::netio::socket_istream iss(this);
 		bool suc = false;
 		
 		try{
+			lyramilk::netio::socket_istream iss(this);
 			suc = parse(iss,ret);
 		}catch(std::exception& e){
 			close();
