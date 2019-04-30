@@ -449,8 +449,8 @@ namespace lyramilk{ namespace teapoy{ namespace sni{
 
 	bool jshtml::load_file(const lyramilk::data::string& scriptfile)
 	{
-		if(scriptfilename.empty()){
-			scriptfilename = scriptfile;
+		if(!scriptfilename.empty()){
+			return false;
 		}
 
 		JS_SetRuntimeThread(rt);
@@ -580,6 +580,10 @@ namespace lyramilk{ namespace teapoy{ namespace sni{
 					result.push_back(c);
 				}else{
 					result.push_back(c);
+					std::size_t r = result.find(pattern);
+					if(r != result.npos){
+						return r + skip;
+					}
 				}
 			  	break;
 			  case cs_apos:
@@ -651,10 +655,6 @@ namespace lyramilk{ namespace teapoy{ namespace sni{
 			cs = cs_normal;
 		}
 
-		std::size_t r = result.find(pattern);
-		if(r != result.npos){
-			return r + skip;
-		}
 		return result.npos;
 	}
 
@@ -775,8 +775,6 @@ namespace lyramilk{ namespace teapoy{ namespace sni{
 						ofs << "response.write(\"\\n\");	//#" << lineno << LINEEOF;
 						rlines.push_back(lineno);
 					}
-
-
 					s = s_onrequest_html;
 				}
 			}

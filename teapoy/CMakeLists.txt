@@ -1,6 +1,6 @@
 ﻿#定义工程名及版本
 project(teapoy)
-set(version 2.0.4)
+set(version 2.0.5)
 set(soversion 2.0)
 
 
@@ -242,10 +242,9 @@ set_target_properties(${PROJECT_NAME} PROPERTIES VERSION ${version} SOVERSION ${
 
 #对libmilk的依赖
 if(NOT ${LIBMILK_CFLAGS})
-	add_custom_target(milk COMMAND make -C /data/src/libmilk/build/)
+	add_custom_target(milk COMMAND make milk -j -C /data/src/libmilk/build/)
 	add_dependencies(${PROJECT_NAME} milk)
 endif()
-
 
 #链接库
 if(UNIX)

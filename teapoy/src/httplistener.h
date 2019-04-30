@@ -13,8 +13,9 @@
 namespace lyramilk{ namespace teapoy {
 
 
-	class httplistener:public lyramilk::netio::aiolistener,public url_dispatcher
+	class httplistener:public lyramilk::netio::aiolistener
 	{
+		std::map<lyramilk::data::string,url_dispatcher> dispatcher;
 	  protected:
 #ifdef OPENSSL_FOUND
 		static int next_proto_cb(SSL *s, const unsigned char **data, unsigned int *len,void *arg);
@@ -38,6 +39,12 @@ namespace lyramilk{ namespace teapoy {
 		virtual void destory_http_session_byprotocol(lyramilk::data::string proto,httpadapter* ptr);
 
 		virtual lyramilk::io::aiopoll* get_aio_pool();
+
+
+		virtual bool add_dispatcher_selector(lyramilk::data::string hostname,lyramilk::ptr<url_selector> selector);
+		virtual bool remove_dispatcher(lyramilk::data::string hostname);
+
+		virtual bool call(lyramilk::data::string hostname,httprequest* request,httpresponse* response,httpadapter* adapter);
 	};
 }}
 

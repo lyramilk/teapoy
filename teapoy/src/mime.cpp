@@ -112,7 +112,7 @@ namespace lyramilk{ namespace teapoy {
 			for(;it!=vheader.end();++it){
 				std::size_t pos = it->find_first_of(":");
 				if(pos != it->npos){
-					lyramilk::data::string key = lyramilk::teapoy::lowercase(lyramilk::teapoy::trim(it->substr(0,pos)," \t\r\n"));
+					lyramilk::data::string key =lyramilk::teapoy::trim(it->substr(0,pos)," \t\r\n");
 
 					lyramilk::data::string value = lyramilk::teapoy::trim(it->substr(pos + 1)," \t\r\n");
 					if(!key.empty() && !value.empty()){
@@ -128,13 +128,13 @@ namespace lyramilk{ namespace teapoy {
 		}
 		if(pps == mp_head_end){
 			{
-				lyramilk::data::stringdict::const_iterator it = header.find("transfer-encoding");
+				http_header_type::const_iterator it = header.find("transfer-encoding");
 				if(it != header.end() && it->second == "chunked"){
 					pps = mp_chunked;
 				}
 			}
 			{
-				lyramilk::data::stringdict::const_iterator it = header.find("content-length");
+				http_header_type::const_iterator it = header.find("content-length");
 				if(it != header.end()){
 					char* p;
 					content_length = strtoll(it->second.c_str(),&p,10);
@@ -276,16 +276,14 @@ namespace lyramilk{ namespace teapoy {
 		return body_size;
 	}
 
-	const lyramilk::data::stringdict& mime::get_header_obj() const
+	const lyramilk::data::case_insensitive_map& mime::get_header_obj() const
 	{
 		return header;
 	}
 
 	lyramilk::data::string mime::get(const lyramilk::data::string& field) const
 	{
-		lyramilk::data::string lowercase_field = lowercase(field);
-
-		lyramilk::data::stringdict::const_iterator it = header.find(lowercase_field);
+		http_header_type::const_iterator it = header.find(field);
 		if(it != header.end()){
 			return it->second;
 		}
@@ -294,8 +292,7 @@ namespace lyramilk{ namespace teapoy {
 
 	void mime::set(const lyramilk::data::string& field,const lyramilk::data::string& value)
 	{
-		lyramilk::data::string lowercase_field = lowercase(field);
-		header[lowercase_field] = value;
+		header[field] = value;
 	}
 
 }}

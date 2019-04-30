@@ -28,15 +28,14 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		lyramilk::log::logss log;
 	  public:
 		httpadapter* adapter;
-		lyramilk::teapoy::httpsession* session;
+		lyramilk::teapoy::httpsessionptr session;
 		static lyramilk::script::sclass* ctr(const lyramilk::data::array& args)
 		{
 			httpadapter* adapter = (httpadapter*)args[0].userdata("..http.session.adapter");
 			if(adapter == nullptr) return nullptr;
-			lyramilk::teapoy::httpsession* session = nullptr;
+			lyramilk::teapoy::httpsessionptr session = nullptr;
 			
 			lyramilk::data::string sid = adapter->get_cookie("TeapoyId");
-
 			//为了含义明确
 			if(!sid.empty()){
 				session = adapter->service->session_mgr->get_session(sid);
@@ -46,13 +45,11 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			
 			if(session == nullptr) return nullptr;
 
-			//if(sid.empty()){
-				httpcookie c;
-				c.key = "TeapoyId";
-				c.value = session->get_session_id();
-				c.httponly = true;
-				adapter->set_cookie_obj(c);
-			//}
+			httpcookie c;
+			c.key = "TeapoyId";
+			c.value = session->get_session_id();
+			c.httponly = true;
+			adapter->set_cookie_obj(c);
 
 			httpsession* snisession = new httpsession(adapter,session);
 			return snisession;
@@ -62,7 +59,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			delete (httpsession*)p;
 		}
 
-		httpsession(httpadapter* adapter,lyramilk::teapoy::httpsession* session):log(lyramilk::klog,"teapoy.native.HttpSession")
+		httpsession(httpadapter* adapter,lyramilk::teapoy::httpsessionptr& session):log(lyramilk::klog,"teapoy.native.HttpSession")
 		{
 			this->adapter = adapter;
 			this->session = session;
@@ -75,7 +72,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		lyramilk::data::var setAttribute(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
-			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_str);
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_any);
 			if(args.size() < 2) return false;
 			return session->set(args[0].str(),args[1].str());
 		}
@@ -84,6 +81,12 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			return session->get(args[0].str());
+		}
+
+		lyramilk::data::var removeAttribute(const lyramilk::data::array& args,const lyramilk::data::map& env)
+		{
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
+			return session->set(args[0].str(),lyramilk::data::var::nil);
 		}
 
 		lyramilk::data::var todo(const lyramilk::data::array& args,const lyramilk::data::map& env)
@@ -96,10 +99,11 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			lyramilk::script::engine::functional_map fn;
 			fn["get"] = lyramilk::script::engine::functional<httpsession,&httpsession::getAttribute>;
 			fn["set"] = lyramilk::script::engine::functional<httpsession,&httpsession::setAttribute>;
-			fn["remove"] = lyramilk::script::engine::functional<httpsession,&httpsession::todo>;
-			fn["setMaxInactiveInterval"] = lyramilk::script::engine::functional<httpsession,&httpsession::todo>;
-			fn["getId"] = lyramilk::script::engine::functional<httpsession,&httpsession::todo>;
-			fn["getCreationTime"] = lyramilk::script::engine::functional<httpsession,&httpsession::todo>;
+			fn["remove"] = lyramilk::script::engine::functional<httpsession,&httpsession::removeAttribute>;
+			fn["del"] = lyramilk::script::engine::functional<httpsession,&httpsession::removeAttribute>;
+			//fn["setMaxInactiveInterval"] = lyramilk::script::engine::functional<httpsession,&httpsession::todo>;
+			//fn["getId"] = lyramilk::script::engine::functional<httpsession,&httpsession::todo>;
+			//fn["getCreationTime"] = lyramilk::script::engine::functional<httpsession,&httpsession::todo>;
 			p->define("HttpSession",fn,httpsession::ctr,httpsession::dtr);
 			return 1;
 		}
@@ -113,7 +117,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		lyramilk::data::uint32* response_code;
 		httpadapter* adapter;
 
-		lyramilk::data::stringstream ss;
+		std::ostream* os;
 		bool noreply;
 	  public:
 		static std::map<int,lyramilk::data::string> code_map;
@@ -123,9 +127,10 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		static lyramilk::script::sclass* ctr(const lyramilk::data::array& args)
 		{
 			httpadapter* adapter = (httpadapter*)args[0].userdata("..http.session.adapter");
-			std::ostream* os = (std::ostream*)args[0].userdata("..http.response.stream");
-			lyramilk::data::uint32* code = (lyramilk::data::uint32*)args[0].userdata("..http.response.code");
-			return new httpresponse(adapter,os,code);
+			std::ostream* os = (std::ostream*)args[0].userdata("..http.session.response.stream");
+			lyramilk::data::uint32* code = (lyramilk::data::uint32*)args[0].userdata("..http.session.response.code");
+			if(os) 	return new httpresponse(adapter,os,code);
+			return nullptr;
 		}
 
 		static void dtr(lyramilk::script::sclass* p)
@@ -137,33 +142,12 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		{
 			noreply = false;
 			this->adapter = adapter;
+			this->os = os;
 			response_code = code;
 		}
 
 		~httpresponse()
 		{
-/*
-			if(response_code > 0){
-				bool usedgzip = false;
-#ifdef ZLIB_FOUND
-				{
-					std::size_t datasize = ss.str().size();
-					lyramilk::data::string sacceptencoding = adapter->request->get("Accept-Encoding");
-					if(sacceptencoding.find("gzip") != sacceptencoding.npos && datasize > 512){
-						adapter->response->set("Content-Encoding","gzip");
-						adapter->send_header_with_chunk(adapter->response,response_code);
-						lyramilk::teapoy::http_chunked_gzip(ss,datasize,adapter);
-						usedgzip = true;
-					}
-				}
-#endif
-				if(!usedgzip){
-					lyramilk::data::string str_body = ss.str();
-					adapter->send_header_with_length(adapter->response,response_code,str_body.size());
-					adapter->send_bodydata(adapter->response,str_body.c_str(),str_body.size());
-				}
-			}
-*/
 		}
 
 		lyramilk::data::var setHeader(const lyramilk::data::array& args,const lyramilk::data::map& env)
@@ -191,12 +175,13 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		lyramilk::data::var write(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
+
 			if(args[0].type() == lyramilk::data::var::t_bin){
 				lyramilk::data::chunk cb = args[0];
-				ss.write((const char*)cb.c_str(),cb.size());
+				os->write((const char*)cb.c_str(),cb.size());
 			}else{
 				lyramilk::data::string str = args[0];
-				ss.write(str.c_str(),str.size());
+				os->write(str.c_str(),str.size());
 			}
 			return true;
 		}
@@ -284,10 +269,9 @@ namespace lyramilk{ namespace teapoy{ namespace native
 
 		lyramilk::data::var getHeaders(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
-			lyramilk::data::stringdict headers = me->get_header_obj();
-			headers.erase("..init");
-			return headers;
+			return me->get_header_obj();
 		}
+
 
 		lyramilk::data::var save(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
@@ -391,9 +375,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 
 		lyramilk::data::var getHeaders(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
-			lyramilk::data::stringdict headers = adapter->request->get_header_obj();
-			headers.erase("..init");
-			return headers;
+			return adapter->request->get_header_obj();
 		}
 
 		lyramilk::data::var getParameter(const lyramilk::data::array& args,const lyramilk::data::map& env)
@@ -416,7 +398,8 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		}
 		lyramilk::data::var getParameterValues(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
-			TODO();
+			// TODO
+			return adapter->request->params();
 		}
 
 		lyramilk::data::var getFile(const lyramilk::data::array& args,const lyramilk::data::map& env)
@@ -448,7 +431,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 
 		lyramilk::data::var getURI(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
-			TODO();
+			return adapter->request->url();
 		}
 
 		lyramilk::data::var getMethod(const lyramilk::data::array& args,const lyramilk::data::map& env)

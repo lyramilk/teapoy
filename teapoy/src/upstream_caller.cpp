@@ -24,7 +24,7 @@ namespace lyramilk{ namespace teapoy {
 
 		this->adapter = adapter;
 
-		lyramilk::data::stringdict headers;
+		http_header_type headers;
 		hc.get(headers);
 		return true;
 	}
@@ -36,15 +36,17 @@ namespace lyramilk{ namespace teapoy {
 
 	bool upstream_caller::notify_in()
 	{
-		lyramilk::data::stringdict headers;
+		http_header_type headers;
 		lyramilk::data::string body;
 		int code = hc.get_response(&headers,&body);
 		if(code == 200){
 			adapter->request->mode = "ondownstream";
-			adapter->request->data = headers;
-			adapter->request->data[":body"] = body;
-			if(!adapter->service->call(adapter->request,adapter->response,adapter)){
-				adapter->send_header_with_length(adapter->response,500,0);
+			const_cast<http_header_type&>(adapter->request->get_header_obj()) = headers;
+			adapter->request->header_extend[":body"] = body;
+			if(!adapter->service->call(hc.get_host(),adapter->request,adapter->response,adapter)){
+				adapter->response->code = 500;
+				adapter->response->content_length = 0;
+				adapter->send_header();
 			}
 		}
 		return false;

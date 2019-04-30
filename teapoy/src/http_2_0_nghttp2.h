@@ -39,9 +39,14 @@ namespace lyramilk{ namespace teapoy {
 		virtual bool reset();
 		virtual bool call();
 
-		virtual bool send_bodydata(httpresponse* response,const char* p,lyramilk::data::uint32 l);
-		virtual bool send_header_with_chunk(httpresponse* response,lyramilk::data::uint32 code);
-		virtual bool send_header_with_length(httpresponse* response,lyramilk::data::uint32 code,lyramilk::data::uint64 content_length);
+	  public:
+		virtual send_status send_header();
+		virtual bool send_data(const char* p,lyramilk::data::uint32 l);
+		virtual void send_finish();
+	  public:
+		virtual bool allow_gzip();
+		virtual bool allow_chunk();
+		virtual bool allow_cached();
 	  public:
 		lyramilk::data::stringdict response_header;
 		lyramilk::data::strings response_cookies;

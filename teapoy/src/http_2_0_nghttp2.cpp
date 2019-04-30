@@ -69,8 +69,10 @@ namespace lyramilk{ namespace teapoy {
 			p->response->set("Connection",p->request->get("Connection"));
 
 			p->cookie_from_request();
-			if(!p->service->call(p->request,p->response,p)){
-				p->send_header_with_length(p->response,404,0);
+			if(!p->service->call(p->request->get("Host"),p->request,p->response,p)){
+				p->response->code = 404;
+				p->response->content_length = 0;
+				p->send_header();
 			}
 		
 			std::vector<nghttp2_nv> headers;
@@ -100,6 +102,7 @@ namespace lyramilk{ namespace teapoy {
 
 			nghttp2_data_provider data_prd;
 			data_prd.read_callback = data_prd_read_callback;
+
 			if(p->response_body.str().empty()){
 				nghttp2_submit_response(p->h2_session, frame->hd.stream_id, headers.data(),headers.size(), nullptr);
 			}else{
@@ -122,6 +125,9 @@ namespace lyramilk{ namespace teapoy {
 			lyramilk::data::string skey((const char*)name, namelen);
 			lyramilk::data::string svalue((const char*)value, valuelen);
 			p->request->header[lyramilk::teapoy::lowercase(skey)] = svalue;
+			if(skey == ":authority"){
+				p->request->header["host"] = svalue;
+			}
 		}
 		return 0;
 	}
@@ -149,7 +155,6 @@ namespace lyramilk{ namespace teapoy {
 		int nouse = 0;
 		p->request->pps = mp_head_end;
 		p->request->write((const char*)data,len,&nouse);
-
 		//nghttp2_session_consume_stream(p->h2_session,stream_id,???);
 		//nghttp2_session_send(p->h2_session);
 
@@ -159,6 +164,7 @@ namespace lyramilk{ namespace teapoy {
 	ssize_t http_2_0::data_prd_read_callback(nghttp2_session *session, int32_t stream_id, uint8_t *buf, size_t length,uint32_t *data_flags, nghttp2_data_source *source, void *user_data)
 	{
 		http_2_0* p = (http_2_0*)user_data;
+
 
 		p->response_body.read((char*)buf,length);
 
@@ -226,7 +232,7 @@ namespace lyramilk{ namespace teapoy {
 	{
 		nghttp2_session_server_new(&h2_session,get_nghttp2_callbacks(),this);
 		nghttp2_submit_settings(h2_session, NGHTTP2_FLAG_NONE, NULL, 0);
-		return true;
+		return reset();
 	}
 
 	bool http_2_0::onrequest(const char* cache,int size,std::ostream& os)
@@ -246,140 +252,78 @@ namespace lyramilk{ namespace teapoy {
 
 	bool http_2_0::call()
 	{
-		if(!service->call(request,response,this)){
-			send_header_with_length(response,404,0);
+		cookie_from_request();
+		if(!service->call(request->get("Host"),request,response,this)){
+			response->code = 404;
+			response->content_length = 0;
+			send_header();
 		}
-		return false;
+		return true;
 	}
 
-	bool http_2_0::send_header_with_chunk(httpresponse* response,lyramilk::data::uint32 code)
+	http_2_0::send_status http_2_0::send_header()
 	{
-		response_header["Transfer-Encoding"] = "chunked";
-		{
-			stringdict::const_iterator it = channel->default_response_header.begin();
-			for(;it!=channel->default_response_header.end();++it){
-				if(!it->second.empty()){
-					response_header[it->first] = it->second;
-				}
+		lyramilk::data::ostringstream os;
+		errorpage* page = errorpage_manager::instance()->get(response->code);
+		if(page){
+			response_header[":status"] = lyramilk::data::str(page->code);
+			response_header["Content-Length"] = lyramilk::data::str(page->body.size());
+		}else{
+			response_header[":status"] = lyramilk::data::str(response->code);
+			if(response->content_length == -1){
+				response_header["Transfer-Encoding"] = "chunked";
+			}else{
+				response_header["Content-Length"] = lyramilk::data::str(response->content_length);
 			}
-		
 		}
-		if(response != nullptr){
-			stringdict::const_iterator it = response->header.begin();
+
+
+		merge_cookies();
+		{
+			http_header_type::const_iterator it = response->header.begin();
 			for(;it!=response->header.end();++it){
 				if(!it->second.empty()){
 					response_header[it->first] = it->second;
 				}
 			}
-
-			{
-				std::map<lyramilk::data::string,httpcookie>::const_iterator it = response->adapter->cookies.begin();
-				for(;it!=response->adapter->cookies.end();++it){
-					lyramilk::data::string cookie;
-					cookie = it->first;
-					cookie.append("=");
-					cookie.append(it->second.value);
-
-					if(it->second.expires != 0){
-						tm __t;
-						tm *t = localtime_r(&it->second.expires,&__t);
-						if(t){
-							cookie.append(";expires=");
-							cookie.append(asctime(&__t));
-						}
-					}
-					if(it->second.max_age != 0){
-						cookie.append(";max_age=");
-						cookie.append(lyramilk::data::str((lyramilk::data::int64)it->second.max_age));
-					}
-					if(!it->second.domain.empty()){
-						cookie.append(";domain=");
-						cookie.append(it->second.domain);
-					}
-					if(!it->second.path.empty()){
-						cookie.append(";path=");
-						cookie.append(it->second.path);
-					}
-					if(it->second.secure){
-						cookie.append(";Secure");
-					}
-					if(it->second.httponly){
-						cookie.append(";HttpOnly");
-					}
-					response_cookies.push_back(cookie);
-				}
-			}
 		}
-		return true;
-	}
-
-	bool http_2_0::send_header_with_length(httpresponse* response,lyramilk::data::uint32 code,lyramilk::data::uint64 content_length)
-	{
-		response_header[":status"] = lyramilk::data::str(code);
-		response_header["Content-Length"] = lyramilk::data::str(content_length);
-
 		{
-			stringdict::const_iterator it = channel->default_response_header.begin();
-			for(;it!=channel->default_response_header.end();++it){
+			std::multimap<lyramilk::data::string,lyramilk::data::string>::const_iterator it = response->header_ex.begin();
+			for(;it!=response->header_ex.end();++it){
 				if(!it->second.empty()){
 					response_header[it->first] = it->second;
 				}
 			}
-		
 		}
-		if(response != nullptr){
-			stringdict::const_iterator it = response->header.begin();
-			for(;it!=response->header.end();++it){
-				if(!it->second.empty()){
-					response_header[it->first] = it->second;
-				}
-			}
+COUT << response_header << std::endl;
+		return ss_need_body;
 
-			{
-				std::map<lyramilk::data::string,httpcookie>::const_iterator it = response->adapter->cookies.begin();
-				for(;it!=response->adapter->cookies.end();++it){
-					lyramilk::data::string cookie;
-					cookie = it->first;
-					cookie.append("=");
-					cookie.append(it->second.value);
-
-					if(it->second.expires != 0){
-						tm __t;
-						tm *t = localtime_r(&it->second.expires,&__t);
-						if(t){
-							cookie.append(";expires=");
-							cookie.append(asctime(&__t));
-						}
-					}
-					if(it->second.max_age != 0){
-						cookie.append(";max_age=");
-						cookie.append(lyramilk::data::str((lyramilk::data::int64)it->second.max_age));
-					}
-					if(!it->second.domain.empty()){
-						cookie.append(";domain=");
-						cookie.append(it->second.domain);
-					}
-					if(!it->second.path.empty()){
-						cookie.append(";path=");
-						cookie.append(it->second.path);
-					}
-					if(it->second.secure){
-						cookie.append(";Secure");
-					}
-					if(it->second.httponly){
-						cookie.append(";HttpOnly");
-					}
-					response_cookies.push_back(cookie);
-				}
-			}
-		}
-		return true;
 	}
 
 
-	bool http_2_0::send_bodydata(httpresponse* response,const char* p,lyramilk::data::uint32 l)
+	bool http_2_0::send_data(const char* p,lyramilk::data::uint32 l)
 	{
 		response_body.write(p,l);
+		return true;
+	}
+
+	void http_2_0::send_finish()
+	{
+		
+	}
+
+	bool http_2_0::allow_gzip()
+	{
+		return true;
+	}
+
+	bool http_2_0::allow_chunk()
+	{
+		return true;
+	}
+
+	bool http_2_0::allow_cached()
+	{
 		return true;
 	}
 

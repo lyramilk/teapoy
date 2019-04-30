@@ -6,6 +6,7 @@
 
 namespace lyramilk{ namespace teapoy {
 	class fcache;
+	typedef lyramilk::data::case_insensitive_map http_header_type;
 
 	enum mime_status{
 		ms_error = 0x0,
@@ -35,7 +36,7 @@ namespace lyramilk{ namespace teapoy {
 		fcache* request_cache;
 		mime_process pps;
 		mimes childs;
-		lyramilk::data::stringdict header;
+		http_header_type header;
 		virtual mime_status parse(const char* base,std::size_t base_size,std::size_t* bytes_used);
 	  public:
 		mime();
@@ -51,7 +52,7 @@ namespace lyramilk{ namespace teapoy {
 		virtual unsigned char* get_body_ptr();
 		virtual std::size_t get_body_size();
 	  public:
-		virtual const lyramilk::data::stringdict& get_header_obj() const;
+		virtual const http_header_type& get_header_obj() const;
 		virtual lyramilk::data::string get(const lyramilk::data::string& field) const;
 		virtual void set(const lyramilk::data::string& field,const lyramilk::data::string& value);
 	};

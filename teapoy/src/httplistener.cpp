@@ -118,4 +118,27 @@ namespace lyramilk{ namespace teapoy {
 		return pool;
 	}
 
+
+	bool httplistener::add_dispatcher_selector(lyramilk::data::string hostname,lyramilk::ptr<url_selector> selector)
+	{
+		dispatcher[hostname].add(selector);
+		return true;
+	}
+
+
+	bool httplistener::remove_dispatcher(lyramilk::data::string hostname)
+	{
+		dispatcher.erase(hostname);
+		return true;
+	}
+
+	bool httplistener::call(lyramilk::data::string hostname,httprequest* request,httpresponse* response,httpadapter* adapter)
+	{
+		std::map<lyramilk::data::string,url_dispatcher>::iterator it = dispatcher.find(hostname);
+		if(it == dispatcher.end()){
+			return dispatcher["*"].call(request,response,adapter);
+		}
+		return it->second.call(request,response,adapter);
+	}
+
 }}

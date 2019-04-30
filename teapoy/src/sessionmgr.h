@@ -13,6 +13,12 @@ namespace lyramilk{ namespace teapoy {
 	{
 		httpsession* p;
 	  public:
+
+		httpsessionptr()
+		{
+			p = nullptr;
+		}
+
 		httpsessionptr(httpsession* p)
 		{
 			this->p = p;
@@ -20,6 +26,33 @@ namespace lyramilk{ namespace teapoy {
 				p->add_ref();
 			}
 		}
+
+		httpsessionptr(const httpsessionptr& o)
+		{
+			this->p = const_cast<httpsessionptr&>(o).p;
+			if(p){
+				p->add_ref();
+			}
+		}
+
+		httpsessionptr& operator = (httpsession* p)
+		{
+			this->p = p;
+			if(p){
+				p->add_ref();
+			}
+			return *this;
+		}
+
+		httpsessionptr& operator = (const httpsessionptr& o)
+		{
+			this->p = const_cast<httpsessionptr&>(o).p;
+			if(p){
+				p->add_ref();
+			}
+			return *this;
+		}
+
 	  	virtual ~httpsessionptr()
 		{
 			if(p){
@@ -47,7 +80,7 @@ namespace lyramilk{ namespace teapoy {
 		virtual bool init(const lyramilk::data::map& info) = 0;
 
 		virtual httpsessionptr get_session(const lyramilk::data::string& sessionid) = 0;
-		virtual void destory_session(httpsessionptr& ses) = 0;
+		virtual void destory_session(httpsession* ses) = 0;
 	  public:
 		virtual httpsessionptr create_session()
 		{

@@ -2,6 +2,7 @@
 #define _lyramilk_teapoy_httpclient_h_
 
 #include "config.h"
+#include "mime.h"
 #include <libmilk/var.h>
 #include <libmilk/netio.h>
 
@@ -17,11 +18,14 @@ namespace lyramilk{ namespace teapoy
 		virtual ~httpclient();
 
 		virtual bool open(const lyramilk::data::string& url);
-		virtual bool post(const lyramilk::data::stringdict& headers,const lyramilk::data::string& body);
-		virtual bool get(const lyramilk::data::stringdict& headers);
+		virtual bool post(const http_header_type& headers,const lyramilk::data::string& body);
+		virtual bool get(const http_header_type& headers);
 
-		virtual bool wait_response();
-		virtual int get_response(lyramilk::data::stringdict* headers,lyramilk::data::string* body);
+		virtual lyramilk::data::string get_host();
+
+
+		virtual bool wait_response(int timeout_msec = 3600 * 1000);
+		virtual int get_response(http_header_type* headers,lyramilk::data::string* body);
 
 		static lyramilk::data::string rcall(const char* url,int timeout_msec = 2000);
 		static lyramilk::data::chunk rcallb(const char* url,int timeout_msec = 2000);

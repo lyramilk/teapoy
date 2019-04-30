@@ -78,11 +78,13 @@ namespace lyramilk{ namespace teapoy {
 
 	bool httprequest::reset()
 	{
+		is_params_parsed = false;
+		is_cookies_parsed = false;
 		fast_url.clear();
 		_cookies.clear();
 		_params.clear();
 		mode.clear();
-		data.clear();
+		header_extend.clear();
 		return mime::reset();
 	}
 
@@ -93,20 +95,20 @@ namespace lyramilk{ namespace teapoy {
 
 	lyramilk::data::map& httprequest::cookies()
 	{
-		if(!_cookies.empty()) return _cookies;
-		_cookies["..init"] = 1;
-
+		if(is_cookies_parsed) return _cookies;
+		is_cookies_parsed = true;
 		return _cookies;
 	}
 
 
 	lyramilk::data::map& httprequest::params()
 	{
-		if(!_params.empty()) return _params;
-		_params["..init"] = 1;
+		if(is_params_parsed) return _params;
+		is_params_parsed = 1;
 
 		lyramilk::data::string urlparams;
 		lyramilk::data::string url = get(":path");
+
 		std::size_t sz = url.find("?");
 		if(sz != url.npos){
 			urlparams = url.substr(sz + 1);
@@ -209,13 +211,16 @@ namespace lyramilk{ namespace teapoy {
 
 	bool httpresponse::reset()
 	{
-		header.clear();
+		header = adapter->channel->default_response_header;
+		header_ex.clear();
+		content_length = -1;
+		code = 404;
 		return true;
 	}
 
 	lyramilk::data::string httpresponse::get(const lyramilk::data::string& field)
 	{
-		stringdict::const_iterator it = header.find(field);
+		http_header_type::const_iterator it = header.find(field);
 		if(it != header.end()){
 			return it->second;
 		}
@@ -253,7 +258,7 @@ namespace lyramilk{ namespace teapoy {
 	}
 
 
-	//	httpcookie
+	///	httpcookie
 	httpcookie::httpcookie()
 	{
 		max_age = 0;
@@ -267,12 +272,18 @@ namespace lyramilk{ namespace teapoy {
 	}
 
 
+	///	errorpage_manager
+	errorpage_manager* errorpage_manager::instance()
+	{
+		static errorpage_manager _mm;
+		return &_mm;
+	}
+
 	/// httpadapter
 	httpadapter::httpadapter(std::ostream& oss):os(oss)
 	{
 		channel = nullptr;
 		service = nullptr;
-		is_responsed = false;
 
 		request = &pri_request;
 		response = &pri_response;
@@ -285,7 +296,6 @@ namespace lyramilk{ namespace teapoy {
 
 	bool httpadapter::reset()
 	{
-		is_responsed = false;
 		return true;
 	}
 	void httpadapter::cookie_from_request()
@@ -321,33 +331,62 @@ namespace lyramilk{ namespace teapoy {
 		return cookies[key];
 	}
 
-	bool httpadapter::send_bodydata(httpresponse* response,const char* p,lyramilk::data::uint32 l)
+	bool httpadapter::allow_gzip()
 	{
-		os.write(p,l);
+		return false;
+	}
+
+	bool httpadapter::allow_chunk()
+	{
+		return false;
+	}
+
+	bool httpadapter::allow_cached()
+	{
+		return false;
+	}
+
+	bool httpadapter::merge_cookies()
+	{
+		std::map<lyramilk::data::string,httpcookie>::const_iterator it = response->adapter->cookies.begin();
+		for(;it!=response->adapter->cookies.end();++it){
+			lyramilk::data::ostringstream os;
+			os << it->first << "=" << it->second.value;
+			if(it->second.expires != 0){
+				tm __t;
+				tm *t = localtime_r(&it->second.expires,&__t);
+				if(t){
+					os << ";expires=" << asctime(&__t);
+				}
+			}
+			if(it->second.max_age != 0){
+				os << ";max_age=" << it->second.max_age;
+			}
+			if(!it->second.domain.empty()){
+				os << ";domain=" << it->second.domain;
+			}
+			if(!it->second.path.empty()){
+				os << ";path=" << it->second.path;
+			}
+			if(it->second.secure){
+				os << ";Secure";
+			}
+			if(it->second.httponly){
+				os << ";HttpOnly";
+			}
+			response->header_ex.insert(std::make_pair("Set-Cookie",os.str()));
+		}
 		return true;
 	}
 
-	void httpadapter::send_raw_data(httpresponse* response,const char* p,lyramilk::data::uint32 l)
+	void httpadapter::send_raw_data(const char* p,lyramilk::data::uint32 l)
 	{
 		os.write(p,l);
 	}
 
-	void httpadapter::send_chunk(httpresponse* response,const char* p,lyramilk::data::uint32 l)
+	void httpadapter::send_finish()
 	{
-		char buff_chunkheader[32];
-		unsigned int szh = sprintf(buff_chunkheader,"%x\r\n",l);
-		os.write(buff_chunkheader,szh);
-		os.write(p,l);
-		os.write("\r\n",2);
 	}
-
-	void httpadapter::send_chunk_finish(httpresponse* response)
-	{
-		os.write("0\r\n\r\n",5);
-	}
-
-
-
 
 	/// aiohttpchannel
 
@@ -400,7 +439,7 @@ namespace lyramilk{ namespace teapoy {
 	bool aiohttpchannel::onrequest(const char* cache,int size,std::ostream& os)
 	{
 #ifdef _DEBUG
-		printf("\t收到\x1b[36m%d\x1b[0m字节\n%.*s\n",size,size,cache);
+		//printf("\t收到\x1b[36m%d\x1b[0m字节\n%.*s\n",size,size,cache);
 #endif
 		if(adapter){
 			return adapter->onrequest(cache,size,os);
@@ -443,7 +482,7 @@ namespace lyramilk{ namespace teapoy {
 			return false;
 		}
 		init_handler(adapter);
-		return adapter->onrequest(cache,size,os);
+		return adapter->oninit(os) && adapter->onrequest(cache,size,os);
 	}
 
 	void aiohttpchannel::init_handler(httpadapter* handler)
@@ -452,6 +491,7 @@ namespace lyramilk{ namespace teapoy {
 		adapter->service = service;
 		adapter->request->adapter = handler;
 		adapter->response->adapter = handler;
+
 	}
 
 

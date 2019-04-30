@@ -42,23 +42,21 @@ namespace lyramilk{ namespace teapoy {
 			struct stat st = {0};
 			if(0 !=::stat(real.c_str(),&st)){
 				if(errno == ENOENT){
-					adapter->send_header_with_length(nullptr,404,0);
-					return ;
+					adapter->response->code = 404;
+				}else if(errno == EACCES){
+					adapter->response->code = 403;
+				}else if(errno == ENAMETOOLONG){
+					adapter->response->code = 400;
 				}
-				if(errno == EACCES){
-					adapter->send_header_with_length(nullptr,403,0);
-					return ;
-				}
-				if(errno == ENAMETOOLONG){
-					adapter->send_header_with_length(nullptr,400,0);
-					return ;
-				}
-				adapter->send_header_with_length(nullptr,500,0);
+				adapter->response->content_length = 0;
+				adapter->send_header();
 				return ;
 			}
 
 			if(st.st_mode&S_IFDIR){
-				adapter->send_header_with_length(nullptr,404,0);
+				adapter->response->code = 404;
+				adapter->response->content_length = 0;
+				adapter->send_header();
 				return ;
 			}
 
@@ -85,7 +83,9 @@ namespace lyramilk{ namespace teapoy {
 				lyramilk::data::string sifetagnotmatch = request->get("If-None-Match");
 				if(sifetagnotmatch == etag){
 					response->set("Cache-Control","max-age=3600,public");
-					adapter->send_header_with_length(response,304,0);
+					adapter->response->code = 304;
+					adapter->response->content_length = 0;
+					adapter->send_header();
 					return ;
 				}
 			}
@@ -103,13 +103,15 @@ namespace lyramilk{ namespace teapoy {
 			enum {
 				NO_GZIP,
 				CHUNKED_GZIP,
-			}gzipmode = NO_GZIP;
+			}gzipmode = CHUNKED_GZIP;
 
 
 #ifdef ZLIB_FOUND
-			lyramilk::data::string sacceptencoding = request->get("Accept-Encoding");
-			if(sacceptencoding.find(compress_type) != sacceptencoding.npos && (!nogzip) && threshold > 0 && st.st_size > threshold){
-				gzipmode = CHUNKED_GZIP;
+			if(adapter->allow_gzip() && adapter->allow_chunk()){
+				lyramilk::data::string sacceptencoding = request->get("Accept-Encoding");
+				if(sacceptencoding.find(compress_type) != sacceptencoding.npos && (!nogzip) && threshold > 0 && st.st_size > threshold){
+					gzipmode = CHUNKED_GZIP;
+				}
 			}
 #endif
 			// range支持
@@ -198,7 +200,9 @@ namespace lyramilk{ namespace teapoy {
 					char cr[1024];
 					int icr = snprintf(cr,sizeof(cr),"bytes %lld-%lld/%llu",range_it->first,std::min(range_it->second,(lyramilk::data::int64)filesize - 1),filesize);
 					if(icr < 1){
-						adapter->send_header_with_length(nullptr,500,0);
+						adapter->response->code = 500;
+						adapter->response->content_length = 0;
+						adapter->send_header();
 						return ;
 					}
 					response->set("Content-Range",cr);
@@ -219,40 +223,45 @@ namespace lyramilk{ namespace teapoy {
 				}
 			}
 
-			if(gzipmode == CHUNKED_GZIP){
-				adapter->send_header_with_chunk(response,is_range?206:200);
-			}else{
-				adapter->send_header_with_length(response,is_range?206:200,datacount);
-			}
-			if(gzipmode != CHUNKED_GZIP){
+			adapter->response->code = is_range?206:200;
+			if(gzipmode == NO_GZIP){
+				adapter->response->content_length = datacount;
 				std::ifstream ifs;
 				ifs.open(real.c_str(),std::ifstream::binary|std::ifstream::in);
 				if(!ifs.is_open()){
+					adapter->response->code = 403;
+					adapter->response->content_length = 0;
+					adapter->send_header();
 					return ;
 				}
 				if(is_range){
 					ifs.seekg(range_it->first,std::ifstream::beg);
 				}
+				adapter->send_header();
 				char buff[16384];
 				for(;ifs && datacount > 0;){
 					ifs.read(buff,std::min(sizeof(buff),(std::size_t)datacount));
 					lyramilk::data::int64 gcount = ifs.gcount();
 					if(gcount > 0){
 						datacount -= gcount;
-						adapter->send_bodydata(response,buff,gcount);
+						adapter->send_data(buff,gcount);
 					}else{
 						break;
 					}
 				}
 				ifs.close();
+				adapter->send_finish();
 			}else if(gzipmode == CHUNKED_GZIP){
 				std::ifstream ifs;
 				ifs.open(real.c_str(),std::ifstream::binary|std::ifstream::in);
 				if(!ifs.is_open()){
-					adapter->send_header_with_length(nullptr,500,0);
+					adapter->response->code = 500;
+					adapter->response->content_length = 0;
+					adapter->send_header();
 					return ;
 				}
 
+				adapter->send_header();
 				http_chunked_gzip(ifs,datacount,adapter);
 			}
 		}

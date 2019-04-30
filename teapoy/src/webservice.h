@@ -4,6 +4,7 @@
 #include "config.h"
 #include "mime.h"
 #include <libmilk/netaio.h>
+#include <libmilk/factory.h>
 
 namespace lyramilk{ namespace teapoy {
 	using lyramilk::data::stringdict;
@@ -42,9 +43,11 @@ namespace lyramilk{ namespace teapoy {
 
 		lyramilk::data::map _cookies;
 		lyramilk::data::map _params;
+		bool is_params_parsed;
+		bool is_cookies_parsed;
 	  public:
 		lyramilk::data::string mode;
-		lyramilk::data::stringdict data;
+		lyramilk::data::stringdict header_extend;
 	  public:
 		httprequest();
 	  	virtual ~httprequest();
@@ -69,7 +72,12 @@ namespace lyramilk{ namespace teapoy {
 		friend class aiohttpchannel;
 	  public:
 		httpadapter* adapter;
-		stringdict header;
+		http_header_type header;
+
+		std::multimap<lyramilk::data::string,lyramilk::data::string> header_ex;
+
+		lyramilk::data::int64 content_length;
+		int code;
 	  public:
 		httpresponse();
 	  	virtual ~httpresponse();
@@ -88,14 +96,28 @@ namespace lyramilk{ namespace teapoy {
 
 		virtual bool init(const lyramilk::data::map& info) = 0;
 
-		virtual bool set(const lyramilk::data::string& key,const lyramilk::data::string& value) = 0;
-		virtual lyramilk::data::string get(const lyramilk::data::string& key) = 0;
+		virtual bool set(const lyramilk::data::string& key,const lyramilk::data::var& value) = 0;
+		virtual const lyramilk::data::var& get(const lyramilk::data::string& key) = 0;
 
 		virtual lyramilk::data::string get_session_id() = 0;
 	  public:
 		virtual void add_ref();
 		virtual void relese();
 		virtual bool in_using();
+	};
+
+	struct errorpage
+	{
+	  	int code;
+		lyramilk::data::string body;
+		http_header_type header;
+	};
+
+
+	class errorpage_manager:public lyramilk::util::multiton_factory2<int,errorpage>
+	{
+	  public:
+		static errorpage_manager* instance();
 	};
 
 	class httpadapter
@@ -108,8 +130,6 @@ namespace lyramilk{ namespace teapoy {
 		aiohttpchannel* channel;
 		httprequest* request;
 		httpresponse* response;
-
-		bool is_responsed;
 	  protected:
 		std::ostream& os;
 	  public:
@@ -130,17 +150,26 @@ namespace lyramilk{ namespace teapoy {
 		virtual bool oninit(std::ostream& os) = 0;
 		virtual bool onrequest(const char* cache,int size,std::ostream& os) = 0;
 		virtual bool reset() = 0;
+
+
+		virtual bool allow_gzip();
+		virtual bool allow_chunk();
+		virtual bool allow_cached();
 	  public:
-		virtual bool send_bodydata(httpresponse* response,const char* p,lyramilk::data::uint32 l);	//发送数据
+		enum send_status{
+			ss_error,
+			ss_nobody,
+			ss_need_body,
+		};
 
-		virtual bool send_header_with_length(httpresponse* response,lyramilk::data::uint32 code,lyramilk::data::uint64 content_length) = 0;	//正常模式
+		virtual bool merge_cookies();
 
-		virtual bool send_header_with_chunk(httpresponse* response,lyramilk::data::uint32 code) = 0;	//chunk模式
-		virtual void send_chunk(httpresponse* response,const char* p,lyramilk::data::uint32 l);
-		virtual void send_chunk_finish(httpresponse* response);
+		virtual send_status send_header() = 0;
+		virtual bool send_data(const char* p,lyramilk::data::uint32 l) = 0;
+		virtual void send_finish() = 0;
 
 	  protected:
-		virtual void send_raw_data(httpresponse* response,const char* p,lyramilk::data::uint32 l);	//发送原始数据
+		virtual void send_raw_data(const char* p,lyramilk::data::uint32 l);	//发送原始数据
 		httprequest pri_request;
 		httpresponse pri_response;
 
@@ -163,7 +192,7 @@ namespace lyramilk{ namespace teapoy {
 		httpadapter* adapter;
 		httplistener* service;
 	  public:
-		stringdict default_response_header;
+		http_header_type default_response_header;
 	  public:
 		aiohttpchannel();
 		virtual ~aiohttpchannel();

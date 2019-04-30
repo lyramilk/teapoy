@@ -58,19 +58,19 @@ COUT << "raw=" << rawurl << ",scheme=" << scheme << ",host=" << host << ",port="
 		return lyramilk::netio::client::open(host.c_str(),(lyramilk::data::uint16)port);
 	}
 
-	bool httpclient::post(const lyramilk::data::stringdict& headers,const lyramilk::data::string& body)
+	bool httpclient::post(const http_header_type& headers,const lyramilk::data::string& body)
 	{
 		TODO();
 	}
 
-	bool httpclient::get(const lyramilk::data::stringdict& headers)
+	bool httpclient::get(const http_header_type& headers)
 	{
 		lyramilk::data::stringstream ss;
 		ss <<	"GET " << url << " HTTP/1.1\r\n"
 				"Content-Length: 0\r\n"
 				"Host: " << host << "\r\n"
 				"User-Agent: " "Teapoy/" TEAPOY_VERSION "\r\n";
-		lyramilk::data::stringdict::const_iterator it = headers.begin();
+		http_header_type::const_iterator it = headers.begin();
 		for(;it!=headers.end();++it){
 			ss << it->first << " :" << it->second << "\r\n";
 		}
@@ -80,17 +80,22 @@ COUT << "raw=" << rawurl << ",scheme=" << scheme << ",host=" << host << ",port="
 		return true;
 	}
 
-	bool httpclient::wait_response()
+	lyramilk::data::string httpclient::get_host()
 	{
-		if(check_read(3600 * 1000)){
+		return host;
+	}
+
+	bool httpclient::wait_response(int timeout_msec)
+	{
+		if(check_read(timeout_msec)){
 			return true;
 		}
 		return false;
 	}
 
-	int httpclient::get_response(lyramilk::data::stringdict* headers,lyramilk::data::string* body)
+	int httpclient::get_response(http_header_type* headers,lyramilk::data::string* body)
 	{
-		lyramilk::data::stringdict& response_headers = *headers;
+		http_header_type& response_headers = *headers;
 
 		lyramilk::netio::socket_istream iss(this);
 		lyramilk::data::string response_header_str;
@@ -165,7 +170,7 @@ COUT << response_header_str << std::endl;
 
 		{
 			// 解析body
-			lyramilk::data::stringdict::iterator it = response_headers.find("content-length");
+			http_header_type::iterator it = response_headers.find("content-length");
 			if(it!=response_headers.end()){
 				char* p;
 				lyramilk::data::int64 cl = strtoull(it->second.c_str(),&p,10);
@@ -243,9 +248,9 @@ COUT << response_header_str << std::endl;
 		httpclient c;
 		c.open(url0);
 
-		lyramilk::data::stringdict request_headers;
-		if(c.get(request_headers) && c.wait_response()){
-			lyramilk::data::stringdict response_headers;
+		http_header_type request_headers;
+		if(c.get(request_headers) && c.wait_response(timeout_msec)){
+			http_header_type response_headers;
 			lyramilk::data::string response_body;
 			lyramilk::data::string response_body_utf8;
 
@@ -285,9 +290,9 @@ COUT << response_header_str << std::endl;
 		httpclient c;
 		c.open(url0);
 
-		lyramilk::data::stringdict request_headers;
-		if(c.get(request_headers) && c.wait_response()){
-			lyramilk::data::stringdict response_headers;
+		http_header_type request_headers;
+		if(c.get(request_headers) && c.wait_response(timeout_msec)){
+			http_header_type response_headers;
 			lyramilk::data::string response_body;
 
 			int code = c.get_response(&response_headers,&response_body);

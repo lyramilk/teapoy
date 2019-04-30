@@ -124,7 +124,7 @@ namespace lyramilk{ namespace teapoy {
 			struct stat st = {0};
 			if(0 !=::stat(realfile.c_str(),&st)){
 #ifdef _DEBUG
-			lyramilk::klog(lyramilk::log::warning,"teapoy.url_regex_selector.hittest") << D("虽然url(%s)与模式匹配，但本地文件%s没有找到",request->url().c_str(),realfile.c_str()) << std::endl;
+			lyramilk::klog(lyramilk::log::warning,"teapoy.url_regex_selector.hittest") << D("虽然url(%s)与模式(%s)匹配，但本地文件%s没有找到",request->url().c_str(),path_pattern.c_str(),realfile.c_str()) << std::endl;
 #endif
 				return false;
 			}
@@ -148,7 +148,7 @@ namespace lyramilk{ namespace teapoy {
 			}
 		}
 #ifdef _DEBUG
-		lyramilk::klog(lyramilk::log::debug,"teapoy.url_regex_selector.hittest") << D("url(%s)与模式匹配，本地文件%s找到",request->url().c_str(),realfile.c_str()) << std::endl;
+		lyramilk::klog(lyramilk::log::debug,"teapoy.url_regex_selector.hittest") << D("url(%s)与模式(%s)匹配，本地文件%s找到",request->url().c_str(),path_pattern.c_str(),realfile.c_str()) << std::endl;
 #endif
 		return call(request,response,adapter,realfile);
 

@@ -51,16 +51,18 @@ namespace lyramilk{ namespace teapoy {
 
 				ar.push_back(p->createobject("HttpRequest",jsin_param));
 				ar.push_back(p->createobject("HttpResponse",jsin_param));
-				if(request->data.empty()){
+				if(request->header_extend.empty()){
 					ar.push_back(lyramilk::data::var::nil);
 				}else{
-					ar.push_back(request->data);
+					ar.push_back(request->header_extend);
 				}
 			}
 
 			lyramilk::data::var vret = p->call(request->mode.empty()?"onrequest":request->mode,ar);
 			if(vret.type() == lyramilk::data::var::t_invalid){
-				adapter->send_header_with_length(adapter->response,500,0);
+				adapter->response->code = 500;
+				adapter->response->content_length = 0;
+				adapter->send_header();
 				return true;
 			}
 			if(vret.type_like(lyramilk::data::var::t_bool)){
@@ -74,21 +76,34 @@ namespace lyramilk{ namespace teapoy {
 			if(response_code > 0){
 				bool usedgzip = false;
 #ifdef ZLIB_FOUND
-				{
+				if(adapter->allow_gzip() && adapter->allow_chunk()){
 					std::size_t datasize = ss.str().size();
 					lyramilk::data::string sacceptencoding = adapter->request->get("Accept-Encoding");
 					if(sacceptencoding.find("gzip") != sacceptencoding.npos && datasize > 512){
 						adapter->response->set("Content-Encoding","gzip");
-						adapter->send_header_with_chunk(adapter->response,response_code);
-						lyramilk::teapoy::http_chunked_gzip(ss,datasize,adapter);
-						usedgzip = true;
+
+						adapter->response->code = response_code;
+
+						if(adapter->send_header() != httpadapter::ss_error){
+							lyramilk::teapoy::http_chunked_gzip(ss,datasize,adapter);
+							usedgzip = true;
+						}else{
+							adapter->response->set("Content-Encoding","");
+						}
 					}
 				}
 #endif
 				if(!usedgzip){
 					lyramilk::data::string str_body = ss.str();
-					adapter->send_header_with_length(adapter->response,response_code,str_body.size());
-					adapter->send_bodydata(adapter->response,str_body.c_str(),str_body.size());
+
+					adapter->response->code = response_code;
+					adapter->response->content_length = str_body.size();
+
+
+					if(adapter->send_header() == httpadapter::ss_need_body){
+						adapter->send_data(str_body.c_str(),str_body.size());
+						adapter->send_finish();
+					}
 				}
 			}
 

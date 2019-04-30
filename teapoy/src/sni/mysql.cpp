@@ -51,7 +51,6 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 				lyramilk::data::string sv = it->str();
 				param_bind[i].buffer_type = MYSQL_TYPE_STRING;
 				param_bind[i].buffer_length = (unsigned long)sv.length();
-
 				param_buff[i].assign(sv.begin(),sv.end());
 
 				param_bind[i].buffer = param_buff[i].data();
@@ -161,9 +160,22 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 					if(field && field->name){
 						fname = field->name;
 					}
-					keys[fname] = i;
-					keys2.push_back(fname);
 
+					lyramilk::data::string tmp;
+					
+					for(int tmp_i = 1;tmp_i < 4096;++tmp_i){
+						std::pair<std::map<lyramilk::data::string,unsigned int>::const_iterator,bool> it = keys.insert(std::map<lyramilk::data::string,unsigned int>::value_type(fname + tmp,i));
+						if(it.second){
+							keys[fname + tmp] = i;
+							break;
+						}
+
+						char buf[256];
+						int r = snprintf(buf,sizeof(buf),"%u",tmp_i);
+						tmp.assign(buf,r);
+					}
+
+					keys2.push_back(fname + tmp);
 
 					if(field->max_length > 0){
 						result_bind[i].buffer_length = field->max_length;
@@ -174,7 +186,6 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 
 					result_bind[i].buffer_type = MYSQL_TYPE_STRING;
 					result_bind[i].length = &result_length[i];
-
 
 					result_bind[i].buffer = result_buff[i].data();
 				}
@@ -423,31 +434,6 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 		{
 			return 0 == mysql_ping(_db_ptr);
 		}
-
-/*
-		lyramilk::data::var query(const lyramilk::data::array& args,const lyramilk::data::map& env)
-		{
-			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
-			lyramilk::data::string sql = args[0];
-
-			int ret = mysql_real_query( _db_ptr,sql.c_str(),(unsigned long)sql.length());
-			if(ret != 0){
-				log(lyramilk::log::error,__FUNCTION__) << D("数据库错误：%s",mysql_error(_db_ptr)) << std::endl;
-				throw lyramilk::exception(D("数据库错误：%s",mysql_error(_db_ptr)));
-			}
-
-			if(lyramilk::teapoy::env::is_debug()){
-				log(lyramilk::log::debug,__FUNCTION__) << D("执行查询%s",sql.c_str()) << std::endl;
-			}
-
-			lyramilk::data::var ud("mysql.db",_db_ptr);
-
-			lyramilk::data::array ar;
-			ar.push_back(ud);
-			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
-			return e->createobject("mysql.iterator",ar);
-		}
-*/
 
 		lyramilk::data::var query(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{

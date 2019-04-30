@@ -90,5 +90,6 @@ namespace lyramilk{ namespace teapoy {
 		m["flv"] = "video/x-flv";
 		m["swf"] = "application/x-shockwave-flash";
 		m["wav"] = "audio/wav";
+		m["ico"] = "image/x-icon";
 	}
 }}

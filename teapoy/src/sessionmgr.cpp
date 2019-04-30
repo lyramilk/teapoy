@@ -35,7 +35,7 @@ namespace lyramilk{ namespace teapoy {
 	class httpsession_default:public httpsession
 	{
 	  public:
-		lyramilk::data::stringdict smap;
+		lyramilk::data::map smap;
 		lyramilk::data::string sid;
 		time_t tm_life;
 		lyramilk::threading::mutex_spin lock;
@@ -52,28 +52,27 @@ namespace lyramilk{ namespace teapoy {
 			return true;
 		}
 
-		virtual bool set(const lyramilk::data::string& key,const lyramilk::data::string& value)
+		virtual bool set(const lyramilk::data::string& key,const lyramilk::data::var& value)
 		{
 			lyramilk::threading::mutex_sync _(lock);
-
 			tm_life = time(nullptr) + time_alive_seconds;
-			if(value.empty()){
+
+
+			if(value.type() == lyramilk::data::var::t_invalid){
 				smap.erase(key);
 			}else{
 				smap[key] = value;
 			}
-COUT << smap << "," << key << std::endl;
 			return true;
 		}
 
-		virtual lyramilk::data::string get(const lyramilk::data::string& key)
+		virtual const lyramilk::data::var& get(const lyramilk::data::string& key)
 		{
 			lyramilk::threading::mutex_sync _(lock);
 
-COUT << smap << "," << key << std::endl;
-			lyramilk::data::stringdict::const_iterator it = smap.find(key);
+			lyramilk::data::map::const_iterator it = smap.find(key);
 			if(it == smap.end()){
-				return "";
+				return lyramilk::data::var::nil;
 			}
 
 			return it->second;
@@ -120,27 +119,13 @@ COUT << smap << "," << key << std::endl;
 
 		virtual httpsessionptr get_session(const lyramilk::data::string& sessionid)
 		{
-			{
-				std::map<lyramilk::data::string,httpsession_default*>::iterator it = mgr.begin();
-				for(;it!=mgr.end();++it){
-COUT << this << "己登记会话" << it->first << "=" << it->second << std::endl;
-				
-				}
-
-			
-			}
-
-
-
-
 			time_t tm_life = time(nullptr) + time_alive_seconds;
 			{
 				lyramilk::threading::mutex_sync _(lock.r());
 				std::map<lyramilk::data::string,httpsession_default*>::iterator it = mgr.find(sessionid);
 				if(it != mgr.end()){
-COUT << this << "查找会话" << sessionid << "成功" << std::endl;
 					it->second->tm_life = tm_life;
-					return it->second;
+					return (httpsession*)it->second;
 				}
 
 			}
@@ -151,12 +136,11 @@ COUT << this << "查找会话" << sessionid << "成功" << std::endl;
 
 				while(true){
 					ins->sid = mkey.str16();
-					ins->tm_life = 0;
+					ins->tm_life = time(nullptr) + time_alive_seconds;
 					{
 						lyramilk::threading::mutex_sync _(lock.w());
 						std::pair<std::map<lyramilk::data::string,httpsession_default*>::iterator,bool> r = mgr.insert(std::pair<lyramilk::data::string,httpsession_default*>(ins->sid,ins));
 						if(r.second){
-COUT << this << "插入会话" << r.first->first << "===" << r.first->second << "成功" << std::endl;
 							return r.first->second;
 						}
 					}
@@ -166,9 +150,9 @@ COUT << this << "插入会话" << r.first->first << "===" << r.first->second << 
 			return nullptr;
 		}
 
-		virtual void destory_session(httpsessionptr& ses)
+		virtual void destory_session(httpsession* ses)
 		{
-			delete (httpsession_default*)(httpsession*)ses;
+			delete (httpsession_default*)ses;
 		}
 
 		virtual int svc()
@@ -198,8 +182,9 @@ COUT << this << "插入会话" << r.first->first << "===" << r.first->second << 
 						std::map<lyramilk::data::string,httpsession_default*>::iterator it = mgr.find(*sid_it);
 						if(it != mgr.end()){
 							if(!it->second->in_using()){
+								httpsession_default* ses = it->second;
 								mgr.erase(it);
-COUT << "清理会话<" << it->first << ">" << std::endl;
+								destory_session(ses);
 							}
 						}
 					}

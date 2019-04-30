@@ -13,7 +13,9 @@ namespace lyramilk{ namespace teapoy
 		strm.zfree = NULL;
 		strm.opaque = NULL;
 		if(deflateInit2(&strm, Z_DEFAULT_COMPRESSION, Z_DEFLATED,MAX_WBITS + 16, 8, Z_DEFAULT_STRATEGY) != Z_OK){
-			adapter->send_header_with_length(nullptr,500,0);
+			adapter->response->code = 500;
+			//adapter->response->content_length = 0;
+			//adapter->send_header();
 			return false;
 		}
 
@@ -37,7 +39,7 @@ namespace lyramilk{ namespace teapoy
 					}
 					int sz = sizeof(buff_chunkbody) - strm.avail_out;
 					if(sz > 0){
-						adapter->send_chunk(adapter->response,buff_chunkbody,sz);
+						adapter->send_data(buff_chunkbody,sz);
 					}
 				}while(strm.avail_out == 0);
 				if(strm.avail_in > 0){
@@ -49,10 +51,13 @@ namespace lyramilk{ namespace teapoy
 			//deflateReset(&strm);
 		}
 		deflateEnd(&strm);
-		adapter->send_chunk_finish(adapter->response);
+		adapter->send_finish();
 		return true;
 #else
-		adapter->send_header_with_length(nullptr,200,0);
+		adapter->response->code = 500;
+		//adapter->response->content_length = 0;
+		//adapter->send_header();
+		return true;
 #endif
 	}
 }}
