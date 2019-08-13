@@ -33,23 +33,9 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		{
 			httpadapter* adapter = (httpadapter*)args[0].userdata("..http.session.adapter");
 			if(adapter == nullptr) return nullptr;
-			lyramilk::teapoy::httpsessionptr session = nullptr;
-			
-			lyramilk::data::string sid = adapter->get_cookie("TeapoyId");
-			//为了含义明确
-			if(!sid.empty()){
-				session = adapter->service->session_mgr->get_session(sid);
-			}else{
-				session = adapter->service->session_mgr->create_session();
-			}
-			
-			if(session == nullptr) return nullptr;
+			lyramilk::teapoy::httpsessionptr session = adapter->get_session();
 
-			httpcookie c;
-			c.key = "TeapoyId";
-			c.value = session->get_session_id();
-			c.httponly = true;
-			adapter->set_cookie_obj(c);
+			if(session == nullptr) return nullptr;
 
 			httpsession* snisession = new httpsession(adapter,session);
 			return snisession;
@@ -114,7 +100,6 @@ namespace lyramilk{ namespace teapoy{ namespace native
 	{
 
 		lyramilk::log::logss log;
-		lyramilk::data::uint32* response_code;
 		httpadapter* adapter;
 
 		std::ostream* os;
@@ -128,8 +113,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		{
 			httpadapter* adapter = (httpadapter*)args[0].userdata("..http.session.adapter");
 			std::ostream* os = (std::ostream*)args[0].userdata("..http.session.response.stream");
-			lyramilk::data::uint32* code = (lyramilk::data::uint32*)args[0].userdata("..http.session.response.code");
-			if(os) 	return new httpresponse(adapter,os,code);
+			if(os) 	return new httpresponse(adapter,os);
 			return nullptr;
 		}
 
@@ -138,12 +122,12 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			delete (httpresponse*)p;
 		}
 
-		httpresponse(httpadapter* adapter,std::ostream* os,lyramilk::data::uint32* code):log(lyramilk::klog,"teapoy.native.HttpResponse")
+		httpresponse(httpadapter* adapter,std::ostream* os):log(lyramilk::klog,"teapoy.native.HttpResponse")
 		{
 			noreply = false;
 			this->adapter = adapter;
 			this->os = os;
-			response_code = code;
+			this->adapter->response->code = 200;
 		}
 
 		~httpresponse()
@@ -163,7 +147,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		lyramilk::data::var sendError(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_uint);
-			*response_code = args[0];
+			adapter->response->code = args[0];
 			return true;
 		}
 
@@ -210,7 +194,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			adapter->service->get_aio_pool()->add(caller);
 
 			adapter->channel->lock();
-			*response_code = 0;
+			adapter->response->code = 0;
 			return true;
 		}
 
@@ -378,6 +362,11 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			return adapter->request->get_header_obj();
 		}
 
+		lyramilk::data::var getScheme(const lyramilk::data::array& args,const lyramilk::data::map& env)
+		{
+			return adapter->request->scheme();
+		}
+
 		lyramilk::data::var getParameter(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
@@ -436,7 +425,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 
 		lyramilk::data::var getMethod(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
-			TODO();
+			return adapter->request->get(":method");
 		}
 
 		lyramilk::data::var getRequestBody(const lyramilk::data::array& args,const lyramilk::data::map& env)
@@ -465,7 +454,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 
 		lyramilk::data::var getPeerCertificateInfo(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
-			TODO();
+			return adapter->channel->ssl_peer_certificate_info;
 		}
 
 		lyramilk::data::var getRemoteAddr(const lyramilk::data::array& args,const lyramilk::data::map& env)
@@ -490,6 +479,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			fn["get"] = lyramilk::script::engine::functional<httprequest,&httprequest::getHeader>;
 			fn["getHeader"] = lyramilk::script::engine::functional<httprequest,&httprequest::getHeader>;
 			fn["getHeaders"] = lyramilk::script::engine::functional<httprequest,&httprequest::getHeaders>;
+			fn["getScheme"] = lyramilk::script::engine::functional<httprequest,&httprequest::getScheme>;
 			fn["getParameter"] = lyramilk::script::engine::functional<httprequest,&httprequest::getParameter>;
 			fn["getParameterRaw"] = lyramilk::script::engine::functional<httprequest,&httprequest::getParameterRaw>;
 			fn["getParameterValues"] = lyramilk::script::engine::functional<httprequest,&httprequest::getParameterValues>;

@@ -22,29 +22,28 @@ namespace lyramilk{ namespace teapoy {
 		virtual ~url_selector_js()
 		{}
 
-		virtual bool call(httprequest* request,httpresponse* response,httpadapter* adapter,const lyramilk::data::string& real)
+		virtual url_check_status call(httprequest* request,httpresponse* response,httpadapter* adapter,const lyramilk::data::string& real)
 		{
 			url_selector_loger _("teapoy.web.js",adapter);
 			return vcall(request,response,adapter,real);
 		}
 
-		bool vcall(httprequest* request,httpresponse* response,httpadapter* adapter,const lyramilk::data::string& real)
+		url_check_status vcall(httprequest* request,httpresponse* response,httpadapter* adapter,const lyramilk::data::string& real)
 		{
 			lyramilk::script::engines::ptr p = pool->get();
 			if(!p->load_file(real)){
 				lyramilk::klog(lyramilk::log::warning,"teapoy.web.js") << D("加载文件%s失败",real.c_str()) << std::endl;
-				return false;
+				adapter->response->code = 500;
+				return cs_error;
 			}
 
 			lyramilk::data::stringstream ss;
-			lyramilk::data::uint32 response_code = 200;
 			lyramilk::data::array ar;
 			{
 				response->set("Content-Type","application/json;charset=utf8");
 
 				lyramilk::data::var jsin_adapter_param("..http.session.adapter",adapter);
 				jsin_adapter_param.userdata("..http.session.response.stream",&(std::ostream&)ss);
-				jsin_adapter_param.userdata("..http.session.response.code",&response_code);
 
 				lyramilk::data::array jsin_param;
 				jsin_param.push_back(jsin_adapter_param);
@@ -61,9 +60,7 @@ namespace lyramilk{ namespace teapoy {
 			lyramilk::data::var vret = p->call(request->mode.empty()?"onrequest":request->mode,ar);
 			if(vret.type() == lyramilk::data::var::t_invalid){
 				adapter->response->code = 500;
-				adapter->response->content_length = 0;
-				adapter->send_header();
-				return true;
+				return cs_error;
 			}
 			if(vret.type_like(lyramilk::data::var::t_bool)){
 				bool r = vret;
@@ -73,7 +70,7 @@ namespace lyramilk{ namespace teapoy {
 			}
 
 
-			if(response_code > 0){
+			if(adapter->response->code > 0){
 				bool usedgzip = false;
 #ifdef ZLIB_FOUND
 				if(adapter->allow_gzip() && adapter->allow_chunk()){
@@ -82,32 +79,20 @@ namespace lyramilk{ namespace teapoy {
 					if(sacceptencoding.find("gzip") != sacceptencoding.npos && datasize > 512){
 						adapter->response->set("Content-Encoding","gzip");
 
-						adapter->response->code = response_code;
-
-						if(adapter->send_header() != httpadapter::ss_error){
-							lyramilk::teapoy::http_chunked_gzip(ss,datasize,adapter);
-							usedgzip = true;
-						}else{
-							adapter->response->set("Content-Encoding","");
-						}
+						lyramilk::teapoy::http_chunked_gzip(ss,datasize,adapter);
+						usedgzip = true;
 					}
 				}
 #endif
 				if(!usedgzip){
 					lyramilk::data::string str_body = ss.str();
 
-					adapter->response->code = response_code;
 					adapter->response->content_length = str_body.size();
-
-
-					if(adapter->send_header() == httpadapter::ss_need_body){
-						adapter->send_data(str_body.c_str(),str_body.size());
-						adapter->send_finish();
-					}
+					adapter->send_data(str_body.c_str(),str_body.size());
 				}
 			}
 
-			return true;
+			return cs_ok;
 		}
 
 

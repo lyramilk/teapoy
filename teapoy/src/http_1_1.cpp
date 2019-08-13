@@ -3,6 +3,8 @@
 #include "httplistener.h"
 #include "url_dispatcher.h"
 #include "fcache.h"
+#include <libmilk/log.h>
+#include <libmilk/dict.h>
 
 namespace lyramilk{ namespace teapoy {
 
@@ -61,11 +63,11 @@ namespace lyramilk{ namespace teapoy {
 		}
 
 		cookie_from_request();
-		if(!service->call(request->get("Host"),request,response,this)){
+		if(service->call(request->get("Host"),request,response,this) != cs_ok){
 			response->code = 404;
-			response->content_length = 0;
-			send_header();
 		}
+
+		request_finish();
 
 		lyramilk::data::string sconnect = response->get("Connection");
 	
@@ -83,6 +85,11 @@ namespace lyramilk{ namespace teapoy {
 
 	http_1_1::send_status http_1_1::send_header()
 	{
+		if(pri_ss != ss_0){
+			lyramilk::klog(lyramilk::log::warning,"teapoy.web.http_1_1.send_header") << D("重复发送http头") << std::endl;
+			return ss_error;
+		}
+
 		lyramilk::data::ostringstream os;
 		errorpage* page = errorpage_manager::instance()->get(response->code);
 		if(page){
@@ -91,6 +98,7 @@ namespace lyramilk{ namespace teapoy {
 		}else{
 			os <<	"HTTP/1.1 " << get_error_code_desc(response->code) << "\r\n";
 			if(response->content_length == -1){
+				response->ischunked = true;
 				response->set("Transfer-Encoding","chunked");
 			}else{
 				response->set("Content-Length",lyramilk::data::str(response->content_length));
@@ -116,27 +124,38 @@ namespace lyramilk{ namespace teapoy {
 
 		os << "\r\n";
 		this->os << os.str();
+
+		if(page){
+			this->os << page->body;
+			this->os.flush();
+			return ss_nobody;
+		}
+
 		this->os.flush();
 		return ss_need_body;
 	}
 
 	bool http_1_1::send_data(const char* p,lyramilk::data::uint32 l)
 	{
-		if(response->content_length != -1){
-			send_raw_data(p,l);
-		}else{
+		if(pri_ss == ss_0) pri_ss = send_header();
+		if(pri_ss != ss_need_body) return false;
+
+		if(response->ischunked){
 			char buff_chunkheader[32];
 			unsigned int szh = sprintf(buff_chunkheader,"%x\r\n",l);
 			send_raw_data(buff_chunkheader,szh);
 			send_raw_data(p,l);
 			send_raw_data("\r\n",2);
+		}else{
+			send_raw_data(p,l);
 		}
 		return true;
 	}
 
-	void http_1_1::send_finish()
+	void http_1_1::request_finish()
 	{
-		if(response->content_length == -1){
+		if(pri_ss == ss_0) pri_ss = send_header();
+		if(response->ischunked){
 			send_raw_data("0\r\n\r\n",5);
 		}
 	}

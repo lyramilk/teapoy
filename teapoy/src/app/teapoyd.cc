@@ -18,6 +18,7 @@
 
 #include "config.h"
 #include "script.h"
+#include "webservice.h"
 #include "js_extend.h"
 
 class teapoy_log_base;
@@ -32,9 +33,9 @@ lyramilk::data::string dictfile;
 lyramilk::data::string dictfile_missing;
 
 bool enable_log_debug = true;
-bool enable_log_trace = false;
-bool enable_log_warning = false;
-bool enable_log_error = false;
+bool enable_log_trace = true;
+bool enable_log_warning = true;
+bool enable_log_error = true;
 
 
 lyramilk::data::string get_env(const char* env,lyramilk::data::string def)
@@ -384,6 +385,8 @@ int main(int argc,char* argv[])
 	}
 
 	signal(SIGPIPE, SIG_IGN);
+
+	lyramilk::teapoy::httpadapter::init();
 
 	lyramilk::teapoy::sni::js_extend::engine_load("js");
 	lyramilk::teapoy::sni::jshtml::engine_load("jshtml");

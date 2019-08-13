@@ -77,6 +77,7 @@ namespace lyramilk{ namespace teapoy {
 		std::multimap<lyramilk::data::string,lyramilk::data::string> header_ex;
 
 		lyramilk::data::int64 content_length;
+		bool ischunked;
 		int code;
 	  public:
 		httpresponse();
@@ -120,6 +121,20 @@ namespace lyramilk{ namespace teapoy {
 		static errorpage_manager* instance();
 	};
 
+	class httpsessionptr
+	{
+		httpsession* p;
+	  public:
+		httpsessionptr();
+		httpsessionptr(httpsession* p);
+		httpsessionptr(const httpsessionptr& o);
+		httpsessionptr& operator = (httpsession* p);
+		httpsessionptr& operator = (const httpsessionptr& o);
+	  	virtual ~httpsessionptr();
+		httpsession* operator->();
+		operator httpsession*();
+	};
+
 	class httpadapter
 	{
 	  public:
@@ -135,7 +150,7 @@ namespace lyramilk{ namespace teapoy {
 	  public:
 		httpadapter(std::ostream& oss);
 		virtual ~httpadapter();
-
+		static void init();
 
 		void cookie_from_request();
 		void set_cookie(const lyramilk::data::string& key,const lyramilk::data::string& value);
@@ -155,24 +170,29 @@ namespace lyramilk{ namespace teapoy {
 		virtual bool allow_gzip();
 		virtual bool allow_chunk();
 		virtual bool allow_cached();
+
+		virtual httpsessionptr get_session();
 	  public:
+		virtual bool merge_cookies();
+
+		virtual bool send_data(const char* p,lyramilk::data::uint32 l) = 0;
+		virtual void request_finish() = 0;
+	  protected:
 		enum send_status{
+			ss_0,
 			ss_error,
 			ss_nobody,
 			ss_need_body,
 		};
 
-		virtual bool merge_cookies();
-
-		virtual send_status send_header() = 0;
-		virtual bool send_data(const char* p,lyramilk::data::uint32 l) = 0;
-		virtual void send_finish() = 0;
-
-	  protected:
 		virtual void send_raw_data(const char* p,lyramilk::data::uint32 l);	//发送原始数据
+		virtual send_status send_header() = 0;
+
+		friend class httpresponse;
+		send_status pri_ss;
+	  private:
 		httprequest pri_request;
 		httpresponse pri_response;
-
 	};
 
 	typedef httpadapter* (*httpadapterctr)(std::ostream& oss);
@@ -193,6 +213,7 @@ namespace lyramilk{ namespace teapoy {
 		httplistener* service;
 	  public:
 		http_header_type default_response_header;
+		lyramilk::data::string ssl_peer_certificate_info;
 	  public:
 		aiohttpchannel();
 		virtual ~aiohttpchannel();

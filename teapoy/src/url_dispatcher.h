@@ -15,13 +15,20 @@ namespace lyramilk{ namespace teapoy {
 	class httpresponse;
 	class httpadapter;
 
+	enum url_check_status{
+		cs_error,
+		cs_ok,
+		cs_pass,
+	};
+
+
 	class url_selector:public lyramilk::obj
 	{
 	  public:
 		url_selector();
 		virtual ~url_selector();
 
-		virtual bool hittest(httprequest* request,httpresponse* response,httpadapter* adapter) = 0;
+		virtual url_check_status hittest(httprequest* request,httpresponse* response,httpadapter* adapter) = 0;
 	};
 
 	class url_selector_loger
@@ -29,9 +36,12 @@ namespace lyramilk{ namespace teapoy {
 		lyramilk::debug::nsecdiff td;
 		httpadapter* adapter;
 		lyramilk::data::string prefix;
+
+		bool iscancel;
 	  public:
 		url_selector_loger(lyramilk::data::string prefix,httpadapter* adapter);
 		~url_selector_loger();
+		void cancel();
 	};
 
 	class url_regex_selector:public url_selector
@@ -45,15 +55,25 @@ namespace lyramilk{ namespace teapoy {
 		lyramilk::data::string path_pattern;
 		lyramilk::data::array url_to_path_rule;
 	  protected:
-		virtual bool hittest(httprequest* request,httpresponse* response,httpadapter* adapter);
+		lyramilk::data::string authtype;
+		lyramilk::data::string authscript;
+		lyramilk::data::var extra;
+	  protected:
+		virtual url_check_status hittest(httprequest* request,httpresponse* response,httpadapter* adapter);
 	  public:
 		url_regex_selector();
 		virtual ~url_regex_selector();
 
+
 	  public:
-		virtual bool init(const lyramilk::data::strings& default_pages,const lyramilk::data::string& regex_str,const lyramilk::data::string& path_pattern);
-		virtual bool test(httprequest* request,lyramilk::data::string *real);
-		virtual bool call(httprequest* request,httpresponse* response,httpadapter* adapter,const lyramilk::data::string& real) = 0;
+		virtual bool init_selector(const lyramilk::data::strings& default_pages,const lyramilk::data::string& regex_str,const lyramilk::data::string& path_pattern);
+		virtual bool init_auth(const lyramilk::data::string& enginetype,const lyramilk::data::string& authscript);
+		virtual bool init(lyramilk::data::map extra);
+
+		virtual url_check_status test(httprequest* request,lyramilk::data::string *real);
+
+		virtual url_check_status check_auth(httprequest* request,httpresponse* response,httpadapter* adapter,const lyramilk::data::string& real);
+		virtual url_check_status call(httprequest* request,httpresponse* response,httpadapter* adapter,const lyramilk::data::string& real) = 0;
 	};
 
 
@@ -70,7 +90,7 @@ namespace lyramilk{ namespace teapoy {
 		url_dispatcher();
 		virtual ~url_dispatcher();
 
-		virtual bool call(httprequest* request,httpresponse* response,httpadapter* adapter);
+		virtual url_check_status call(httprequest* request,httpresponse* response,httpadapter* adapter);
 
 		virtual bool add(lyramilk::ptr<url_selector> selector);
 	};

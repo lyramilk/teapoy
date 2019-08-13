@@ -113,36 +113,22 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			{
 				lyramilk::data::array::const_iterator it = ar.begin();
 				for(;it!=ar.end();++it){
-					lyramilk::data::string emptystr;
-					lyramilk::data::map emptymap;
-					lyramilk::data::string method = it->at("method").conv(emptystr);
-					lyramilk::data::string type = it->at("type").conv(emptystr);
-					lyramilk::data::string pattern = it->at("pattern").conv(emptystr);
-					lyramilk::data::string module = it->at("module").conv(emptystr);
-					const lyramilk::data::map& auth = it->at("auth").conv(emptymap);
-					lyramilk::data::strings defpages;
-					{
-						lyramilk::data::array emptyarray;
-						const lyramilk::data::array& v = it->at("index").conv(emptyarray);
+					if(it->type() != lyramilk::data::var::t_map) continue;
+					const lyramilk::data::map& m = *it;
 
-						lyramilk::data::array::const_iterator it = v.begin();
-						for(;it!=v.end();++it){
-							if(it->type_like(lyramilk::data::var::t_str)){
-								defpages.push_back(it->str());
-							}else{
-								log(lyramilk::log::warning,__FUNCTION__) << D("定义url映射警告：默认页面%s类型错误,源信息：%s",it->type(),it->str().c_str()) << std::endl;
-							}
-						}
-					}
-
-					url_regex_selector* s = (url_regex_selector*)url_selector_factory::instance()->create(type);
+					lyramilk::data::map::const_iterator type_it = m.find("type");
+					if(type_it == m.end()) continue;
+					url_regex_selector* s = (url_regex_selector*)url_selector_factory::instance()->create(type_it->second);
 					if(s){
-						s->init(defpages,pattern,module);
-						if(this->http->add_dispatcher_selector(host,s)){
-							log(lyramilk::log::debug,__FUNCTION__) << D("定义url映射成功：类型%s 正则表达式%s 模式%s",type.c_str(),pattern.c_str(),module.c_str()) << std::endl;
+						if(s->init(m)){
+							if(this->http->add_dispatcher_selector(host,s)){
+								lyramilk::data::map::const_iterator pattern_it = m.find("pattern");
+								lyramilk::data::map::const_iterator module_it = m.find("module");
+								log(lyramilk::log::debug,__FUNCTION__) << D("定义url映射成功：类型%s 正则表达式%s 模式%s",type_it->second.str().c_str(),pattern_it->second.str().c_str(),module_it->second.str().c_str()) << std::endl;
+							}
+						}else{
+							url_selector_factory::instance()->destory(type_it->second,s);
 						}
-					}else{
-						log(lyramilk::log::warning,__FUNCTION__) << D("定义url映射失败：%s类型未定义",type.c_str()) << std::endl;
 					}
 				}
 			}

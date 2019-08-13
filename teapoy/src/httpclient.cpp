@@ -54,7 +54,6 @@ namespace lyramilk{ namespace teapoy
 			ssl(true);
 		}
 
-COUT << "raw=" << rawurl << ",scheme=" << scheme << ",host=" << host << ",port=" << port << ",url=" << url << "," << std::endl;
 		return lyramilk::netio::client::open(host.c_str(),(lyramilk::data::uint16)port);
 	}
 
@@ -135,7 +134,6 @@ COUT << "raw=" << rawurl << ",scheme=" << scheme << ",host=" << host << ",port="
 			};
 			response_header_str.push_back(c);
 		}
-COUT << response_header_str << std::endl;
 		lyramilk::data::strings vheader = lyramilk::teapoy::split(response_header_str,"\r\n");
 
 		{

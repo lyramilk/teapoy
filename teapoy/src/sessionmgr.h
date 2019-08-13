@@ -9,67 +9,6 @@
 namespace lyramilk{ namespace teapoy {
 
 
-	class httpsessionptr
-	{
-		httpsession* p;
-	  public:
-
-		httpsessionptr()
-		{
-			p = nullptr;
-		}
-
-		httpsessionptr(httpsession* p)
-		{
-			this->p = p;
-			if(p){
-				p->add_ref();
-			}
-		}
-
-		httpsessionptr(const httpsessionptr& o)
-		{
-			this->p = const_cast<httpsessionptr&>(o).p;
-			if(p){
-				p->add_ref();
-			}
-		}
-
-		httpsessionptr& operator = (httpsession* p)
-		{
-			this->p = p;
-			if(p){
-				p->add_ref();
-			}
-			return *this;
-		}
-
-		httpsessionptr& operator = (const httpsessionptr& o)
-		{
-			this->p = const_cast<httpsessionptr&>(o).p;
-			if(p){
-				p->add_ref();
-			}
-			return *this;
-		}
-
-	  	virtual ~httpsessionptr()
-		{
-			if(p){
-				p->relese();
-			}
-		}
-
-		httpsession* operator->()
-		{
-			return p;
-		}
-
-		operator httpsession*()
-		{
-			return p;
-		}
-	};
 
 	class httpsession_manager
 	{

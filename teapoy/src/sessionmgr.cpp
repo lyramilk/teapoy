@@ -120,16 +120,8 @@ namespace lyramilk{ namespace teapoy {
 		virtual httpsessionptr get_session(const lyramilk::data::string& sessionid)
 		{
 			time_t tm_life = time(nullptr) + time_alive_seconds;
-			{
-				lyramilk::threading::mutex_sync _(lock.r());
-				std::map<lyramilk::data::string,httpsession_default*>::iterator it = mgr.find(sessionid);
-				if(it != mgr.end()){
-					it->second->tm_life = tm_life;
-					return (httpsession*)it->second;
-				}
 
-			}
-			{
+			if(sessionid.empty()){
 				httpsession_default* ins = new httpsession_default;
 				lyramilk::cryptology::md5 mkey;
 				mkey << (void*)ins;
@@ -145,6 +137,13 @@ namespace lyramilk{ namespace teapoy {
 						}
 					}
 					mkey << "lyramilk.com";
+				}
+			}else{
+				lyramilk::threading::mutex_sync _(lock.r());
+				std::map<lyramilk::data::string,httpsession_default*>::iterator it = mgr.find(sessionid);
+				if(it != mgr.end()){
+					it->second->tm_life = tm_life;
+					return (httpsession*)it->second;
 				}
 			}
 			return nullptr;

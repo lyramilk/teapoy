@@ -6,6 +6,7 @@
 #include "httplistener.h"
 #include "url_dispatcher.h"
 #include "fcache.h"
+#include <libmilk/debug.h>
 
 #include <errno.h>
 
@@ -66,14 +67,17 @@ namespace lyramilk{ namespace teapoy {
 		if(frame->hd.flags&NGHTTP2_FLAG_END_HEADERS){
 		}
 		if(frame->hd.flags&NGHTTP2_FLAG_END_STREAM){
+			//if(p->request->get_header_obj().size() ==0) return 0;
+			if(p->request->empty()) return 0;
+
 			p->response->set("Connection",p->request->get("Connection"));
 
 			p->cookie_from_request();
-			if(!p->service->call(p->request->get("Host"),p->request,p->response,p)){
+			if(p->service->call(p->request->get("Host"),p->request,p->response,p) != cs_ok){
 				p->response->code = 404;
-				p->response->content_length = 0;
-				p->send_header();
 			}
+
+			p->request_finish();
 		
 			std::vector<nghttp2_nv> headers;
 			lyramilk::data::stringdict::iterator it;
@@ -102,6 +106,7 @@ namespace lyramilk{ namespace teapoy {
 
 			nghttp2_data_provider data_prd;
 			data_prd.read_callback = data_prd_read_callback;
+
 
 			if(p->response_body.str().empty()){
 				nghttp2_submit_response(p->h2_session, frame->hd.stream_id, headers.data(),headers.size(), nullptr);
@@ -167,7 +172,6 @@ namespace lyramilk{ namespace teapoy {
 
 
 		p->response_body.read((char*)buf,length);
-
 		if(!p->response_body.rdbuf()->in_avail()){
 			*data_flags |= NGHTTP2_DATA_FLAG_EOF;
 		}
@@ -249,34 +253,37 @@ namespace lyramilk{ namespace teapoy {
 		response_body.clear();
 		return request->reset() && response->reset() && httpadapter::reset();
 	}
-
+/*
 	bool http_2_0::call()
 	{
 		cookie_from_request();
-		if(!service->call(request->get("Host"),request,response,this)){
+		if(service->call(request->get("Host"),request,response,this) != cs_ok){
 			response->code = 404;
 			response->content_length = 0;
 			send_header();
 		}
 		return true;
-	}
+	}*/
 
 	http_2_0::send_status http_2_0::send_header()
 	{
+		if(pri_ss != ss_0){
+			lyramilk::klog(lyramilk::log::warning,"teapoy.web.http_2_0.send_header") << D("重复发送http头") << std::endl;
+			return ss_error;
+		}
+
 		lyramilk::data::ostringstream os;
 		errorpage* page = errorpage_manager::instance()->get(response->code);
 		if(page){
 			response_header[":status"] = lyramilk::data::str(page->code);
-			response_header["Content-Length"] = lyramilk::data::str(page->body.size());
+			//response_header["Content-Length"] = lyramilk::data::str(page->body.size());
 		}else{
 			response_header[":status"] = lyramilk::data::str(response->code);
+			/*
 			if(response->content_length == -1){
-				response_header["Transfer-Encoding"] = "chunked";
-			}else{
-				response_header["Content-Length"] = lyramilk::data::str(response->content_length);
-			}
+				response_header["Content-Length"] = "0";
+			}*/
 		}
-
 
 		merge_cookies();
 		{
@@ -295,7 +302,12 @@ namespace lyramilk{ namespace teapoy {
 				}
 			}
 		}
-COUT << response_header << std::endl;
+
+		if(page){
+			response_body.str(page->body);
+			return ss_nobody;
+		}
+
 		return ss_need_body;
 
 	}
@@ -307,9 +319,9 @@ COUT << response_header << std::endl;
 		return true;
 	}
 
-	void http_2_0::send_finish()
+	void http_2_0::request_finish()
 	{
-		
+		if(pri_ss == ss_0) pri_ss = send_header();
 	}
 
 	bool http_2_0::allow_gzip()
@@ -319,7 +331,7 @@ COUT << response_header << std::endl;
 
 	bool http_2_0::allow_chunk()
 	{
-		return true;
+		return false;
 	}
 
 	bool http_2_0::allow_cached()

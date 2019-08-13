@@ -21,7 +21,7 @@ namespace lyramilk{ namespace teapoy {
 	  public:
 		virtual send_status send_header();
 		virtual bool send_data(const char* p,lyramilk::data::uint32 l);
-		virtual void send_finish();
+		virtual void request_finish();
 	  public:
 		virtual bool allow_gzip();
 		virtual bool allow_chunk();

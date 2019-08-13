@@ -132,7 +132,7 @@ namespace lyramilk{ namespace teapoy {
 		return true;
 	}
 
-	bool httplistener::call(lyramilk::data::string hostname,httprequest* request,httpresponse* response,httpadapter* adapter)
+	url_check_status httplistener::call(lyramilk::data::string hostname,httprequest* request,httpresponse* response,httpadapter* adapter)
 	{
 		std::map<lyramilk::data::string,url_dispatcher>::iterator it = dispatcher.find(hostname);
 		if(it == dispatcher.end()){

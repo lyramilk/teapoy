@@ -30,11 +30,11 @@ namespace lyramilk{ namespace teapoy {
 		virtual ~url_selector_static()
 		{}
 
-		virtual bool call(httprequest* request,httpresponse* response,httpadapter* adapter,const lyramilk::data::string& real)
+		virtual url_check_status call(httprequest* request,httpresponse* response,httpadapter* adapter,const lyramilk::data::string& real)
 		{
 			url_selector_loger _("teapoy.web.static",adapter);
 			vcall(request,response,adapter,path_simplify(real));
-			return true;
+			return cs_ok;
 		}
 
 		void vcall(httprequest* request,httpresponse* response,httpadapter* adapter,const lyramilk::data::string& real)
@@ -48,15 +48,11 @@ namespace lyramilk{ namespace teapoy {
 				}else if(errno == ENAMETOOLONG){
 					adapter->response->code = 400;
 				}
-				adapter->response->content_length = 0;
-				adapter->send_header();
 				return ;
 			}
 
 			if(st.st_mode&S_IFDIR){
 				adapter->response->code = 404;
-				adapter->response->content_length = 0;
-				adapter->send_header();
 				return ;
 			}
 
@@ -84,8 +80,6 @@ namespace lyramilk{ namespace teapoy {
 				if(sifetagnotmatch == etag){
 					response->set("Cache-Control","max-age=3600,public");
 					adapter->response->code = 304;
-					adapter->response->content_length = 0;
-					adapter->send_header();
 					return ;
 				}
 			}
@@ -103,7 +97,7 @@ namespace lyramilk{ namespace teapoy {
 			enum {
 				NO_GZIP,
 				CHUNKED_GZIP,
-			}gzipmode = CHUNKED_GZIP;
+			}gzipmode = NO_GZIP;
 
 
 #ifdef ZLIB_FOUND
@@ -117,7 +111,6 @@ namespace lyramilk{ namespace teapoy {
 			// range支持
 			lyramilk::data::uint64 filesize = st.st_size;
 			lyramilk::data::int64 datacount = filesize;
-
 
 			std::map<lyramilk::data::int64,lyramilk::data::int64> range_map;
 
@@ -201,8 +194,6 @@ namespace lyramilk{ namespace teapoy {
 					int icr = snprintf(cr,sizeof(cr),"bytes %lld-%lld/%llu",range_it->first,std::min(range_it->second,(lyramilk::data::int64)filesize - 1),filesize);
 					if(icr < 1){
 						adapter->response->code = 500;
-						adapter->response->content_length = 0;
-						adapter->send_header();
 						return ;
 					}
 					response->set("Content-Range",cr);
@@ -230,14 +221,11 @@ namespace lyramilk{ namespace teapoy {
 				ifs.open(real.c_str(),std::ifstream::binary|std::ifstream::in);
 				if(!ifs.is_open()){
 					adapter->response->code = 403;
-					adapter->response->content_length = 0;
-					adapter->send_header();
 					return ;
 				}
 				if(is_range){
 					ifs.seekg(range_it->first,std::ifstream::beg);
 				}
-				adapter->send_header();
 				char buff[16384];
 				for(;ifs && datacount > 0;){
 					ifs.read(buff,std::min(sizeof(buff),(std::size_t)datacount));
@@ -250,18 +238,14 @@ namespace lyramilk{ namespace teapoy {
 					}
 				}
 				ifs.close();
-				adapter->send_finish();
 			}else if(gzipmode == CHUNKED_GZIP){
 				std::ifstream ifs;
 				ifs.open(real.c_str(),std::ifstream::binary|std::ifstream::in);
 				if(!ifs.is_open()){
 					adapter->response->code = 500;
-					adapter->response->content_length = 0;
-					adapter->send_header();
 					return ;
 				}
 
-				adapter->send_header();
 				http_chunked_gzip(ifs,datacount,adapter);
 			}
 		}

@@ -53,6 +53,7 @@ namespace lyramilk{ namespace teapoy {
 		virtual std::size_t get_body_size();
 	  public:
 		virtual const http_header_type& get_header_obj() const;
+		virtual bool empty() const;
 		virtual lyramilk::data::string get(const lyramilk::data::string& field) const;
 		virtual void set(const lyramilk::data::string& field,const lyramilk::data::string& value);
 	};

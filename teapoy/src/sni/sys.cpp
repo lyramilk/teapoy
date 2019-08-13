@@ -269,73 +269,79 @@ namespace lyramilk{ namespace teapoy{ namespace native
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_map);
-		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,2,lyramilk::data::var::t_str);
-		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,3,lyramilk::data::var::t_str);
 
+		lyramilk::data::string emptystr;
 		lyramilk::data::string algorithm = args[0];
-		lyramilk::data::var v = args[1];
-		lyramilk::data::var vrealm = v["realm"];
-		lyramilk::data::var vnonce = v["nonce"];
-		lyramilk::data::var vcnonce = v["cnonce"];
-		lyramilk::data::var vnc = v["nc"];
-		lyramilk::data::var vqop = v["qop"];
-		lyramilk::data::var vuri = v["uri"];
-		lyramilk::data::var vmethod = v["method"];
-		lyramilk::data::string username = args[2];
-		lyramilk::data::string password = args[3];
+		lyramilk::data::map m = args[1];
 
-		lyramilk::data::string realm = vrealm.type_like(lyramilk::data::var::t_str)?vrealm.str():"";
-		lyramilk::data::string nonce = vnonce.type_like(lyramilk::data::var::t_str)?vnonce.str():"";
-		lyramilk::data::string cnonce = vcnonce.type_like(lyramilk::data::var::t_str)?vcnonce.str():"";
-		lyramilk::data::string nc = vnc.type_like(lyramilk::data::var::t_str)?vnc.str():"";
-		lyramilk::data::string qop = vqop.type_like(lyramilk::data::var::t_str)?vqop.str():"";
-		lyramilk::data::string uri = vuri.type_like(lyramilk::data::var::t_str)?vuri.str():"";
-		lyramilk::data::string method = vmethod.type_like(lyramilk::data::var::t_str)?vmethod.str():"";
+		lyramilk::data::string realm = m["realm"].conv(emptystr);
+		if(realm.empty()) return lyramilk::data::var::nil;
 
-		if(realm.empty() || nonce.empty() || cnonce.empty() || nc.empty() || /*uri.empty() || */method.empty() || username.empty() || password.empty()){
-			return lyramilk::data::var::nil;
-		}
+		lyramilk::data::string nonce = m["nonce"].conv(emptystr);
+		if(nonce.empty()) return lyramilk::data::var::nil;
 
-		lyramilk::data::string HA1;
-		lyramilk::data::string HA2;
-		lyramilk::data::string HD;
+		lyramilk::data::string cnonce = m["cnonce"].conv(emptystr);
+		if(cnonce.empty()) return lyramilk::data::var::nil;
 
-		if(algorithm == "MD5"){
-			HA1 = username + ":" + realm + ":" + password;
-		}else if(algorithm == "MD5-sess"){
-			HA1 = md5(username + ":" + realm + ":" + password) + ":" + nonce + ":" + cnonce;
+		lyramilk::data::string nc = m["nc"].conv(emptystr);
+		if(nc.empty()) return lyramilk::data::var::nil;
+
+		lyramilk::data::string qop = m["qop"].conv(emptystr);
+		if(qop.empty()) return lyramilk::data::var::nil;
+
+		lyramilk::data::string uri = m["uri"].conv(emptystr);
+		if(uri.empty()) return lyramilk::data::var::nil;
+
+		lyramilk::data::string method = m["method"].conv(emptystr);
+		if(method.empty()) return lyramilk::data::var::nil;
+
+
+		lyramilk::data::string HA1 = m["HA1"].conv(emptystr);
+		lyramilk::data::string HA2 = m["HA2"].conv(emptystr);
+		lyramilk::data::string HD = m["HD"].conv(emptystr);
+
+		if(HA1.empty()){
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,2,lyramilk::data::var::t_str);
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,3,lyramilk::data::var::t_str);
+			lyramilk::data::string username = args[2];
+			lyramilk::data::string password = args[3];
+
+			if(algorithm == "MD5"){
+				HA1 = md5(username + ":" + realm + ":" + password);
+			}else if(algorithm == "MD5-sess"){
+				HA1 = md5(md5(username + ":" + realm + ":" + password) + ":" + nonce + ":" + cnonce);
+			}
 		}
 
 		if(qop == "auth-int"){
-			lyramilk::data::var vbody = v["body"];
-			lyramilk::data::string body = vbody.type_like(lyramilk::data::var::t_str)?vbody.str():"";
+			lyramilk::data::string body = m["body"].conv(emptystr);
 			if(body.empty()) return lyramilk::data::var::nil;
-			HD = nonce + ":" + nc + ":" + cnonce + ":" + qop;
+			if(HD.empty()) HD = nonce + ":" + nc + ":" + cnonce + ":" + qop;
 			if(uri.empty()){
 			
 			}else{
-				HA2 = method + ":" + uri + ":" + md5(body);
+				if(HA2.empty()) HA2 = md5(method + ":" + uri + ":" + md5(body));
 			}
 		}else if(qop == ""){
-			HD = nonce;
+			if(HD.empty()) HD = nonce;
 			if(uri.empty()){
-				HA2 = method;
+				if(HA2.empty()) HA2 = md5(method);
 			}else{
-				HA2 = method + ":" + uri;
+				if(HA2.empty()) HA2 = md5(method + ":" + uri);
 			}
 		}else if(qop == "auth"){
-			HD = nonce + ":" + nc + ":" + cnonce + ":" + qop;
+			if(HD.empty()) HD = nonce + ":" + nc + ":" + cnonce + ":" + qop;
 			if(uri.empty()){
-				HA2 = method;
+				if(HA2.empty()) HA2 = md5(method);
 			}else{
-				HA2 = method + ":" + uri;
+				if(HA2.empty()) HA2 = md5(method + ":" + uri);
 			}
 
 		}else{
 			return lyramilk::data::var::nil;
 		}
 
-		return md5(md5(HA1) + ":" + HD + ":" + md5(HA2));
+		return md5(HA1 + ":" + HD + ":" + HA2);
 	}
 
 	static int define(lyramilk::script::engine* p)
@@ -358,6 +364,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			p->define("sha1",sha1);++i;
 			p->define("md5_16",md5_16);++i;
 			p->define("md5_32",md5_32);++i;
+			p->define("md5",md5_32);++i;
 			p->define("http_digest_authentication",http_digest_authentication);++i;
 		}
 		return i;

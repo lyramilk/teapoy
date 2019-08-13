@@ -45,8 +45,6 @@ namespace lyramilk{ namespace teapoy {
 			adapter->request->header_extend[":body"] = body;
 			if(!adapter->service->call(hc.get_host(),adapter->request,adapter->response,adapter)){
 				adapter->response->code = 500;
-				adapter->response->content_length = 0;
-				adapter->send_header();
 			}
 		}
 		return false;

@@ -14,8 +14,6 @@ namespace lyramilk{ namespace teapoy
 		strm.opaque = NULL;
 		if(deflateInit2(&strm, Z_DEFAULT_COMPRESSION, Z_DEFLATED,MAX_WBITS + 16, 8, Z_DEFAULT_STRATEGY) != Z_OK){
 			adapter->response->code = 500;
-			//adapter->response->content_length = 0;
-			//adapter->send_header();
 			return false;
 		}
 
@@ -51,7 +49,6 @@ namespace lyramilk{ namespace teapoy
 			//deflateReset(&strm);
 		}
 		deflateEnd(&strm);
-		adapter->send_finish();
 		return true;
 #else
 		adapter->response->code = 500;

@@ -281,6 +281,10 @@ namespace lyramilk{ namespace teapoy {
 		return header;
 	}
 
+	bool mime::empty() const
+	{
+		return header.empty();
+	}
 	lyramilk::data::string mime::get(const lyramilk::data::string& field) const
 	{
 		http_header_type::const_iterator it = header.find(field);

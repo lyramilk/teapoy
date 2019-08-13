@@ -224,7 +224,6 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 				if(h && !h(false,v,args)) break;
 			}
 		}
-		COUT << "被break了" << std::endl;
 	}
 
 	static void* thread_redis_client_task2(void* param)

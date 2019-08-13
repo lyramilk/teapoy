@@ -237,14 +237,16 @@ namespace lyramilk{ namespace teapoy{ namespace sni{
 			char * xmlstring = JS_EncodeString(cx,jsstr);
 			if(tinyxml2::XML_SUCCESS != xml_doc.Parse(xmlstring,strlen(xmlstring))){
 				JS_free(cx,xmlstring);
-				return JS_FALSE;
+				vp->setUndefined();
+				return JS_TRUE;
 			}
 			JS_free(cx,xmlstring);
 
 
 			tinyxml2::XMLNode* root = xml_doc.RootElement();
 			if(root == nullptr){
-				return JS_FALSE;
+				vp->setUndefined();
+				return JS_TRUE;
 			}
 			JSObject *jo = JS_NewObject(cx,&normalClass,nullptr,JS_GetGlobalObject(cx));
 
@@ -257,7 +259,9 @@ namespace lyramilk{ namespace teapoy{ namespace sni{
 			xml2js(cx,doc,root,jo);
 
 			vp->setObjectOrNull(jo);
+			return JS_TRUE;
 		}
+		vp->setUndefined();
 		return JS_TRUE;
 	}
 #endif

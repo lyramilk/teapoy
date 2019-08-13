@@ -44,7 +44,7 @@ namespace lyramilk{ namespace teapoy {
 		virtual bool add_dispatcher_selector(lyramilk::data::string hostname,lyramilk::ptr<url_selector> selector);
 		virtual bool remove_dispatcher(lyramilk::data::string hostname);
 
-		virtual bool call(lyramilk::data::string hostname,httprequest* request,httpresponse* response,httpadapter* adapter);
+		virtual url_check_status call(lyramilk::data::string hostname,httprequest* request,httpresponse* response,httpadapter* adapter);
 	};
 }}
 

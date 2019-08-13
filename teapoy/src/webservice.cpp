@@ -16,45 +16,60 @@ namespace lyramilk{ namespace teapoy {
 
 	static std::map<int,const char*> __init_code_map()
 	{
-		std::map<int,const char*> ret;
-		ret[100] = "100 Continue";
-		ret[101] = "101 Switching Protocols";
-		ret[200] = "200 OK";
-		ret[201] = "201 Created";
-		ret[202] = "202 Accepted";
-		ret[203] = "203 Non-Authoritative Information";
-		ret[204] = "204 No Content";
-		ret[205] = "205 Reset Content";
-		ret[206] = "206 Partial Content";
-		ret[300] = "300 Multiple Choices";
-		ret[301] = "301 Moved Permanently";
-		ret[302] = "302 Moved Temporarily";
-		ret[303] = "303 See Other";
-		ret[304] = "304 Not Modified";
-		ret[305] = "305 Use Proxy";
-		ret[400] = "400 Bad Request";
-		ret[401] = "401 Authorization Required";
-		ret[402] = "402 Payment Required";
-		ret[403] = "403 Forbidden";
-		ret[404] = "404 Not Found";
-		ret[405] = "405 Method Not Allowed";
-		ret[406] = "406 Not Acceptable";
-		ret[407] = "407 Proxy Authentication Required";
-		ret[408] = "408 Request Time-out";
-		ret[409] = "409 Conflict";
-		ret[410] = "410 Gone";
-		ret[411] = "411 Length Required";
-		ret[412] = "412 Precondition Failed";
-		ret[413] = "413 Request Entity Too Large";
-		ret[414] = "414 Request-URI Too Large";
-		ret[415] = "415 Unsupported Media Type";
-		ret[500] = "500 Internal Server Error";
-		ret[501] = "501 Method Not Implemented";
-		ret[502] = "502 Bad Gateway";
-		ret[503] = "503 Service Temporarily Unavailable";
-		ret[504] = "504 Gateway Time-out";
-		ret[505] = "505 HTTP Version Not Supported";
-		ret[506] = "506 Variant Also Varies";
+		static std::map<int,const char*> ret;
+		if(ret.empty()){
+			ret[100] = "100 Continue";
+			ret[101] = "101 Switching Protocols";
+			ret[200] = "200 OK";
+			ret[201] = "201 Created";
+			ret[202] = "202 Accepted";
+			ret[203] = "203 Non-Authoritative Information";
+			ret[204] = "204 No Content";
+			ret[205] = "205 Reset Content";
+			ret[206] = "206 Partial Content";
+			ret[300] = "300 Multiple Choices";
+			ret[301] = "301 Moved Permanently";
+			ret[302] = "302 Moved Temporarily";
+			ret[303] = "303 See Other";
+			ret[304] = "304 Not Modified";
+			ret[305] = "305 Use Proxy";
+			ret[400] = "400 Bad Request";
+			ret[401] = "401 Authorization Required";
+			ret[402] = "402 Payment Required";
+			ret[403] = "403 Forbidden";
+			ret[404] = "404 Not Found";
+			ret[405] = "405 Method Not Allowed";
+			ret[406] = "406 Not Acceptable";
+			ret[407] = "407 Proxy Authentication Required";
+			ret[408] = "408 Request Time-out";
+			ret[409] = "409 Conflict";
+			ret[410] = "410 Gone";
+			ret[411] = "411 Length Required";
+			ret[412] = "412 Precondition Failed";
+			ret[413] = "413 Request Entity Too Large";
+			ret[414] = "414 Request-URI Too Large";
+			ret[415] = "415 Unsupported Media Type";
+			ret[500] = "500 Internal Server Error";
+			ret[501] = "501 Method Not Implemented";
+			ret[502] = "502 Bad Gateway";
+			ret[503] = "503 Service Temporarily Unavailable";
+			ret[504] = "504 Gateway Time-out";
+			ret[505] = "505 HTTP Version Not Supported";
+			ret[506] = "506 Variant Also Varies";
+
+			char buff[256];
+			int r = 0;
+
+			for(std::map<int,const char*>::iterator it = ret.begin();it!=ret.end();++it){
+				if(it->first >= 200 && it->first < 300) continue;
+				errorpage* eg = new errorpage;
+				r = snprintf(buff,sizeof(buff),"<html><head><meta charset=\"utf-8\"><title>%s</title></head><body><center><h3>%s</h3></center></body></html>",it->second,it->second);
+				eg->body.assign(buff,r);
+				eg->header["Content-Type"] = "text/html;charset=utf8";
+				eg->code = it->first;
+				errorpage_manager::instance()->define(it->first,eg);
+			}
+		}
 		return ret;
 	}
 
@@ -64,6 +79,11 @@ namespace lyramilk{ namespace teapoy {
 		std::map<int,const char*>::iterator it = code_map.find(code);
 		if(it == code_map.end()) return "500 Internal Server Error";
 		return it->second;
+	}
+
+	void httpadapter::init()
+	{
+		__init_code_map();
 	}
 
 	/// httprequest
@@ -214,7 +234,9 @@ namespace lyramilk{ namespace teapoy {
 		header = adapter->channel->default_response_header;
 		header_ex.clear();
 		content_length = -1;
-		code = 404;
+		code = 0;
+		ischunked = false;
+		adapter->pri_ss = httpadapter::ss_0;
 		return true;
 	}
 
@@ -279,6 +301,64 @@ namespace lyramilk{ namespace teapoy {
 		return &_mm;
 	}
 
+
+	/// httpadapter
+	httpsessionptr::httpsessionptr()
+	{
+		p = nullptr;
+	}
+
+	httpsessionptr::httpsessionptr(httpsession* p)
+	{
+		this->p = p;
+		if(p){
+			p->add_ref();
+		}
+	}
+
+	httpsessionptr::httpsessionptr(const httpsessionptr& o)
+	{
+		this->p = const_cast<httpsessionptr&>(o).p;
+		if(p){
+			p->add_ref();
+		}
+	}
+
+	httpsessionptr& httpsessionptr::operator = (httpsession* p)
+	{
+		this->p = p;
+		if(p){
+			p->add_ref();
+		}
+		return *this;
+	}
+
+	httpsessionptr& httpsessionptr::operator = (const httpsessionptr& o)
+	{
+		this->p = const_cast<httpsessionptr&>(o).p;
+		if(p){
+			p->add_ref();
+		}
+		return *this;
+	}
+
+	httpsessionptr::~httpsessionptr()
+	{
+		if(p){
+			p->relese();
+		}
+	}
+
+	httpsession* httpsessionptr::operator->()
+	{
+		return p;
+	}
+
+	httpsessionptr::operator httpsession*()
+	{
+		return p;
+	}
+
 	/// httpadapter
 	httpadapter::httpadapter(std::ostream& oss):os(oss)
 	{
@@ -287,6 +367,7 @@ namespace lyramilk{ namespace teapoy {
 
 		request = &pri_request;
 		response = &pri_response;
+		pri_ss = ss_0;
 	}
 
 	httpadapter::~httpadapter()
@@ -384,8 +465,34 @@ namespace lyramilk{ namespace teapoy {
 		os.write(p,l);
 	}
 
-	void httpadapter::send_finish()
+	void httpadapter::request_finish()
 	{
+	}
+
+	httpsessionptr httpadapter::get_session()
+	{
+		httpsessionptr session;
+		lyramilk::data::string sid = get_cookie("TeapoyId");
+		//为了含义明确
+		if(!sid.empty()){
+			session = service->session_mgr->get_session(sid);
+		}
+
+		if(session == nullptr){
+			session = service->session_mgr->create_session();
+			if(session){
+				lyramilk::data::string newsid = session->get_session_id();
+				if(!newsid.empty()){
+					httpcookie c;
+					c.key = "TeapoyId";
+					c.value = newsid;
+					c.path = "/";
+					c.httponly = true;
+					set_cookie_obj(c);
+				}
+			}
+		}
+		return session;
 	}
 
 	/// aiohttpchannel
@@ -411,6 +518,7 @@ namespace lyramilk{ namespace teapoy {
 
 	bool aiohttpchannel::oninit(std::ostream& os)
 	{
+		__init_code_map();
 #ifdef OPENSSL_FOUND
 		if(ssl()){
 			const char* data = nullptr;
@@ -431,6 +539,8 @@ namespace lyramilk{ namespace teapoy {
 					return adapter->oninit(os);
 				}
 			}
+
+			ssl_peer_certificate_info = ssl_get_peer_certificate_info();
 		}
 #endif
 		return true;
@@ -439,7 +549,7 @@ namespace lyramilk{ namespace teapoy {
 	bool aiohttpchannel::onrequest(const char* cache,int size,std::ostream& os)
 	{
 #ifdef _DEBUG
-		//printf("\t收到\x1b[36m%d\x1b[0m字节\n%.*s\n",size,size,cache);
+		printf("\t收到\x1b[36m%d\x1b[0m字节\n%.*s\n",size,size,cache);
 #endif
 		if(adapter){
 			return adapter->onrequest(cache,size,os);
