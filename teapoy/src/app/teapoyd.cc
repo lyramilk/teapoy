@@ -278,6 +278,10 @@ class teapoy_loader:public lyramilk::script::sclass
 		return no_exit_mode;
 	}
 
+	lyramilk::data::var is_daemon(const lyramilk::data::array& args,const lyramilk::data::map& env)
+	{
+		return ondaemon;
+	}
 };
 
 void useage(lyramilk::data::string selfname)
@@ -416,6 +420,7 @@ int main(int argc,char* argv[])
 		fn["su"] = lyramilk::script::engine::functional<teapoy_loader,&teapoy_loader::su>;
 		fn["root"] = lyramilk::script::engine::functional<teapoy_loader,&teapoy_loader::root>;
 		fn["noexit"] = lyramilk::script::engine::functional<teapoy_loader,&teapoy_loader::noexit>;
+		fn["isDaemon"] = lyramilk::script::engine::functional<teapoy_loader,&teapoy_loader::is_daemon>;
 		eng_main->define("Teapoy",fn,teapoy_loader::ctr,teapoy_loader::dtr);
 	}
 

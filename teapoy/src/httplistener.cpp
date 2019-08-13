@@ -81,7 +81,11 @@ namespace lyramilk{ namespace teapoy {
 #endif
 		SSL_CTX_set_next_protos_advertised_cb(ssl_ctx, next_proto_cb, this);
 #endif
-		return lyramilk::netio::aiolistener::init_ssl(certfilename,keyfilename);
+		if(lyramilk::netio::aiolistener::init_ssl(certfilename,keyfilename)){
+			scheme = "https";
+			return true;
+		}
+		return false;
 	}
 
 	void httplistener::define_http_protocols(lyramilk::data::string proto,httpadapterctr ctr,httpadapterdtr dtr)

@@ -63,7 +63,7 @@ namespace lyramilk{ namespace teapoy {
 			for(std::map<int,const char*>::iterator it = ret.begin();it!=ret.end();++it){
 				if(it->first >= 200 && it->first < 300) continue;
 				errorpage* eg = new errorpage;
-				r = snprintf(buff,sizeof(buff),"<html><head><meta charset=\"utf-8\"><title>%s</title></head><body><center><h3>%s</h3></center></body></html>",it->second,it->second);
+				r = snprintf(buff,sizeof(buff),"<html><head><meta charset=\"utf-8\" /><title>%s</title></head><body><center><h3>%s</h3></center></body></html>",it->second,it->second);
 				eg->body.assign(buff,r);
 				eg->header["Content-Type"] = "text/html;charset=utf8";
 				eg->code = it->first;
