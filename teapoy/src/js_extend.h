@@ -14,6 +14,17 @@ namespace lyramilk{ namespace teapoy{ namespace sni{
 		static void engine_load(const char* scripttypename);
 		virtual void inite();
 	};
+
+	class jshtml:public js_extend
+	{
+	  public:
+		jshtml();
+		virtual ~jshtml();
+		static void engine_load(const char* scripttypename);
+		virtual lyramilk::data::string code_convert(const lyramilk::data::string& code,std::vector<int>* prlines);
+		virtual bool load_string(const lyramilk::data::string& scriptstring);
+		virtual bool load_file(const lyramilk::data::string& scriptfile);
+	};
 }}}
 
 #endif

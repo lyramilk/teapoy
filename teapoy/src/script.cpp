@@ -84,7 +84,6 @@ namespace lyramilk{ namespace teapoy
 
 		virtual void onfire(lyramilk::script::engine* o)
 		{
-			o->set("clearonreset",lyramilk::data::map());
 			o->reset();
 		}
 
@@ -114,7 +113,7 @@ namespace lyramilk{ namespace teapoy
 
 		virtual lyramilk::script::engine* underflow()
 		{
-			lyramilk::script::engine* eng_tmp = lyramilk::script::engine::createinstance("jsx");
+			lyramilk::script::engine* eng_tmp = lyramilk::script::engine::createinstance("jshtml");
 			if(!eng_tmp){
 				lyramilk::klog(lyramilk::log::error,"teapoy.web.engine_master_jsx.underflow") << D("创建引擎对象失败(%s)","jsx") << std::endl;
 				return nullptr;
@@ -126,7 +125,6 @@ namespace lyramilk{ namespace teapoy
 
 		virtual void onfire(lyramilk::script::engine* o)
 		{
-			o->set("clearonreset",lyramilk::data::map());
 			o->reset();
 		}
 
@@ -167,7 +165,6 @@ namespace lyramilk{ namespace teapoy
 
 		virtual void onfire(lyramilk::script::engine* o)
 		{
-			o->set("clearonreset",lyramilk::data::map());
 			o->reset();
 		}
 

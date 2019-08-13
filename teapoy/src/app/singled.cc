@@ -1,39 +1,77 @@
 #include "web.h"
+#include <malloc.h>
+#include <sys/epoll.h>
+#include <libmilk/netio.h>
 
-
-class sssssssssssssss : public lyramilk::teapoy::web::url_worker
+/*
+void* operator new(std::size_t sz)
 {
-	bool call(lyramilk::teapoy::web::session_info* si) const
-	{
-		lyramilk::data::stringstream ss;
-		ss << "Method=" << si->req->entityframe->method << "访问的url是：" << si->req->entityframe->uri << "参数是：" << si->req->entityframe->params();;
-		si->rep->set("Content-Type","text/html;charset=utf-8");
-		si->rep->send_header_and_body(200,ss.str().c_str(),ss.str().size());
-		return true;
-	}
-	virtual bool init_extra(const lyramilk::data::var& extra)
-	{
-		return true;
-	}
+	void* p = malloc(sz);
+	printf("%p malloc\n",p);
+	return p;
+}
+
+void operator delete(void* p)
+{
+	printf("%p free\n",p);
+	free(p);
+}
+*/
+
+
+class su
+{
   public:
-	sssssssssssssss()
-	{
-	}
-	virtual ~sssssssssssssss()
-	{
-	}
+	lyramilk::data::string s;
+  	su(){}
+  	virtual ~su(){}
 
-	static url_worker* ctr(void*)
-	{
-		return new sssssssssssssss();
-	}
-
-	static void dtr(url_worker* p)
-	{
-		delete (sssssssssssssss*)p;
-	}
 };
 
+
+
+
+class kq:public lyramilk::netio::aiosession,public su
+{
+	lyramilk::data::string e;
+	lyramilk::netio::socket_ostream aos;
+  public:
+  	kq(){}
+  	virtual ~kq(){}
+
+
+	bool notify_in() 
+	{
+		char buff[4096];
+		read(buff,4096);
+
+		aos << s;
+		aos.flush();
+		//return pool->reset(this,EPOLLIN | EPOLLERR | EPOLLHUP | EPOLLRDHUP | EPOLLONESHOT);
+		return false;
+	}
+	bool notify_out()
+	{
+		return true;
+	}
+	bool notify_hup()
+	{
+		return false;
+	}
+	bool notify_err()
+	{
+		return false;
+	}
+	bool notify_pri()
+	{
+		return false;
+	}
+	bool init()
+	{
+		aos.init(this);
+		return true;
+	}
+};
 
 class httpserver:public lyramilk::netio::aiolistener
 {
@@ -48,32 +86,19 @@ class httpserver:public lyramilk::netio::aiolistener
 
 	virtual lyramilk::netio::aiosession* create()
 	{
-		lyramilk::teapoy::web::aiohttpsession* ss = lyramilk::netio::aiosession::__tbuilder<lyramilk::teapoy::web::aiohttpsession>();
-		ss->worker = &worker;
-		ss->sessionmgr = lyramilk::teapoy::web::sessions::defaultinstance();
+		kq* ss = lyramilk::netio::aiosession::__tbuilder<kq>();
+		ss->s = "HTTP/1.0 200 OK\r\nContent-Length: 3\r\n\r\nok\n";
 		return ss;
 	}
-  public:
-	lyramilk::teapoy::web::website_worker worker;
 };
 
 int main(int argc,char* argv[])
 {
-	lyramilk::teapoy::web::url_worker_master::instance()->define("ag3",sssssssssssssss::ctr,sssssssssssssss::dtr);
-
 	lyramilk::io::aiopoll pool;
 
 	httpserver* srv = new httpserver();
 
-
-	lyramilk::teapoy::web::url_worker *w = lyramilk::teapoy::web::url_worker_master::instance()->create("ag3");
-
-	lyramilk::data::var::array index;
-	//index.push_back("index.html");
-	w->init("GET,POST","/.*","",index,nullptr);
-
-	srv->worker.lst.push_back(w);
-	srv->open(80);
+	srv->open(8412);
 	pool.add(srv);
 	pool.active(10);
 	pool.svc();

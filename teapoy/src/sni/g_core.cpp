@@ -43,9 +43,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		}
 
 		// 写入包含信息，防止重复载入
-		lyramilk::data::var& vm = e->get("clearonreset");
-		vm.type(lyramilk::data::var::t_map);
-		lyramilk::data::var& v = vm["require"];
+		lyramilk::data::var& v = e->get_userdata("require");
 
 		v.type(lyramilk::data::var::t_array);
 		lyramilk::data::array& ar = v;
@@ -61,7 +59,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		ar.push_back(args[0].str());
 
 		// 执行包含文件。
-		if(e->load_file(filename)){
+		if(e->load_module(filename)){
 			return true;
 		}
 		return false;
@@ -94,7 +92,6 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			lyramilk::data::inotify_file::status st = iff.check();
 			if(st != lyramilk::data::inotify_file::s_keep){
 				log(lyramilk::log::warning,"task") << D("重新加载%s",ei.filename.c_str()) << std::endl;
-				eng->set("clearonreset",lyramilk::data::map());
 				eng->reset();
 				eng->load_file(ei.filename);
 			}

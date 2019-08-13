@@ -229,6 +229,56 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			return vret;
 		}
 
+		lyramilk::data::var kvgetb(const lyramilk::data::array& args,const lyramilk::data::map& env)
+		{
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
+			lyramilk::data::array cmd;
+			cmd.reserve(2);
+			cmd.push_back("get");
+			cmd.push_back(args[0]);
+			lyramilk::data::var vret;
+			if(!c->exec(cmd,vret)) return lyramilk::data::var::nil;
+
+			if(vret.type() == lyramilk::data::var::t_invalid) return lyramilk::data::chunk();
+			vret.type(lyramilk::data::var::t_bin);
+			return vret;
+		}
+
+		lyramilk::data::var kvsetb(const lyramilk::data::array& args,const lyramilk::data::map& env)
+		{
+			if(readonly()) throw lyramilk::exception(D("redis.%s：禁止向只读Redis实例写入数据",__FUNCTION__));
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_bin);
+
+			lyramilk::data::array cmd;
+			cmd.reserve(3);
+			cmd.push_back("set");
+			cmd.push_back(args[0]);
+			cmd.push_back(args[1]);
+			lyramilk::data::var vret;
+			if(!c->exec(cmd,vret)) return lyramilk::data::var::nil;
+			return vret;
+		}
+
+		lyramilk::data::var kvsetexb(const lyramilk::data::array& args,const lyramilk::data::map& env)
+		{
+			if(readonly()) throw lyramilk::exception(D("redis.%s：禁止向只读Redis实例写入数据",__FUNCTION__));
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_int);
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,2,lyramilk::data::var::t_bin);
+			lyramilk::data::array cmd;
+			cmd.reserve(3);
+			cmd.push_back("setex");
+			cmd.push_back(args[0]);
+			cmd.push_back(args[1]);
+			cmd.push_back(args[2]);
+
+			lyramilk::data::var vret;
+			if(!c->exec(cmd,vret)) return lyramilk::data::var::nil;
+
+			return vret;
+		}
+
 		lyramilk::data::var kv(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
@@ -441,6 +491,9 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			fn["ok"] = lyramilk::script::engine::functional<redis,&redis::ok>;
 			fn["kvget"] = lyramilk::script::engine::functional<redis,&redis::kvget>;
 			fn["kvset"] = lyramilk::script::engine::functional<redis,&redis::kvset>;
+			fn["kvgetb"] = lyramilk::script::engine::functional<redis,&redis::kvgetb>;
+			fn["kvsetb"] = lyramilk::script::engine::functional<redis,&redis::kvsetb>;
+			fn["kvsetexb"] = lyramilk::script::engine::functional<redis,&redis::kvsetexb>;
 			fn["kv"] = lyramilk::script::engine::functional<redis,&redis::kv>;
 			fn["hashmap"] = lyramilk::script::engine::functional<redis,&redis::hashmap>;
 			fn["zset"] = lyramilk::script::engine::functional<redis,&redis::zset>;

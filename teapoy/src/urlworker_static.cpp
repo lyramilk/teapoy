@@ -476,7 +476,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 				}
 
 				const lyramilk::data::var& crawcache = compress["cache"];
-				if(crawcache.type_like(lyramilk::data::var::t_int)){
+				if(crawcache.type_like(lyramilk::data::var::t_bool)){
 					usegzipcache = crawcache;
 				}
 			}
