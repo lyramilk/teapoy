@@ -131,6 +131,10 @@ namespace lyramilk{ namespace teapoy {
 			return ss_nobody;
 		}
 
+		if(request->get(":method") == "HEAD"){
+			return ss_nobody;
+		}
+
 		this->os.flush();
 		return ss_need_body;
 	}

@@ -263,6 +263,9 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 
 		virtual ~smysql_iterator()
 		{
+			if(holder){
+				delete holder;
+			}
 		}
 
 

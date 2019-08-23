@@ -53,6 +53,7 @@ namespace lyramilk{ namespace teapoy {
 	}
 	bool functional_nonreentrant::try_del()
 	{
+		if(payload() > 0) return false;
 		unlock();
 		return false;
 	}

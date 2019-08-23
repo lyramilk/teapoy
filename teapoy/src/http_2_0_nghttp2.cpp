@@ -303,6 +303,12 @@ namespace lyramilk{ namespace teapoy {
 			}
 		}
 
+		if(request->get(":method") == "HEAD"){
+			response_body.clear();
+			response_body.str("");
+			return ss_nobody;
+		}
+
 		if(page){
 			response_body.str(page->body);
 			return ss_nobody;

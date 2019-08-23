@@ -16,6 +16,14 @@ namespace lyramilk{ namespace teapoy {
 
 	mime::~mime()
 	{
+		if(request_cache){
+			delete request_cache;
+		}
+		mimes::const_iterator it = childs.begin();
+		for(;it!=childs.end();++it){
+			delete *it;
+		}
+		childs.clear();
 	}
 
 	bool mime::reset()

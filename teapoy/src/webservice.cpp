@@ -2,6 +2,7 @@
 #include "httplistener.h"
 #include "stringutil.h"
 #include <libmilk/codes.h>
+#include <libmilk/log.h>
 
 #ifdef OPENSSL_FOUND
 	#include <openssl/ssl.h>
@@ -550,6 +551,7 @@ namespace lyramilk{ namespace teapoy {
 	{
 #ifdef _DEBUG
 		printf("\t收到\x1b[36m%d\x1b[0m字节\n%.*s\n",size,size,cache);
+		lyramilk::klog(lyramilk::log::trace,"aiohttpchannel").write(cache,size) << std::endl;
 #endif
 		if(adapter){
 			return adapter->onrequest(cache,size,os);

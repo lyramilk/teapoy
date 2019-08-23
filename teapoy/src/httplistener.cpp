@@ -5,6 +5,7 @@
 #endif
 #include <libmilk/log.h>
 #include <libmilk/dict.h>
+#include <libmilk/stringutil.h>
 
 namespace lyramilk{ namespace teapoy {
 
@@ -125,20 +126,33 @@ namespace lyramilk{ namespace teapoy {
 
 	bool httplistener::add_dispatcher_selector(lyramilk::data::string hostname,lyramilk::ptr<url_selector> selector)
 	{
-		dispatcher[hostname].add(selector);
+		lyramilk::data::string lhostname = lyramilk::data::lower_case(hostname);
+		if(lhostname.compare(0,4,"www.") == 0){
+			lhostname = lhostname.substr(4);
+		}
+
+		dispatcher[lhostname].add(selector);
 		return true;
 	}
 
 
 	bool httplistener::remove_dispatcher(lyramilk::data::string hostname)
 	{
-		dispatcher.erase(hostname);
+		lyramilk::data::string lhostname = lyramilk::data::lower_case(hostname);
+		if(lhostname.compare(0,4,"www.") == 0){
+			lhostname = lhostname.substr(4);
+		}
+		dispatcher.erase(lhostname);
 		return true;
 	}
 
 	url_check_status httplistener::call(lyramilk::data::string hostname,httprequest* request,httpresponse* response,httpadapter* adapter)
 	{
-		std::map<lyramilk::data::string,url_dispatcher>::iterator it = dispatcher.find(hostname);
+		lyramilk::data::string lhostname = lyramilk::data::lower_case(hostname);
+		if(lhostname.compare(0,4,"www.") == 0){
+			lhostname = lhostname.substr(4);
+		}
+		std::map<lyramilk::data::string,url_dispatcher>::iterator it = dispatcher.find(lhostname);
 		if(it == dispatcher.end()){
 			return dispatcher["*"].call(request,response,adapter);
 		}
