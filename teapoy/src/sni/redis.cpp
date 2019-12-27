@@ -27,6 +27,19 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 		return x;
 	}
 #endif
+	inline lyramilk::script::engine* get_script_engine_by_envmap(const lyramilk::data::map& env)
+	{
+	
+		lyramilk::data::map::const_iterator it_env_eng = env.find(lyramilk::script::engine::s_env_engine());
+		if(it_env_eng != env.end()){
+			lyramilk::data::datawrapper* urd = it_env_eng->second.userdata();
+			if(urd && urd->name() == lyramilk::script::engine_datawrapper::class_name()){
+				lyramilk::script::engine_datawrapper* urdp = (lyramilk::script::engine_datawrapper*)urd;
+				return urdp->eng;
+			}
+		}
+		return nullptr;
+	}
 
 	class redis:public lyramilk::script::sclass
 	{
@@ -42,12 +55,17 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			redis_client* c = nullptr;
 			if(args.size() == 2){
 				if(args[0].type() == lyramilk::data::var::t_user){
-					const void* p = args[0].userdata("__redis_client");
-					if(p){
-						redis_clients::ptr* pp = (redis_clients::ptr*)p;
-						redis_clients::ptr ppr = *pp;
-						if(ppr){
-							return new redis(ppr,args[1]);
+
+					lyramilk::data::datawrapper* urd = args[0].userdata();
+					if(urd && urd->name() == dbpool_pointer_datawrapper::class_name()){
+						dbpool_pointer_datawrapper* urdp = (dbpool_pointer_datawrapper*)urd;
+						const void* p = urdp->ptr;
+						if(p){
+							redis_clients::ptr* pp = (redis_clients::ptr*)p;
+							redis_clients::ptr ppr = *pp;
+							if(ppr){
+								return new redis(ppr,args[1]);
+							}
 						}
 					}
 					throw lyramilk::exception(D("redis错误： 无法从池中获取到命名对象。"));
@@ -283,11 +301,11 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			lyramilk::data::string key = args[0];
-			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
+			lyramilk::script::engine* e = get_script_engine_by_envmap(env);
 			
 			lyramilk::data::array ar;
 			ar.reserve(2);
-			ar.push_back(lyramilk::data::var("redis",this));
+			ar.push_back(dbpool_pointer_datawrapper(this));
 			ar.push_back(key);
 			return e->createobject("redis.kv",ar);
 		}
@@ -296,11 +314,11 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			lyramilk::data::string key = args[0];
-			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
+			lyramilk::script::engine* e = get_script_engine_by_envmap(env);
 			
 			lyramilk::data::array ar;
 			ar.reserve(2);
-			ar.push_back(lyramilk::data::var("redis",this));
+			ar.push_back(dbpool_pointer_datawrapper(this));
 			ar.push_back(key);
 			return e->createobject("redis.hashmap",ar);
 		}
@@ -309,11 +327,11 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			lyramilk::data::string key = args[0];
-			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
+			lyramilk::script::engine* e = get_script_engine_by_envmap(env);
 			
 			lyramilk::data::array ar;
 			ar.reserve(2);
-			ar.push_back(lyramilk::data::var("redis",this));
+			ar.push_back(dbpool_pointer_datawrapper(this));
 			ar.push_back(key);
 			return e->createobject("redis.zset",ar);
 		}
@@ -322,11 +340,11 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			lyramilk::data::string key = args[0];
-			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
+			lyramilk::script::engine* e = get_script_engine_by_envmap(env);
 			
 			lyramilk::data::array ar;
 			ar.reserve(2);
-			ar.push_back(lyramilk::data::var("redis",this));
+			ar.push_back(dbpool_pointer_datawrapper(this));
 			ar.push_back(key);
 			return e->createobject("redis.list",ar);
 		}
@@ -435,7 +453,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			ar.push_back(db);
 			ar.push_back(addr);
 			ar.push_back(cmds);
-			p->eng->call(p->param[0],ar);
+			p->eng->call(p->param[0],ar,nullptr);
 			return true;
 		}
 
@@ -446,7 +464,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			}
 
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_user);
-			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
+			lyramilk::script::engine* e = get_script_engine_by_envmap(env);
 			lyramilk::data::array ar;
 			ar.push_back("monitor");
 			redis_args rparam = {param:args,eng:e};
@@ -459,7 +477,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			redis_args* p = (redis_args*)param;
 			lyramilk::data::array ar;
 			ar.push_back(v);
-			p->eng->call(p->param[1],ar);
+			p->eng->call(p->param[1],ar,nullptr);
 			return true;
 		}
 
@@ -471,7 +489,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_array);
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_user);
-			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
+			lyramilk::script::engine* e = get_script_engine_by_envmap(env);
 			const lyramilk::data::array& args0 = args[0];
 			lyramilk::data::array ar;
 			ar.push_back("subscribe");
@@ -523,7 +541,15 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 	  public:
 		static lyramilk::script::sclass* ctr(const lyramilk::data::array& args)
 		{
-			return new redis_zset_iterator((redis*)args[0].userdata("redis"),args[1],args[2],args[3],args[4]);
+			if(args.size() > 0 && args[0].type() == lyramilk::data::var::t_user){
+				lyramilk::data::datawrapper* urd = args[0].userdata();
+				if(urd && urd->name() == dbpool_pointer_datawrapper::class_name()){
+					dbpool_pointer_datawrapper* urdp = (dbpool_pointer_datawrapper*)urd;
+					return new redis_zset_iterator((redis*)urdp->ptr,args[1],args[2],args[3],args[4]);
+				}
+			}
+			return nullptr;
+			
 		}
 		static void dtr(lyramilk::script::sclass* p)
 		{
@@ -663,8 +689,15 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 	  public:
 		static lyramilk::script::sclass* ctr(const lyramilk::data::array& args)
 		{
-			assert(args.size() == 2);
-			return new redis_zset((redis*)args[0].userdata("redis"),args[1]);
+			if(args.size() > 0 && args[0].type() == lyramilk::data::var::t_user){
+				lyramilk::data::datawrapper* urd = args[0].userdata();
+				if(urd && urd->name() == dbpool_pointer_datawrapper::class_name()){
+					dbpool_pointer_datawrapper* urdp = (dbpool_pointer_datawrapper*)urd;
+					return new redis_zset((redis*)urdp->ptr,args[1]);
+				}
+			}
+
+			return nullptr;
 		}
 		static void dtr(lyramilk::script::sclass* p)
 		{
@@ -704,11 +737,11 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 				}
 				unit = v;
 			}
-			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
+			lyramilk::script::engine* e = get_script_engine_by_envmap(env);
 			
 			lyramilk::data::array ar;
 			ar.reserve(5);
-			ar.push_back(lyramilk::data::var("redis",predis));
+			ar.push_back(dbpool_pointer_datawrapper(predis));
 			ar.push_back(key);
 			ar.push_back(false);
 			ar.push_back(startof);
@@ -734,10 +767,10 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 				}
 				unit = v;
 			}
-			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
+			lyramilk::script::engine* e = get_script_engine_by_envmap(env);
 			lyramilk::data::array ar;
 			ar.reserve(5);
-			ar.push_back(lyramilk::data::var("redis",predis));
+			ar.push_back(dbpool_pointer_datawrapper(predis));
 			ar.push_back(key);
 			ar.push_back(true);
 			ar.push_back(startof);
@@ -842,7 +875,9 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 				cmd.push_back(key);
 				lyramilk::data::var vret;
 				if(!predis->c->exec(cmd,vret)) return lyramilk::data::var::nil;
-				return vret.size() > 0 && vret[0] > 0;
+
+				int retcode = vret.conv(0);
+				return vret.size() > 0 && retcode > 0;
 			}
 			lyramilk::data::array cmd;
 			cmd.reserve(2);
@@ -850,7 +885,8 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			cmd.push_back(key);
 			lyramilk::data::var vret;
 			if(!predis->c->exec(cmd,vret)) return lyramilk::data::var::nil;
-			return vret > 0;
+			int retcode = vret.conv(0);
+			return vret.size() > 0 && retcode > 0;
 		}
 
 		lyramilk::data::var score(const lyramilk::data::array& args,const lyramilk::data::map& env)
@@ -887,7 +923,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			lyramilk::data::var vret;
 			if(!predis->c->exec(cmd,vret)) return lyramilk::data::var::nil;
 			if(vret.size() > 0){
-				return vret[0];
+				return vret[0llu];
 			}
 			return lyramilk::data::var::nil;
 		}
@@ -918,10 +954,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			if(max == 0) return ret;
 			ret.reserve(n);
 			lyramilk::data::int64 hp = 10;
-			lyramilk::script::engine* e = nullptr;
-			if (args.size() > 1 && args[1].type() == lyramilk::data::var::t_user){
-				e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
-			}
+			lyramilk::script::engine* e = get_script_engine_by_envmap(env);
 
 			while(ret.size() < n && hp > 0){
 				lyramilk::data::uint64 index = rand() % max;
@@ -937,7 +970,8 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 							//转换函数
 							lyramilk::data::array ar;
 							ar.push_back(str);
-							lyramilk::data::var v = e->call(args[1],ar);
+							lyramilk::data::var v;
+							e->call(args[1],ar,&v);
 							lyramilk::data::var::vt t = v.type();
 							if(t != lyramilk::data::var::t_user && t != lyramilk::data::var::t_invalid){
 								ret.push_back(v);
@@ -989,7 +1023,15 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 	  public:
 		static lyramilk::script::sclass* ctr(const lyramilk::data::array& args)
 		{
-			return new redis_hmap_iterator((redis*)args[0].userdata("redis"),args[1],args[2],args[3]);
+			if(args.size() > 0 && args[0].type() == lyramilk::data::var::t_user){
+				lyramilk::data::datawrapper* urd = args[0].userdata();
+				if(urd && urd->name() == dbpool_pointer_datawrapper::class_name()){
+					dbpool_pointer_datawrapper* urdp = (dbpool_pointer_datawrapper*)urd;
+					return new redis_hmap_iterator((redis*)urdp->ptr,args[1],args[2],args[3]);
+				}
+			}
+
+			return nullptr;
 		}
 		static void dtr(lyramilk::script::sclass* p)
 		{
@@ -1093,7 +1135,14 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 	  public:
 		static lyramilk::script::sclass* ctr(const lyramilk::data::array& args)
 		{
-			return new redis_hmap_hscan_iterator((redis*)args[0].userdata("redis"),args[1],args[2]);
+			if(args.size() > 0 && args[0].type() == lyramilk::data::var::t_user){
+				lyramilk::data::datawrapper* urd = args[0].userdata();
+				if(urd && urd->name() == dbpool_pointer_datawrapper::class_name()){
+					dbpool_pointer_datawrapper* urdp = (dbpool_pointer_datawrapper*)urd;
+					return new redis_hmap_hscan_iterator((redis*)urdp->ptr,args[1],args[2]);
+				}
+			}
+			return nullptr;
 		}
 		static void dtr(lyramilk::script::sclass* p)
 		{
@@ -1192,7 +1241,14 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 	  public:
 		static lyramilk::script::sclass* ctr(const lyramilk::data::array& args)
 		{
-			return new redis_hmap((redis*)args[0].userdata("redis"),args[1]);
+			if(args.size() > 0 && args[0].type() == lyramilk::data::var::t_user){
+				lyramilk::data::datawrapper* urd = args[0].userdata();
+				if(urd && urd->name() == dbpool_pointer_datawrapper::class_name()){
+					dbpool_pointer_datawrapper* urdp = (dbpool_pointer_datawrapper*)urd;
+					return new redis_hmap((redis*)urdp->ptr,args[1]);
+				}
+			}
+			return nullptr;
 		}
 		static void dtr(lyramilk::script::sclass* p)
 		{
@@ -1224,12 +1280,12 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 				}
 				startof = v;
 			}
-			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
+			lyramilk::script::engine* e = get_script_engine_by_envmap(env);
 			//if(startof == 0 && !predis->is_ssdb() && predis->c->version() >= "2.8.0"){
 			if(startof == 0 && !predis->is_ssdb() && predis->c->version() >= "2.8.0" && predis->c->testcmd("hscan")){
 				lyramilk::data::array ar;
 				ar.reserve(4);
-				ar.push_back(lyramilk::data::var("redis",predis));
+				ar.push_back(dbpool_pointer_datawrapper(predis));
 				ar.push_back(key);
 				ar.push_back(startof);
 				return e->createobject("redis.hashmap.hscan_iterator",ar);
@@ -1237,7 +1293,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 
 			lyramilk::data::array ar;
 			ar.reserve(4);
-			ar.push_back(lyramilk::data::var("redis",predis));
+			ar.push_back(dbpool_pointer_datawrapper(predis));
 			ar.push_back(key);
 			ar.push_back(false);
 			ar.push_back(startof);
@@ -1299,7 +1355,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			cmd.push_back(args[0]);
 			lyramilk::data::var vret;
 			if(!predis->c->exec(cmd,vret)) return lyramilk::data::var::nil;
-			return vret == 1;
+			return vret.conv(0) == 1;
 		}
 
 		lyramilk::data::var size(const lyramilk::data::array& args,const lyramilk::data::map& env)
@@ -1367,7 +1423,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 				cmd.push_back(key);
 				lyramilk::data::var vret;
 				if(!predis->c->exec(cmd,vret)) return lyramilk::data::var::nil;
-				return vret.size() > 0 && vret[0] > 0;
+				return vret.size() > 0 && vret.conv(0) > 0;
 			}
 			lyramilk::data::array cmd;
 			cmd.reserve(2);
@@ -1375,7 +1431,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			cmd.push_back(key);
 			lyramilk::data::var vret;
 			if(!predis->c->exec(cmd,vret)) return lyramilk::data::var::nil;
-			return vret > 0;
+			return vret.conv(0) > 0;
 		}
 
 		static int define(lyramilk::script::engine* p)
@@ -1414,7 +1470,14 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 	  public:
 		static lyramilk::script::sclass* ctr(const lyramilk::data::array& args)
 		{
-			return new redis_list_iterator((redis*)args[0].userdata("redis"),args[1],args[2],args[3]);
+			if(args.size() > 0 && args[0].type() == lyramilk::data::var::t_user){
+				lyramilk::data::datawrapper* urd = args[0].userdata();
+				if(urd && urd->name() == dbpool_pointer_datawrapper::class_name()){
+					dbpool_pointer_datawrapper* urdp = (dbpool_pointer_datawrapper*)urd;
+					return new redis_list_iterator((redis*)urdp->ptr,args[1],args[2],args[3]);
+				}
+			}
+			return nullptr;
 		}
 		static void dtr(lyramilk::script::sclass* p)
 		{
@@ -1525,7 +1588,14 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 	  public:
 		static lyramilk::script::sclass* ctr(const lyramilk::data::array& args)
 		{
-			return new redis_list((redis*)args[0].userdata("redis"),args[1]);
+			if(args.size() > 0 && args[0].type() == lyramilk::data::var::t_user){
+				lyramilk::data::datawrapper* urd = args[0].userdata();
+				if(urd && urd->name() == dbpool_pointer_datawrapper::class_name()){
+					dbpool_pointer_datawrapper* urdp = (dbpool_pointer_datawrapper*)urd;
+					return new redis_list((redis*)urdp->ptr,args[1]);
+				}
+			}
+			return nullptr;
 		}
 		static void dtr(lyramilk::script::sclass* p)
 		{
@@ -1657,11 +1727,11 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 				}
 				startof = v;
 			}
-			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
+			lyramilk::script::engine* e = get_script_engine_by_envmap(env);
 			
 			lyramilk::data::array ar;
 			ar.reserve(4);
-			ar.push_back(lyramilk::data::var("redis",predis));
+			ar.push_back(dbpool_pointer_datawrapper(predis));
 			ar.push_back(key);
 			ar.push_back(false);
 			ar.push_back(startof);
@@ -1678,11 +1748,11 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 				}
 				startof = v;
 			}
-			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
+			lyramilk::script::engine* e = get_script_engine_by_envmap(env);
 			
 			lyramilk::data::array ar;
 			ar.reserve(4);
-			ar.push_back(lyramilk::data::var("redis",predis));
+			ar.push_back(dbpool_pointer_datawrapper(predis));
 			ar.push_back(key);
 			ar.push_back(true);
 			ar.push_back(startof);
@@ -1699,7 +1769,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 				cmd.push_back(key);
 				lyramilk::data::var vret;
 				if(!predis->c->exec(cmd,vret)) return lyramilk::data::var::nil;
-				return vret.size() > 0 && vret[0] > 0;
+				return vret.size() > 0 && vret.conv(0) > 0;
 			}
 
 			lyramilk::data::array cmd;
@@ -1708,7 +1778,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			cmd.push_back(key);
 			lyramilk::data::var vret;
 			if(!predis->c->exec(cmd,vret)) return lyramilk::data::var::nil;
-			return vret > 0;
+			return vret.conv(0) > 0;
 		}
 
 		lyramilk::data::var random(const lyramilk::data::array& args,const lyramilk::data::map& env)
@@ -1724,10 +1794,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			if(max == 0) return ret;
 			ret.reserve(n);
 			lyramilk::data::int64 hp = 10;
-			lyramilk::script::engine* e = nullptr;
-			if (args.size() > 1 && args[1].type() == lyramilk::data::var::t_user){
-				e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
-			}
+			lyramilk::script::engine* e = get_script_engine_by_envmap(env);
 
 			while(ret.size() < n && hp > 0){
 				lyramilk::data::uint64 index = rand() % max;
@@ -1743,7 +1810,8 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 							//转换函数
 							lyramilk::data::array ar;
 							ar.push_back(str);
-							lyramilk::data::var v = e->call(args[1],ar);
+							lyramilk::data::var v;
+							e->call(args[1],ar,&v);
 							lyramilk::data::var::vt t = v.type();
 							if(t != lyramilk::data::var::t_user && t != lyramilk::data::var::t_invalid){
 								ret.push_back(v);
@@ -1790,7 +1858,14 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 	  public:
 		static lyramilk::script::sclass* ctr(const lyramilk::data::array& args)
 		{
-			return new redis_kv((redis*)args[0].userdata("redis"),args[1]);
+			if(args.size() > 0 && args[0].type() == lyramilk::data::var::t_user){
+				lyramilk::data::datawrapper* urd = args[0].userdata();
+				if(urd && urd->name() == dbpool_pointer_datawrapper::class_name()){
+					dbpool_pointer_datawrapper* urdp = (dbpool_pointer_datawrapper*)urd;
+					return new redis_kv((redis*)urdp->ptr,args[1]);
+				}
+			}
+			return nullptr;
 		}
 		static void dtr(lyramilk::script::sclass* p)
 		{
@@ -1870,7 +1945,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			cmd.push_back(key);
 			lyramilk::data::var vret;
 			if(!predis->c->exec(cmd,vret)) return lyramilk::data::var::nil;
-			return vret > 0;
+			return vret.conv(0) > 0;
 		}
 
 		static int define(lyramilk::script::engine* p)

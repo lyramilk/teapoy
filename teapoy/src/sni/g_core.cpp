@@ -21,11 +21,24 @@
 namespace lyramilk{ namespace teapoy{ namespace native
 {
 	static lyramilk::log::logss log(lyramilk::klog,"teapoy.native");
+	inline lyramilk::script::engine* get_script_engine_by_envmap(const lyramilk::data::map& env)
+	{
+	
+		lyramilk::data::map::const_iterator it_env_eng = env.find(lyramilk::script::engine::s_env_engine());
+		if(it_env_eng != env.end()){
+			lyramilk::data::datawrapper* urd = it_env_eng->second.userdata();
+			if(urd && urd->name() == lyramilk::script::engine_datawrapper::class_name()){
+				lyramilk::script::engine_datawrapper* urdp = (lyramilk::script::engine_datawrapper*)urd;
+				return urdp->eng;
+			}
+		}
+		return nullptr;
+	}
 
 	lyramilk::data::var teapoy_import(const lyramilk::data::array& args,const lyramilk::data::map& senv)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
-		lyramilk::script::engine* e = (lyramilk::script::engine*)senv.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
+		lyramilk::script::engine* e = get_script_engine_by_envmap(senv);
 
 		// 在文件所在目录查找包含文件
 		lyramilk::data::string filename = e->filename();
@@ -95,8 +108,9 @@ namespace lyramilk{ namespace teapoy{ namespace native
 				eng->reset();
 				eng->load_file(ei.filename);
 			}
-			lyramilk::data::var v = eng->call("ontimer");
-			if(v.type() == lyramilk::data::var::t_bool && v == false)break;
+			lyramilk::data::var v;
+			eng->call("ontimer",&v);
+			if(v.type() == lyramilk::data::var::t_bool && v.conv(false) == false)break;
 			eng->gc();
 			sleep(1);
 		};

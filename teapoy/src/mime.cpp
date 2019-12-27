@@ -41,7 +41,7 @@ namespace lyramilk{ namespace teapoy {
 				}
 			}else{
 				if(laststr){
-					(*laststr) += *it;
+					(*laststr) = laststr->str() + *it;
 				}
 			}
 		}

@@ -21,14 +21,28 @@ namespace lyramilk{ namespace teapoy{ namespace native
 {
 	static lyramilk::log::logss log(lyramilk::klog,"lyramilk.teapoy.native.dbpool");
 
+	inline lyramilk::script::engine* get_script_engine_by_envmap(const lyramilk::data::map& env)
+	{
+	
+		lyramilk::data::map::const_iterator it_env_eng = env.find(lyramilk::script::engine::s_env_engine());
+		if(it_env_eng != env.end()){
+			lyramilk::data::datawrapper* urd = it_env_eng->second.userdata();
+			if(urd && urd->name() == lyramilk::script::engine_datawrapper::class_name()){
+				lyramilk::script::engine_datawrapper* urdp = (lyramilk::script::engine_datawrapper*)urd;
+				return urdp->eng;
+			}
+		}
+		return nullptr;
+	}
+
 	lyramilk::data::var GetRedis(const lyramilk::data::array& args,const lyramilk::data::map& env)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 		redis_clients::ptr p = redis_clients_multiton::instance()->getobj(args[0].str());
 		if(p == nullptr) return lyramilk::data::var::nil;
-		lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
+		lyramilk::script::engine* e = get_script_engine_by_envmap(env);
 		lyramilk::data::array ar(2);
-		ar[0].assign("__redis_client",&p);
+		ar[0].assign(dbpool_pointer_datawrapper(&p));
 		ar[1] = false;
 
 		lyramilk::data::var cfg_rdonly = redis_clients_multiton::instance()->get_config(args[0].str());
@@ -48,10 +62,9 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		mysql_clients::ptr p = mysql_clients_multiton::instance()->getobj(args[0].str());
 		if(p == nullptr) return lyramilk::data::var::nil;
 
-		lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
+		lyramilk::script::engine* e = get_script_engine_by_envmap(env);
 		lyramilk::data::array ar;
-		lyramilk::data::var ariv("__mysql_client",&p);
-		ar.push_back(ariv);
+		ar.push_back(dbpool_pointer_datawrapper(&p));
 		return e->createobject("Mysql",ar);
 	}
 
@@ -63,10 +76,9 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		mongo_clients::ptr p = mongo_clients_multiton::instance()->getobj(args[0].str());
 		if(p == nullptr) return lyramilk::data::var::nil;
 
-		lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
+		lyramilk::script::engine* e = get_script_engine_by_envmap(env);
 		lyramilk::data::array ar;
-		lyramilk::data::var ariv("__mongo_client",&p);
-		ar.push_back(ariv);
+		ar.push_back(dbpool_pointer_datawrapper(&p));
 		return e->createobject("Mongo",ar);
 	}
 #endif
@@ -77,10 +89,9 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		filelogers* p = filelogers_multiton::instance()->getobj(args[0].str());
 		if(p == nullptr) return lyramilk::data::var::nil;
 
-		lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
+		lyramilk::script::engine* e = get_script_engine_by_envmap(env);
 		lyramilk::data::array ar;
-		lyramilk::data::var ariv("__loger_filepointer",p);
-		ar.push_back(ariv);
+		ar.push_back(dbpool_pointer_datawrapper(&p));
 		return e->createobject("Logfile",ar);
 	}
 
@@ -89,13 +100,12 @@ namespace lyramilk{ namespace teapoy{ namespace native
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 
-		lyramilk::cave::leveldb_minimal* p = cavedb_leveldb_minimal_multiton::instance()->getobj(args[0].str());
+		lyramilk::cave::leveldb_minimal_adapter* p = cavedb_leveldb_minimal_multiton::instance()->getobj(args[0].str());
 		if(p == nullptr) return lyramilk::data::var::nil;
 
-		lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
+		lyramilk::script::engine* e = get_script_engine_by_envmap(env);
 		lyramilk::data::array ar;
-		lyramilk::data::var ariv("__cavedb_instance",p);
-		ar.push_back(ariv);
+		ar.push_back(dbpool_pointer_datawrapper(&p));
 		return e->createobject("CaveDB",ar);
 	}
 #endif

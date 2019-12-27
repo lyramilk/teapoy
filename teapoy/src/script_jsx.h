@@ -1,5 +1,6 @@
 ﻿#ifndef _lyramilk_script_jsx_engine_h_
 #define _lyramilk_script_jsx_engine_h_
+#include <libmilk/def.h>
 #include <libmilk/script_js.h>
 
 namespace lyramilk{namespace script{namespace js

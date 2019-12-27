@@ -8,6 +8,7 @@
 #include <libmilk/netaio.h>
 #include <libmilk/factory.h>
 #include <libmilk/testing.h>
+#include <libmilk/datawrapper.h>
 #include <map>
 
 namespace lyramilk{ namespace teapoy { namespace web {
@@ -19,6 +20,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 	{
 		lyramilk::data::string method;
 
+		std::vector<void*> premise_regex;
 		void* matcher_regex;
 		lyramilk::data::var matcher_dest;
 		lyramilk::data::string matcher_regexstr;
@@ -35,8 +37,8 @@ namespace lyramilk{ namespace teapoy { namespace web {
 		url_worker();
 		virtual ~url_worker();
 		lyramilk::data::string get_method();
-		virtual bool init(lyramilk::data::string method,lyramilk::data::string pattern,lyramilk::data::string real,lyramilk::data::array index,webhook* h);
-		virtual bool init_auth(lyramilk::data::string enginetype,lyramilk::data::string authscript);
+		virtual bool init(const lyramilk::data::string& method,const lyramilk::data::strings& pattern_premise,const lyramilk::data::string& pattern,const lyramilk::data::string& real,const lyramilk::data::strings& index,webhook* h);
+		virtual bool init_auth(const lyramilk::data::string& enginetype,const lyramilk::data::string& authscript);
 		virtual bool init_extra(const lyramilk::data::var& extra);
 		virtual bool check_auth(session_info* si,bool* ret) const;
 		virtual bool try_call(lyramilk::teapoy::http::request* req,std::ostream& os,website_worker& w,bool* ret) const;
@@ -80,6 +82,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 		website_worker& worker;
 		lyramilk::data::string real;
 		webhook_helper* hook;
+		lyramilk::data::uint32 response_code;
 
 		session_info(lyramilk::data::string realfile,lyramilk::teapoy::http::request* req,std::ostream& os,website_worker& w,webhook_helper* h);
 		~session_info();
@@ -149,6 +152,26 @@ namespace lyramilk{ namespace teapoy { namespace web {
 		virtual bool oninit(std::ostream& os);
 		virtual bool onrequest(const char* cache,int size,std::ostream& os);
 	};
+
+
+
+	class session_info_datawrapper:public lyramilk::data::datawrapper
+	{
+
+	  public:
+		session_info* si;
+	  public:
+		session_info_datawrapper(session_info* _si);
+	  	virtual ~session_info_datawrapper();
+
+		static lyramilk::data::string class_name();
+		virtual lyramilk::data::string name() const;
+		virtual lyramilk::data::datawrapper* clone() const;
+		virtual void destory();
+		virtual bool type_like(lyramilk::data::var::vt nt) const;
+	};
+
+
 }}}
 
 #endif

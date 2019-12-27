@@ -14,6 +14,20 @@ namespace lyramilk{ namespace teapoy{ namespace native
 {
 	static lyramilk::log::logss log(lyramilk::klog,"teapoy.native");
 
+	inline lyramilk::script::engine* get_script_engine_by_envmap(const lyramilk::data::map& env)
+	{
+	
+		lyramilk::data::map::const_iterator it_env_eng = env.find(lyramilk::script::engine::s_env_engine());
+		if(it_env_eng != env.end()){
+			lyramilk::data::datawrapper* urd = it_env_eng->second.userdata();
+			if(urd && urd->name() == lyramilk::script::engine_datawrapper::class_name()){
+				lyramilk::script::engine_datawrapper* urdp = (lyramilk::script::engine_datawrapper*)urd;
+				return urdp->eng;
+			}
+		}
+		return nullptr;
+	}
+
 	lyramilk::data::var test(const lyramilk::data::array& args,const lyramilk::data::map& env)
 	{
 		if(args.size() > 0) return args[0];
@@ -46,7 +60,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		}
 		lyramilk::data::var clone(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
-			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
+			lyramilk::script::engine* e = get_script_engine_by_envmap(env);
 			lyramilk::data::array ar;
 			return e->createobject("tester",ar);
 		}
@@ -86,7 +100,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 
 	lyramilk::data::var trace(const lyramilk::data::array& args,const lyramilk::data::map& env)
 	{
-		lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
+		lyramilk::script::engine* e = get_script_engine_by_envmap(env);
 		lyramilk::data::string mod = "s=" + e->filename();
 
 		lyramilk::data::string str;
@@ -102,7 +116,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 	lyramilk::data::var slog(const lyramilk::data::array& args,const lyramilk::data::map& env)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
-		lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
+		lyramilk::script::engine* e = get_script_engine_by_envmap(env);
 		lyramilk::data::string mod = "s=" + e->filename();
 		lyramilk::data::string logtype = args[0];
 
@@ -300,13 +314,13 @@ namespace lyramilk{ namespace teapoy{ namespace native
 	  public:
 		static lyramilk::script::sclass* ctr(const lyramilk::data::array& args)
 		{
-			if(args.size() == 1){
-				const void* p = args[0].userdata("__loger_filepointer");
-				if(p){
-					filelogers* pp = (filelogers*)p;
+			if(args.size() > 0 && args[0].type() == lyramilk::data::var::t_user){
+				lyramilk::data::datawrapper* urd = args[0].userdata();
+				if(urd && urd->name() == dbpool_pointer_datawrapper::class_name()){
+					dbpool_pointer_datawrapper* urdp = (dbpool_pointer_datawrapper*)urd;
+					filelogers* pp = (filelogers*)urdp->ptr;
 					return new logfile(pp);
 				}
-				throw lyramilk::exception(D("loger错误： 无法从池中获取到命名对象。"));
 			}
 			throw lyramilk::exception(D("loger错误： 无法从池中获取到命名对象。"));
 		}

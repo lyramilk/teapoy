@@ -6,6 +6,7 @@
 #include <sys/stat.h>
 #include <libmilk/log.h>
 #include <libmilk/dict.h>
+#include <libmilk/datawrapper.h>
 #include <libmilk/testing.h>
 #include <pcre.h>
 #include <string.h>
@@ -19,6 +20,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 		this->req = req;
 		this->rep = req->get_response_object();
 		hook = h;
+		response_code = 0;
 		this->rep->init(&os,&req->entityframe->cookies());
 	}
 
@@ -75,28 +77,32 @@ namespace lyramilk{ namespace teapoy { namespace web {
 		return method;
 	}
 
-	bool url_worker::init(lyramilk::data::string method,lyramilk::data::string pattern,lyramilk::data::string real,lyramilk::data::array index,webhook* h)
+	bool url_worker::init(const lyramilk::data::string& method,const lyramilk::data::strings& pattern_premise,const lyramilk::data::string& pattern,const lyramilk::data::string& real,const lyramilk::data::strings& index,webhook* h)
 	{
 		if(h) this->hook = h;
 		this->method = method;
-		lyramilk::data::array::iterator it = index.begin();
-		this->index.reserve(index.size());
-		for(;it!=index.end();++it){
-			this->index.push_back(*it);
-		}
+		this->index = index;
 		assert(matcher_regex == nullptr);
 		if(matcher_regex == nullptr){
 			int  erroffset = 0;
 			const char *error = "";
 			matcher_regex = pcre_compile(pattern.c_str(),0,&error,&erroffset,nullptr);
 		}
+
+		for(lyramilk::data::strings::const_iterator it = pattern_premise.begin();it!=pattern_premise.end();++it){
+			int  erroffset = 0;
+			const char *error = "";
+			void* rgx = pcre_compile(it->c_str(),0,&error,&erroffset,nullptr);
+			premise_regex.push_back(rgx);
+		}
+
 		if(matcher_regex){
 			matcher_regexstr = pattern;
 			lyramilk::data::array ar;
 			lyramilk::data::string ret;
 			int sz = real.size();
 			for(int i=0;i<sz;++i){
-				char &c = real[i];
+				char c = real[i];
 				if(c == '$'){
 					if(real[i + 1] == '{'){
 						std::size_t d = real.find('}',i+1);
@@ -131,7 +137,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 		return true;
 	}
 
-	bool url_worker::init_auth(lyramilk::data::string enginetype,lyramilk::data::string authscript)
+	bool url_worker::init_auth(const lyramilk::data::string& enginetype,const lyramilk::data::string& authscript)
 	{
 		authtype = enginetype;
 		this->authscript = authscript;
@@ -160,16 +166,17 @@ namespace lyramilk{ namespace teapoy { namespace web {
 			}
 			lyramilk::data::array ar;
 			{
-				lyramilk::data::var var_processer_args("__http_session_info",si);
-
 				lyramilk::data::array args;
-				args.push_back(var_processer_args);
+				args.push_back(lyramilk::teapoy::web::session_info_datawrapper(si));
 
 				ar.push_back(eng->createobject("HttpRequest",args));
 				ar.push_back(eng->createobject("HttpAuthResponse",args));
 			}
 
-			lyramilk::data::var vret = eng->call("auth",ar);
+			lyramilk::data::var vret;
+			if(!eng->call("auth",ar,&vret)){
+				si->response_code = 503;
+			}
 			if(vret.type_like(lyramilk::data::var::t_bool) && (bool)vret){
 				return true;
 			}
@@ -181,6 +188,13 @@ namespace lyramilk{ namespace teapoy { namespace web {
 	bool url_worker::test(lyramilk::data::string uri,lyramilk::data::string* real) const
 	{
 		if(!matcher_regex) return false;
+
+		for(std::vector<void*>::const_iterator it = premise_regex.begin();it!=premise_regex.end();++it){
+			int ov[256] = {0};
+			int rc = pcre_exec((const pcre*)*it,nullptr,uri.c_str(),uri.size(),0,0,ov,256);
+			if(rc < 1) return false;
+		}
+
 		int ov[256] = {0};
 		int rc = pcre_exec((const pcre*)matcher_regex,nullptr,uri.c_str(),uri.size(),0,0,ov,256);
 		if(rc > 0){
@@ -415,6 +429,7 @@ COUT << qi << "---->" << uri.substr(bof,eof-bof) << std::endl;
 		bool bret = false;
 		if(!root->worker->try_call(&req,os,*root->worker,&bret)){
 			lyramilk::teapoy::http::make_response_header(os,"404 Not Found",true,req.entityframe->major,req.entityframe->minor);
+			lyramilk::klog(lyramilk::log::trace,"teapoy.web.aiohttpsession_http_1_1.onrequest") << D("%s:%u-->%s",req.dest().c_str(),req.dest_port(),req.entityframe->rawuri.c_str()) << std::endl;
 			return false;
 		}
 
@@ -491,6 +506,39 @@ COUT << qi << "---->" << uri.substr(bof,eof-bof) << std::endl;
 
 ///std::cout.write(cache,size) << std::endl;
 		if(handler) return handler->onrequest(cache,size,os);
+		return false;
+	}
+
+
+
+	session_info_datawrapper::session_info_datawrapper(session_info* _si):si(_si)
+	{}
+
+	session_info_datawrapper::~session_info_datawrapper()
+	{}
+
+	lyramilk::data::string session_info_datawrapper::class_name()
+	{
+		return "lyramilk.teapoy.session_info";
+	}
+
+	lyramilk::data::string session_info_datawrapper::name() const
+	{
+		return class_name();
+	}
+
+	lyramilk::data::datawrapper* session_info_datawrapper::clone() const
+	{
+		return new session_info_datawrapper(si);
+	}
+
+	void session_info_datawrapper::destory()
+	{
+		delete this;
+	}
+
+	bool session_info_datawrapper::type_like(lyramilk::data::var::vt nt) const
+	{
 		return false;
 	}
 }}}

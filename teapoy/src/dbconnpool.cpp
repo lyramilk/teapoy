@@ -422,7 +422,7 @@ namespace lyramilk{ namespace teapoy {
 		return &_mm;
 	}
 
-	lyramilk::cave::leveldb_minimal* cavedb_leveldb_minimal_multiton::getobj(lyramilk::data::string id)
+	lyramilk::cave::leveldb_minimal_adapter* cavedb_leveldb_minimal_multiton::getobj(lyramilk::data::string id)
 	{
 		lyramilk::data::string token = id;
 		return get(token);
@@ -436,7 +436,7 @@ namespace lyramilk{ namespace teapoy {
 			lyramilk::data::string ssdb_password = cfg["password"].conv(emptystr);
 			lyramilk::data::string leveldb_path = cfg["cache"].conv(emptystr);
 
-			lyramilk::cave::leveldb_minimal* mstore = new lyramilk::cave::leveldb_minimal;
+			lyramilk::cave::leveldb_minimal_adapter* mstore = new lyramilk::cave::leveldb_minimal_adapter;
 			mstore->open(leveldb_path,1000);
 			
 			lyramilk::data::string replid = "";

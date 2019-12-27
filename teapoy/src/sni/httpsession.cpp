@@ -16,6 +16,9 @@
 #include <fstream>
 
 
+
+
+
 namespace lyramilk{ namespace teapoy{ namespace native
 {
 	class httpsession:public lyramilk::script::sclass
@@ -25,7 +28,14 @@ namespace lyramilk{ namespace teapoy{ namespace native
 	  public:
 		static lyramilk::script::sclass* ctr(const lyramilk::data::array& args)
 		{
-			return new httpsession((web::session_info*)args[0].userdata("__http_session_info"));
+			if(args.size() > 0 && args[0].type() == lyramilk::data::var::t_user){
+				lyramilk::data::datawrapper* urd = args[0].userdata();
+				if(urd && urd->name() == lyramilk::teapoy::web::session_info_datawrapper::class_name()){
+					lyramilk::teapoy::web::session_info_datawrapper* urdp = (lyramilk::teapoy::web::session_info_datawrapper*)urd;
+					return new httpsession(urdp->si);
+				}
+			}
+			return nullptr;
 		}
 		static void dtr(lyramilk::script::sclass* p)
 		{
@@ -83,7 +93,6 @@ namespace lyramilk{ namespace teapoy{ namespace native
 
 		lyramilk::log::logss log;
 		web::session_info* si;
-		lyramilk::data::uint32 response_code;
 
 		lyramilk::data::stringstream ss;
 	  public:
@@ -93,38 +102,48 @@ namespace lyramilk{ namespace teapoy{ namespace native
 
 		static lyramilk::script::sclass* ctr(const lyramilk::data::array& args)
 		{
-			return new httpresponse((web::session_info*)args[0].userdata("__http_session_info"),200);
+			if(args.size() > 0 && args[0].type() == lyramilk::data::var::t_user){
+				lyramilk::data::datawrapper* urd = args[0].userdata();
+				if(urd && urd->name() == lyramilk::teapoy::web::session_info_datawrapper::class_name()){
+					lyramilk::teapoy::web::session_info_datawrapper* urdp = (lyramilk::teapoy::web::session_info_datawrapper*)urd;
+					return new httpresponse(urdp->si);
+				}
+			}
+			return nullptr;
 		}
 
 		static lyramilk::script::sclass* ctr2(const lyramilk::data::array& args)
 		{
-			return new httpresponse((web::session_info*)args[0].userdata("__http_session_info"),0);
+			if(args.size() > 0 && args[0].type() == lyramilk::data::var::t_user){
+				lyramilk::data::datawrapper* urd = args[0].userdata();
+				if(urd && urd->name() == lyramilk::teapoy::web::session_info_datawrapper::class_name()){
+					lyramilk::teapoy::web::session_info_datawrapper* urdp = (lyramilk::teapoy::web::session_info_datawrapper*)urd;
+					return new httpresponse(urdp->si);
+				}
+			}
+			return nullptr;
 		}
 		static void dtr(lyramilk::script::sclass* p)
 		{
 			delete (httpresponse*)p;
 		}
 
-		httpresponse(web::session_info* si,lyramilk::data::uint32 default_response_code):log(lyramilk::klog,"teapoy.HttpResponse")
+		httpresponse(web::session_info* si):log(lyramilk::klog,"teapoy.HttpResponse")
 		{
 			this->si = si;
 			si->rep->set("Content-Type","text/html;charset=utf-8");
-			response_code = default_response_code;
-			/*
-			si->rep->set("Access-Control-Allow-Origin","*");
-			si->rep->set("Access-Control-Allow-Methods","*");*/
 		}
 
 		~httpresponse()
 		{
-			if(response_code > 0){
+			if(si->response_code > 0){
 				lyramilk::data::string str_body = ss.str();
 				lyramilk::data::stringstream ss2;
 				if(si->hook->result_encrypt(si,str_body.c_str(),str_body.size(),ss2)){
 					lyramilk::data::string str_body = ss2.str();
-					si->rep->send_header_and_body(response_code,str_body.c_str(),str_body.size());
+					si->rep->send_header_and_body(si->response_code,str_body.c_str(),str_body.size());
 				}else{
-					si->rep->send_header_and_body(response_code,str_body.c_str(),str_body.size());
+					si->rep->send_header_and_body(si->response_code,str_body.c_str(),str_body.size());
 				}
 			}
 		}
@@ -142,7 +161,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		lyramilk::data::var sendError(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_uint);
-			response_code = args[0];
+			si->response_code = args[0];
 			return true;
 		}
 
@@ -195,7 +214,14 @@ namespace lyramilk{ namespace teapoy{ namespace native
 	  public:
 		static lyramilk::script::sclass* ctr(const lyramilk::data::array& args)
 		{
-			return new httprequest((web::session_info*)args[0].userdata("__http_session_info"));
+			if(args.size() > 0 && args[0].type() == lyramilk::data::var::t_user){
+				lyramilk::data::datawrapper* urd = args[0].userdata();
+				if(urd && urd->name() == lyramilk::teapoy::web::session_info_datawrapper::class_name()){
+					lyramilk::teapoy::web::session_info_datawrapper* urdp = (lyramilk::teapoy::web::session_info_datawrapper*)urd;
+					return new httprequest(urdp->si);
+				}
+			}
+			return nullptr;
 		}
 		static void dtr(lyramilk::script::sclass* p)
 		{
@@ -353,7 +379,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 
 		lyramilk::data::var getURI(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
-			return lyramilk::data::codes::instance()->decode("urlcomponent",si->req->entityframe->uri);
+			return si->req->entityframe->uri;
 		}
 
 		lyramilk::data::var getMethod(const lyramilk::data::array& args,const lyramilk::data::map& env)
@@ -384,11 +410,20 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			if(sid.empty()) return lyramilk::data::var::nil;
 
 			lyramilk::data::array ar;
-			lyramilk::data::var v("__http_session_info",si);
-			ar.push_back(v);
-			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
-			sessionobj = e->createobject("HttpSession",ar);
-			return sessionobj;
+			ar.push_back(lyramilk::teapoy::web::session_info_datawrapper(si));
+
+			lyramilk::data::map::const_iterator it_env_eng = env.find(lyramilk::script::engine::s_env_engine());
+			if(it_env_eng != env.end()){
+				lyramilk::data::datawrapper* urd = it_env_eng->second.userdata();
+				if(urd && urd->name() == lyramilk::script::engine_datawrapper::class_name()){
+					lyramilk::script::engine_datawrapper* urdp = (lyramilk::script::engine_datawrapper*)urd;
+					if(urdp->eng){
+						sessionobj = urdp->eng->createobject("HttpSession",ar);
+						return sessionobj;
+					}
+				}
+			}
+			return lyramilk::data::var::nil;
 		}
 
 		lyramilk::data::var getPeerCertificateInfo(const lyramilk::data::array& args,const lyramilk::data::map& env)

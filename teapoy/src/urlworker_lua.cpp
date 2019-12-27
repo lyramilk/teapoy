@@ -20,7 +20,7 @@ namespace lyramilk{ namespace teapoy { namespace web {
 
 			lyramilk::data::array ar;
 			{
-				lyramilk::data::var var_processer_args("__http_session_info",si);
+				lyramilk::teapoy::web::session_info_datawrapper var_processer_args(si);
 
 				lyramilk::data::array args;
 				args.push_back(var_processer_args);
@@ -29,7 +29,16 @@ namespace lyramilk{ namespace teapoy { namespace web {
 				ar.push_back(p->createobject("HttpResponse",args));
 			}
 
-			lyramilk::data::var vret = p->call("onrequest",ar);
+			lyramilk::data::var vret;
+			bool jsret = p->call("onrequest",ar,&vret);
+			if(si->response_code == 0){
+				if(jsret){
+					si->response_code = 200;
+				}else{
+					si->response_code = 503;
+				} 
+			}
+
 			if(vret.type_like(lyramilk::data::var::t_bool)){
 				return vret;
 			}

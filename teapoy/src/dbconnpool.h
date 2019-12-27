@@ -5,12 +5,13 @@
 #include "redis.h"
 #include <libmilk/factory.h>
 #include <libmilk/atom.h>
+#include <libmilk/datawrapper.h>
 #if (defined Z_HAVE_LIBMONGO) || (defined Z_HAVE_MONGODB)
 	#include <mongo/client/dbclient.h>
 #endif
 #ifdef CAVEDB_FOUND
 	#include <cavedb/slave_ssdb.h>
-	#include <cavedb/store/leveldb_minimal.h>
+	#include <cavedb/store/leveldb_minimal_adapter.h>
 #endif
 #include <map>
 
@@ -140,16 +141,54 @@ namespace lyramilk{ namespace teapoy {
 	};
 	///////////////////////////////////////////////////////////
 #ifdef CAVEDB_FOUND
-	class cavedb_leveldb_minimal_multiton:public lyramilk::util::multiton_factory<lyramilk::cave::leveldb_minimal>
+	class cavedb_leveldb_minimal_multiton:public lyramilk::util::multiton_factory<lyramilk::cave::leveldb_minimal_adapter>
 	{
 		std::map<lyramilk::data::string,lyramilk::cave::slave_ssdb*> slaves;
 	  public:
 		static cavedb_leveldb_minimal_multiton* instance();
-		virtual lyramilk::cave::leveldb_minimal* getobj(lyramilk::data::string id);
+		virtual lyramilk::cave::leveldb_minimal_adapter* getobj(lyramilk::data::string id);
 		virtual void add_config(lyramilk::data::string id,const lyramilk::data::var& cfg);
 	};
 
 #endif
+
+
+
+
+
+	class dbpool_pointer_datawrapper:public lyramilk::data::datawrapper
+	{
+	  public:
+		void* ptr;
+
+		dbpool_pointer_datawrapper(void* _ptr):ptr(_ptr)
+		{}
+		virtual ~dbpool_pointer_datawrapper()
+		{}
+
+		static inline lyramilk::data::string class_name()
+		{
+			return "teapoy.dbpool_pointer_datawrapper";
+		}
+
+		virtual lyramilk::data::string name() const
+		{
+			return class_name();
+		}
+
+		virtual lyramilk::data::datawrapper* clone() const
+		{
+			return new dbpool_pointer_datawrapper(ptr);
+		}
+		virtual void destory()
+		{
+			delete this;
+		}
+		virtual bool type_like(lyramilk::data::var::vt nt) const
+		{
+			return false;
+		}
+	};
 
 }}
 

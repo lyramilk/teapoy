@@ -15,6 +15,55 @@
 namespace lyramilk{ namespace teapoy{ namespace native{
 	static lyramilk::log::logss log(lyramilk::klog,"teapoy.native.mysql");
 
+	class smysql_datawrapper:public lyramilk::data::datawrapper
+	{
+	  public:
+		MYSQL_RES* res;
+		MYSQL* _db_ptr;
+
+		smysql_datawrapper(MYSQL_RES* _res,MYSQL* __db_ptr):res(_res),_db_ptr(__db_ptr)
+		{}
+		virtual ~smysql_datawrapper()
+		{}
+
+		static inline lyramilk::data::string class_name()
+		{
+			return "lyramilk.datawrapper.script.engine";
+		}
+
+		virtual lyramilk::data::string name() const
+		{
+			return class_name();
+		}
+
+		virtual lyramilk::data::datawrapper* clone() const
+		{
+			return new smysql_datawrapper(res,_db_ptr);
+		}
+		virtual void destory()
+		{
+			delete this;
+		}
+		virtual bool type_like(lyramilk::data::var::vt nt) const
+		{
+			return false;
+		}
+	};
+
+	inline lyramilk::script::engine* get_script_engine_by_envmap(const lyramilk::data::map& env)
+	{
+	
+		lyramilk::data::map::const_iterator it_env_eng = env.find(lyramilk::script::engine::s_env_engine());
+		if(it_env_eng != env.end()){
+			lyramilk::data::datawrapper* urd = it_env_eng->second.userdata();
+			if(urd && urd->name() == lyramilk::script::engine_datawrapper::class_name()){
+				lyramilk::script::engine_datawrapper* urdp = (lyramilk::script::engine_datawrapper*)urd;
+				return urdp->eng;
+			}
+		}
+		return nullptr;
+	}
+
 	class smysql_iterator:public lyramilk::script::sclass
 	{
 		lyramilk::log::logss log;
@@ -26,8 +75,14 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 	  public:
 		static lyramilk::script::sclass* ctr(const lyramilk::data::array& args)
 		{
-			assert(args.size() > 0);
-			return new smysql_iterator((MYSQL_RES*)args[0].userdata("mysql.res"),(MYSQL*)args[0].userdata("mysql.db"));
+			if(args.size() > 0 && args[0].type() == lyramilk::data::var::t_user){
+				lyramilk::data::datawrapper* urd = args[0].userdata();
+				if(urd && urd->name() == smysql_datawrapper::class_name()){
+					smysql_datawrapper* urdp = (smysql_datawrapper*)urd;
+					return new smysql_iterator(urdp->res,urdp->_db_ptr);
+				}
+			}
+			return nullptr;
 		}
 		static void dtr(lyramilk::script::sclass* p)
 		{
@@ -207,17 +262,13 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 	  public:
 		static lyramilk::script::sclass* ctr(const lyramilk::data::array& args)
 		{
-			if(args.size() == 1){
-				const void* p = args[0].userdata("__mysql_client");
-				if(p){
-					mysql_clients::ptr* pp = (mysql_clients::ptr*)p;
-					mysql_clients::ptr ppr = *pp;
-					if(ppr){
-						return new smysql(ppr);	
-					}
+			if(args.size() > 0 && args[0].type() == lyramilk::data::var::t_user){
+				lyramilk::data::datawrapper* urd = args[0].userdata();
+				if(urd && urd->name() == dbpool_pointer_datawrapper::class_name()){
+					dbpool_pointer_datawrapper* urdp = (dbpool_pointer_datawrapper*)urd;
+					return new smysql(*(mysql_clients::ptr*)urdp->ptr);	
 				}
 				throw lyramilk::exception(D("mysql错误： 无法从池中获取到命名对象。"));
-				return nullptr;
 			}
 			return new smysql;
 		}
@@ -367,13 +418,13 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 				log(lyramilk::log::debug,__FUNCTION__) << D("执行查询%s",sql.c_str()) << std::endl;
 			}
 
-			lyramilk::data::var ud("mysql.res",res);
-			ud.userdata("mysql.db",_db_ptr);
 
+			lyramilk::data::var ud(smysql_datawrapper(res,_db_ptr));
 			lyramilk::data::array ar;
 			ar.push_back(ud);
-			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
-			return e->createobject("mysql.iterator",ar);
+			lyramilk::script::engine* e = get_script_engine_by_envmap(env);
+			if(e) return e->createobject("mysql.iterator",ar);
+			return lyramilk::data::var::nil;
 		}
 
 		lyramilk::data::var execute(const lyramilk::data::array& args,const lyramilk::data::map& env)

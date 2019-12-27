@@ -278,7 +278,7 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 			ar.push_back("info");
 			lyramilk::data::var v;
 			if(exec(ar,v)){
-				if(v.type() == lyramilk::data::var::t_array && v[0] == "ssdb-server"){
+				if(v.type() == lyramilk::data::var::t_array && v[0ull] == "ssdb-server"){
 					type = t_ssdb;
 				}
 				if(v.type() == lyramilk::data::var::t_str){
@@ -325,7 +325,7 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 		//ar.push_back("server");
 		lyramilk::data::var v;
 		if(exec(ar,v)){
-			if(v.type() == lyramilk::data::var::t_array && v[0] == "ssdb-server"){
+			if(v.type() == lyramilk::data::var::t_array && v[0ull] == "ssdb-server"){
 				type = t_ssdb;
 			}else if(v.type() == lyramilk::data::var::t_str){
 				lyramilk::data::string str = v.str();

@@ -295,7 +295,6 @@ namespace lyramilk{ namespace teapoy {namespace http{
 		if(sz != uri.npos){
 			urlparams = uri.substr(sz + 1);
 		}
-
 		//解析请求正文中的参数
 		{
 			lyramilk::data::string s_mimetype = get("Content-Type");

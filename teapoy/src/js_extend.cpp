@@ -205,6 +205,11 @@ namespace lyramilk{ namespace teapoy{ namespace sni{
 		tinyxml2::XMLDocument *doc = &xml_doc;
 
 		JSObject *sub_jo = vp[2].toObjectOrNull();
+		if(sub_jo == NULL){
+			vp->setUndefined();
+			return JS_TRUE;
+		}
+
 		jsval sub_label;
 		JS_GetProperty(cx,sub_jo,"xml.tag",&sub_label);
 		if(sub_label.isString()){
@@ -327,7 +332,7 @@ namespace lyramilk{ namespace teapoy{ namespace sni{
 		str.reserve(len*3);
 		for(;cstr < streof;){
 			jschar jwc = *cstr++;
-			unsigned wchar_t wc = jwc;
+			wchar_t wc = jwc;
 			if(jwc >= 0xd800 && jwc <= 0xdfff && cstr<streof){
 				jschar jwc2 = *cstr++;
 				wc = (jwc2&0x03ff) + (((jwc&0x03ff) + 0x40) << 10);
@@ -352,7 +357,7 @@ namespace lyramilk{ namespace teapoy{ namespace sni{
 				str.push_back((unsigned char)((wc>>12)&0x3f) | 0x80);
 				str.push_back((unsigned char)((wc>>6)&0x3f) | 0x80);
 				str.push_back((unsigned char)((wc>>0)&0x3f) | 0x80);
-			}else if(wc < 0x80000000){
+			}else if(wc < 0x80000000L){
 				str.push_back((unsigned char)((wc>>30)&0x1) | 0xfc);
 				str.push_back((unsigned char)((wc>>24)&0x3f) | 0xf0);
 				str.push_back((unsigned char)((wc>>18)&0x3f) | 0x80);

@@ -3,6 +3,7 @@
 #include <libmilk/dict.h>
 #include <libmilk/netaio.h>
 #include <libmilk/scriptengine.h>
+#include <libmilk/datawrapper.h>
 #include "script.h"
 #include "sni_selector.h"
 
@@ -32,10 +33,14 @@ namespace lyramilk{ namespace teapoy{
 		lyramilk::data::var add(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_user);
-			const void* pobj = args[0].userdata(lyramilk::script::engine::s_user_nativeobject());
-			if(!pobj) return false;
-			lyramilk::teapoy::epoll_selector* psrv = (lyramilk::teapoy::epoll_selector*)pobj;
-			return lyramilk::io::aiopoll::add(psrv->selector);
+			const lyramilk::data::datawrapper* urd = args[0].userdata();
+			if(urd && urd->name() == lyramilk::script::objadapter_datawrapper::class_name()){
+				const lyramilk::script::objadapter_datawrapper* pobj = (lyramilk::script::objadapter_datawrapper*)urd;
+				if(!pobj) return false;
+				lyramilk::teapoy::epoll_selector* psrv = (lyramilk::teapoy::epoll_selector*)pobj->_sclass;
+				return lyramilk::io::aiopoll::add(psrv->selector);
+			}
+			return false;
 		}
 
 		lyramilk::data::var active(const lyramilk::data::array& args,const lyramilk::data::map& env)

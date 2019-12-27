@@ -79,21 +79,35 @@ namespace lyramilk{ namespace teapoy{ namespace native
 				lyramilk::data::var module = it->at("module");
 				lyramilk::data::string hooktype = it->at("hook");
 				const lyramilk::data::var& auth = it->at("auth");
-				lyramilk::data::array index;
+				lyramilk::data::strings index;
 
 				{
 					const lyramilk::data::var& v = it->at("index");
 					if(v.type() == lyramilk::data::var::t_array){
-						index = v;
+						const lyramilk::data::array& t = v;
+						for(lyramilk::data::array::const_iterator it = t.begin();it!=t.end();++it){
+							index.push_back(it->str());
+						}
+					}
+				}
+				lyramilk::data::strings pattern_premise;
+
+				{
+					const lyramilk::data::var& v = it->at("assert");
+					if(v.type() == lyramilk::data::var::t_array){
+						const lyramilk::data::array& t = v;
+						for(lyramilk::data::array::const_iterator it = t.begin();it!=t.end();++it){
+							pattern_premise.push_back(it->str());
+						}
 					}
 				}
 
 				web::url_worker *w = web::url_worker_master::instance()->create(type);
 				if(w){
 					if(module.type() == lyramilk::data::var::t_invalid){
-						w->init(method,pattern,"",index,lyramilk::teapoy::web::allwebhooks::instance()->get(hooktype));
+						w->init(method,pattern_premise,pattern,"",index,lyramilk::teapoy::web::allwebhooks::instance()->get(hooktype));
 					}else{
-						w->init(method,pattern,module,index,lyramilk::teapoy::web::allwebhooks::instance()->get(hooktype));
+						w->init(method,pattern_premise,pattern,module,index,lyramilk::teapoy::web::allwebhooks::instance()->get(hooktype));
 					}
 					w->init_extra(*it);
 					if(auth.type() == lyramilk::data::var::t_map){
