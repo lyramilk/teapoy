@@ -213,6 +213,44 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 	};
 
 
+	class mysqldb_datawrapper:public lyramilk::data::datawrapper
+	{
+
+	  public:
+		MYSQL* _db_ptr;
+	  public:
+		mysqldb_datawrapper(MYSQL* __db_ptr):_db_ptr(__db_ptr)
+		{}
+
+	  	virtual ~mysqldb_datawrapper()
+		{}
+
+		static lyramilk::data::string class_name()
+		{
+			return "lyramilk.teapoy.mysqldb";
+		}
+
+		virtual lyramilk::data::string name() const
+		{
+			return class_name();
+		}
+
+		virtual lyramilk::data::datawrapper* clone() const
+		{
+			return new mysqldb_datawrapper(_db_ptr);
+		}
+
+		virtual void destory()
+		{
+			delete this;
+		}
+
+		virtual bool type_like(lyramilk::data::var::vt nt) const
+		{
+			return false;
+		}
+	};
+
 
 	class smysql_iterator:public lyramilk::script::sclass
 	{
@@ -226,7 +264,18 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			if(args[0].type() != lyramilk::data::var::t_user) throw lyramilk::exception(D("数据库错误：%s","mysql查询迭代器未初始化"));
 			if(!args[1].type_like(lyramilk::data::var::t_str)) throw lyramilk::exception(D("数据库错误：%s","mysql查询迭代器未初始化"));
 			if(args[2].type() != lyramilk::data::var::t_array) throw lyramilk::exception(D("数据库错误：%s","mysql查询迭代器未初始化"));
-			MYSQL* _db_ptr = (MYSQL*)args[0].userdata("mysql.db");
+
+
+
+			MYSQL* _db_ptr = nullptr;
+			if(args.size() > 0 && args[0].type() == lyramilk::data::var::t_user){
+				lyramilk::data::datawrapper* urd = args[0].userdata();
+				if(urd && urd->name() == mysqldb_datawrapper::class_name()){
+					mysqldb_datawrapper* urdp = (mysqldb_datawrapper*)urd;
+
+					_db_ptr = urdp->_db_ptr;
+				}
+			}
 			if(_db_ptr == nullptr)  throw lyramilk::exception(D("数据库错误：%s","mysql查询迭代器未初始化"));
 
 
@@ -443,14 +492,21 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			lyramilk::data::string sql = args[0];
 
-			lyramilk::data::var ud("mysql.db",_db_ptr);
-
-			lyramilk::data::array ar;
-			ar.push_back(ud);
-			ar.push_back(sql);
-			ar.push_back(args);
-			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
-			return e->createobject("mysql.iterator",ar);
+			lyramilk::data::map::const_iterator it_env_eng = env.find(lyramilk::script::engine::s_env_engine());
+			if(it_env_eng != env.end()){
+				lyramilk::data::datawrapper* urd = it_env_eng->second.userdata();
+				if(urd && urd->name() == lyramilk::script::engine_datawrapper::class_name()){
+					lyramilk::script::engine_datawrapper* urdp = (lyramilk::script::engine_datawrapper*)urd;
+					if(urdp->eng){
+						lyramilk::data::array ar;
+						ar.push_back(mysqldb_datawrapper(_db_ptr));
+						ar.push_back(sql);
+						ar.push_back(args);
+						return urdp->eng->createobject("mysql.iterator",ar);
+					}
+				}
+			}
+			return lyramilk::data::var::nil;
 		}
 
 

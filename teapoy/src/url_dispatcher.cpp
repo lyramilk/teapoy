@@ -78,6 +78,25 @@ namespace lyramilk{ namespace teapoy {
 				}
 			}
 		}
+		{
+			const lyramilk::data::array& v = m["assert"].conv(emptyarray);
+
+			lyramilk::data::array::const_iterator it = v.begin();
+			for(;it!=v.end();++it){
+				if(it->type_like(lyramilk::data::var::t_str)){
+					int  erroffset = 0;
+					const char *error = "";
+					pcre* rgx = pcre_compile(it->str().c_str(),0,&error,&erroffset,nullptr);
+					if(rgx){
+						regex_assert.push_back(rgx);
+					}
+				}else{
+					lyramilk::klog(lyramilk::log::warning,"teapoy.url_regex_selector.init") << D("定义url映射警告：默认页面%s类型错误,源信息：%s",it->type(),it->str().c_str()) << std::endl;
+				}
+			}
+		}
+
+		
 
 		if(!init_selector(defpages,pattern,module)){
 			lyramilk::klog(lyramilk::log::warning,"teapoy.url_regex_selector.init") << D("定义url映射失败：%s类型未定义",type.c_str()) << std::endl;
@@ -143,6 +162,13 @@ namespace lyramilk{ namespace teapoy {
 		if(!regex_handler) return cs_pass;
 
 		lyramilk::data::string url = request->url();
+
+		for(std::vector<pcre*>::const_iterator it = regex_assert.begin();it!=regex_assert.end();++it){
+			int ov[256] = {0};
+			int rc = pcre_exec((const pcre*)*it,nullptr,url.c_str(),url.size(),0,0,ov,256);
+			if(rc < 1) return cs_pass;
+		}
+
 		int ov[256] = {0};
 		int rc = pcre_exec(regex_handler,nullptr,url.c_str(),url.size(),0,0,ov,256);
 		if(rc > 0){
@@ -238,11 +264,8 @@ namespace lyramilk{ namespace teapoy {
 			{
 				response->set("Content-Type","application/json;charset=utf8");
 
-				lyramilk::data::var jsin_adapter_param("..http.session.adapter",adapter);
-				jsin_adapter_param.userdata("..http.session.response.stream",&(std::ostream&)ss);
-
 				lyramilk::data::array jsin_param;
-				jsin_param.push_back(jsin_adapter_param);
+				jsin_param.push_back(session_response_datawrapper(adapter,ss));
 
 				ar.push_back(eng->createobject("HttpRequest",jsin_param));
 				ar.push_back(eng->createobject("HttpResponse",jsin_param));
@@ -252,7 +275,10 @@ namespace lyramilk{ namespace teapoy {
 					ar.push_back(request->header_extend);
 				}
 			}
-			lyramilk::data::var vret = eng->call("auth",ar);
+			lyramilk::data::var vret;
+			if(!eng->call("auth",ar,&vret)){
+				adapter->response->code = 501;
+			}
 			if(vret.type() == lyramilk::data::var::t_invalid){
 				adapter->response->code = 500;
 				return cs_error;

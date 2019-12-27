@@ -31,14 +31,19 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		lyramilk::teapoy::httpsessionptr session;
 		static lyramilk::script::sclass* ctr(const lyramilk::data::array& args)
 		{
-			httpadapter* adapter = (httpadapter*)args[0].userdata("..http.session.adapter");
-			if(adapter == nullptr) return nullptr;
-			lyramilk::teapoy::httpsessionptr session = adapter->get_session();
+			if(args.size() > 0 && args[0].type() == lyramilk::data::var::t_user){
+				lyramilk::data::datawrapper* urd = args[0].userdata();
+				if(urd && urd->name() == lyramilk::teapoy::session_response_datawrapper::class_name()){
+					lyramilk::teapoy::session_response_datawrapper* urdp = (lyramilk::teapoy::session_response_datawrapper*)urd;
 
-			if(session == nullptr) return nullptr;
+					if(urdp->adapter == nullptr) return nullptr;
+					lyramilk::teapoy::httpsessionptr session = urdp->adapter->get_session();
 
-			httpsession* snisession = new httpsession(adapter,session);
-			return snisession;
+					if(session == nullptr) return nullptr;
+					return new httpsession(urdp->adapter,session);
+				}
+			}
+			return nullptr;
 		}
 		static void dtr(lyramilk::script::sclass* p)
 		{
@@ -102,7 +107,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		lyramilk::log::logss log;
 		httpadapter* adapter;
 
-		std::ostream* os;
+		std::ostream& os;
 		bool noreply;
 	  public:
 		static std::map<int,lyramilk::data::string> code_map;
@@ -111,9 +116,15 @@ namespace lyramilk{ namespace teapoy{ namespace native
 
 		static lyramilk::script::sclass* ctr(const lyramilk::data::array& args)
 		{
-			httpadapter* adapter = (httpadapter*)args[0].userdata("..http.session.adapter");
-			std::ostream* os = (std::ostream*)args[0].userdata("..http.session.response.stream");
-			if(os) 	return new httpresponse(adapter,os);
+
+			if(args.size() > 0 && args[0].type() == lyramilk::data::var::t_user){
+				lyramilk::data::datawrapper* urd = args[0].userdata();
+				if(urd && urd->name() == lyramilk::teapoy::session_response_datawrapper::class_name()){
+					lyramilk::teapoy::session_response_datawrapper* urdp = (lyramilk::teapoy::session_response_datawrapper*)urd;
+
+					if(urdp->os) return new httpresponse(urdp->adapter,urdp->os);
+				}
+			}
 			return nullptr;
 		}
 
@@ -122,11 +133,10 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			delete (httpresponse*)p;
 		}
 
-		httpresponse(httpadapter* adapter,std::ostream* os):log(lyramilk::klog,"teapoy.native.HttpResponse")
+		httpresponse(httpadapter* adapter,std::ostream& _os):log(lyramilk::klog,"teapoy.native.HttpResponse"),os(_os)
 		{
 			noreply = false;
 			this->adapter = adapter;
-			this->os = os;
 			this->adapter->response->code = 200;
 		}
 
@@ -162,10 +172,10 @@ namespace lyramilk{ namespace teapoy{ namespace native
 
 			if(args[0].type() == lyramilk::data::var::t_bin){
 				lyramilk::data::chunk cb = args[0];
-				os->write((const char*)cb.c_str(),cb.size());
+				os.write((const char*)cb.c_str(),cb.size());
 			}else{
 				lyramilk::data::string str = args[0];
-				os->write(str.c_str(),str.size());
+				os.write(str.c_str(),str.size());
 			}
 			return true;
 		}
@@ -212,6 +222,45 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		}
 	};
 
+	class httppostedfile_datawrapper:public lyramilk::data::datawrapper
+	{
+
+	  public:
+		httpadapter* adapter;
+		mime* me;
+	  public:
+		httppostedfile_datawrapper(httpadapter* _adapter,mime* _me):adapter(_adapter),me(_me)
+		{}
+
+	  	virtual ~httppostedfile_datawrapper()
+		{}
+
+		static lyramilk::data::string class_name()
+		{
+			return "lyramilk.teapoy.httppostedfile";
+		}
+
+		virtual lyramilk::data::string name() const
+		{
+			return class_name();
+		}
+
+		virtual lyramilk::data::datawrapper* clone() const
+		{
+			return new httppostedfile_datawrapper(adapter,me);
+		}
+
+		virtual void destory()
+		{
+			delete this;
+		}
+
+		virtual bool type_like(lyramilk::data::var::vt nt) const
+		{
+			return false;
+		}
+	};
+
 	static const char ramtable[] = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 	class httppostedfile:public lyramilk::script::sclass
 	{
@@ -221,12 +270,17 @@ namespace lyramilk{ namespace teapoy{ namespace native
 	  public:
 		static lyramilk::script::sclass* ctr(const lyramilk::data::array& args)
 		{
-			httpadapter* adapter = (httpadapter*)args[0].userdata("..http.session.adapter");
-			if(adapter == nullptr) return nullptr;
-			mime* m = (mime*)args[1].userdata("..mime");
-			if(m == nullptr) return nullptr;
+			if(args.size() > 0 && args[0].type() == lyramilk::data::var::t_user){
+				lyramilk::data::datawrapper* urd = args[0].userdata();
+				if(urd && urd->name() == httppostedfile_datawrapper::class_name()){
+					httppostedfile_datawrapper* urdp = (httppostedfile_datawrapper*)urd;
 
-			return new httppostedfile(adapter,m);
+					if(urdp->adapter == nullptr) return nullptr;
+					if(urdp->me == nullptr) return nullptr;
+					return new httppostedfile(urdp->adapter,urdp->me);
+				}
+			}
+			return nullptr;
 		}
 		static void dtr(lyramilk::script::sclass* p)
 		{
@@ -332,9 +386,16 @@ namespace lyramilk{ namespace teapoy{ namespace native
 	  public:
 		static lyramilk::script::sclass* ctr(const lyramilk::data::array& args)
 		{
-			httpadapter* adapter = (httpadapter*)args[0].userdata("..http.session.adapter");
-			if(adapter == nullptr) return nullptr;
-			return new httprequest(adapter);
+			if(args.size() > 0 && args[0].type() == lyramilk::data::var::t_user){
+				lyramilk::data::datawrapper* urd = args[0].userdata();
+				if(urd && urd->name() == lyramilk::teapoy::session_response_datawrapper::class_name()){
+					lyramilk::teapoy::session_response_datawrapper* urdp = (lyramilk::teapoy::session_response_datawrapper*)urd;
+
+					if(urdp->adapter == nullptr) return nullptr;
+					return new httprequest(urdp->adapter);
+				}
+			}
+			return nullptr;
 		}
 		static void dtr(lyramilk::script::sclass* p)
 		{
@@ -407,13 +468,20 @@ namespace lyramilk{ namespace teapoy{ namespace native
 				mime* m = adapter->request->at(i);
 				if(m->get("Content-Type") == "") continue;
 				lyramilk::data::array ar;
-				ar.resize(2);
-				ar[0].assign("..http.session.adapter",adapter);
-				ar[1].assign("..mime",m);
+				ar.push_back(httppostedfile_datawrapper(adapter,m));
 
-				lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
-				lyramilk::data::var fileobj = e->createobject("HttpPostedFile",ar);
-				fileobjs.push_back(fileobj);
+
+				lyramilk::data::map::const_iterator it_env_eng = env.find(lyramilk::script::engine::s_env_engine());
+				if(it_env_eng != env.end()){
+					lyramilk::data::datawrapper* urd = it_env_eng->second.userdata();
+					if(urd && urd->name() == lyramilk::script::engine_datawrapper::class_name()){
+						lyramilk::script::engine_datawrapper* urdp = (lyramilk::script::engine_datawrapper*)urd;
+						if(urdp->eng){
+							lyramilk::data::var fileobj = urdp->eng->createobject("HttpPostedFile",ar);
+							fileobjs.push_back(fileobj);
+						}
+					}
+				}
 			}
 			return fileobjs;
 		}
@@ -443,12 +511,20 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			if(sessionobj.type() == lyramilk::data::var::t_user){
 				return sessionobj;
 			}
-
+			std::stringstream oss;
 			lyramilk::data::array ar;
-			lyramilk::data::var v("..http.session.adapter",adapter);
-			ar.push_back(v);
-			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
-			sessionobj = e->createobject("HttpSession",ar);
+			ar.push_back(lyramilk::teapoy::session_response_datawrapper(adapter,oss));
+
+			lyramilk::data::map::const_iterator it_env_eng = env.find(lyramilk::script::engine::s_env_engine());
+			if(it_env_eng != env.end()){
+				lyramilk::data::datawrapper* urd = it_env_eng->second.userdata();
+				if(urd && urd->name() == lyramilk::script::engine_datawrapper::class_name()){
+					lyramilk::script::engine_datawrapper* urdp = (lyramilk::script::engine_datawrapper*)urd;
+					if(urdp->eng){
+						sessionobj = urdp->eng->createobject("HttpSession",ar);
+					}
+				}
+			}
 			return sessionobj;
 		}
 

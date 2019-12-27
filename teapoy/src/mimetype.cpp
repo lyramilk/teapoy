@@ -91,5 +91,6 @@ namespace lyramilk{ namespace teapoy {
 		m["swf"] = "application/x-shockwave-flash";
 		m["wav"] = "audio/wav";
 		m["ico"] = "image/x-icon";
+		m["pac"] = "application/x-ns-proxy-autoconfig";
 	}
 }}

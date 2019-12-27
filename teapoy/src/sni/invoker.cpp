@@ -121,11 +121,19 @@ namespace lyramilk{ namespace teapoy{ namespace native
 				invoker_instance = "..invoker.instance";
 			}
 
-			lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
-			lyramilk::data::array ar;
-			ar.reserve(1);
-			ar.push_back(key);
-			return e->createobject(invoker_instance,ar);
+			lyramilk::data::map::const_iterator it_env_eng = env.find(lyramilk::script::engine::s_env_engine());
+			if(it_env_eng != env.end()){
+				lyramilk::data::datawrapper* urd = it_env_eng->second.userdata();
+				if(urd && urd->name() == lyramilk::script::engine_datawrapper::class_name()){
+					lyramilk::script::engine_datawrapper* urdp = (lyramilk::script::engine_datawrapper*)urd;
+					if(urdp->eng){
+						lyramilk::data::array ar;
+						ar.push_back(key);
+						return urdp->eng->createobject(invoker_instance,ar);
+					}
+				}
+			}
+			return lyramilk::data::var::nil;
 		}
 
 		static int define(lyramilk::script::engine* p)

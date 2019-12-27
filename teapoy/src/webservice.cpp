@@ -624,4 +624,37 @@ namespace lyramilk{ namespace teapoy {
 		return false;
 	}
 
+
+
+	session_response_datawrapper::session_response_datawrapper(httpadapter* _adapter,std::ostream& _os):adapter(_adapter),os(_os)
+	{}
+
+	session_response_datawrapper::~session_response_datawrapper()
+	{}
+
+	lyramilk::data::string session_response_datawrapper::class_name()
+	{
+		return "lyramilk.teapoy.session_response";
+	}
+
+	lyramilk::data::string session_response_datawrapper::name() const
+	{
+		return class_name();
+	}
+
+	lyramilk::data::datawrapper* session_response_datawrapper::clone() const
+	{
+		return new session_response_datawrapper(adapter,os);
+	}
+
+	void session_response_datawrapper::destory()
+	{
+		delete this;
+	}
+
+	bool session_response_datawrapper::type_like(lyramilk::data::var::vt nt) const
+	{
+		return false;
+	}
+
 }}

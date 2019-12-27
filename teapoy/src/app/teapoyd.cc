@@ -170,26 +170,35 @@ class teapoy_loader:public lyramilk::script::sclass
 	lyramilk::data::var loadso(const lyramilk::data::array& args,const lyramilk::data::map& env)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
-		lyramilk::script::engine* e = (lyramilk::script::engine*)env.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
 
-		lyramilk::data::string filename = args[0];
-		void *handle = dlopen(filename.c_str(), RTLD_NOW);
-		if(handle == nullptr){
-			log(lyramilk::log::error,__FUNCTION__) << D("加载%s失败：%s",filename.c_str(),dlerror()) << std::endl;
-			return false;
+		lyramilk::data::map::const_iterator it_env_eng = env.find(lyramilk::script::engine::s_env_engine());
+		if(it_env_eng != env.end()){
+			lyramilk::data::datawrapper* urd = it_env_eng->second.userdata();
+			if(urd && urd->name() == lyramilk::script::engine_datawrapper::class_name()){
+				lyramilk::script::engine_datawrapper* urdp = (lyramilk::script::engine_datawrapper*)urd;
+				if(urdp->eng){
+					lyramilk::data::string filename = args[0];
+					void *handle = dlopen(filename.c_str(), RTLD_NOW);
+					if(handle == nullptr){
+						log(lyramilk::log::error,__FUNCTION__) << D("加载%s失败：%s",filename.c_str(),dlerror()) << std::endl;
+						return false;
+					}
+					solibs.push_back(handle);
+					bool (*pinit)(void*) = (bool (*)(void*))dlsym(handle,"init");
+					if(pinit == nullptr){
+						log(lyramilk::log::error,__FUNCTION__) << D("从%s中查找init失败：%s",filename.c_str(),dlerror()) << std::endl;
+						return false;
+					}
+					if(pinit(urdp->eng)){
+						log(lyramilk::log::debug,__FUNCTION__) << D("加载%s成功",filename.c_str()) << std::endl;
+						return true;
+					}else{
+						log(lyramilk::log::warning,__FUNCTION__) << D("加载%s成功，但是初始化失败",filename.c_str()) << std::endl;
+					}
+				}
+			}
 		}
-		solibs.push_back(handle);
-		bool (*pinit)(void*) = (bool (*)(void*))dlsym(handle,"init");
-		if(pinit == nullptr){
-			log(lyramilk::log::error,__FUNCTION__) << D("从%s中查找init失败：%s",filename.c_str(),dlerror()) << std::endl;
-			return false;
-		}
-		if(pinit(e)){
-			log(lyramilk::log::debug,__FUNCTION__) << D("加载%s成功",filename.c_str()) << std::endl;
-			return true;
-		}else{
-			log(lyramilk::log::warning,__FUNCTION__) << D("加载%s成功，但是初始化失败",filename.c_str()) << std::endl;
-		}
+
 		return false;
 	}
 
@@ -431,7 +440,8 @@ int main(int argc,char* argv[])
 	for(int i=0;i<argc;++i){
 		ar.push_back(argv[i]);
 	}
-	lyramilk::data::var result = eng_main->call("main",ar);
+	lyramilk::data::var result;
+	eng_main->call("main",ar,&result);
 
 	if(no_exit_mode){
 		log(lyramilk::log::trace) << D("设置了noexit标志，程序将不会随主脚本返回而退出。") << std::endl;

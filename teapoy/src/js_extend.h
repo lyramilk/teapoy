@@ -6,6 +6,8 @@
 ///	namespace lyramilk::teapoy::sni
 
 namespace lyramilk{ namespace teapoy{ namespace sni{
+	using lyramilk::script::js::script_js;
+
 	class js_extend:public lyramilk::script::js::script_js
 	{
 	  public:

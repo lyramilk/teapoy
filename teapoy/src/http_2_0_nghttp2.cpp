@@ -57,12 +57,13 @@ namespace lyramilk{ namespace teapoy {
 		http_2_0* p = (http_2_0*)user_data;
 		p->stream_id = frame->hd.stream_id;
 
+/*
 		if(frame->hd.type == NGHTTP2_WINDOW_UPDATE){
 			nghttp2_window_update* uf = (nghttp2_window_update*)frame;
 			nghttp2_session_set_local_window_size(p->h2_session,NGHTTP2_FLAG_NONE,frame->hd.stream_id,uf->window_size_increment);
 			nghttp2_session_send(p->h2_session);
-
 		}
+*/
 
 		if(frame->hd.flags&NGHTTP2_FLAG_END_HEADERS){
 		}
@@ -75,6 +76,9 @@ namespace lyramilk{ namespace teapoy {
 			p->cookie_from_request();
 			if(p->service->call(p->request->get("Host"),p->request,p->response,p) != cs_ok){
 				p->response->code = 404;
+				lyramilk::data::string method = p->request->get(":method");
+				lyramilk::netio::netaddress addr = p->channel->dest();
+				lyramilk::klog(lyramilk::log::debug,"teapoy.web.http_2_0.onrequest") << D("%u %s:%u %s %s %s",p->response->code,addr.ip_str().c_str(),addr.port,method.c_str(),p->request->url().c_str(),p->request->get("User-Agent").c_str()) << std::endl;
 			}
 
 			p->request_finish();

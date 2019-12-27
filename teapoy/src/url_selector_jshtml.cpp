@@ -40,11 +40,8 @@ namespace lyramilk{ namespace teapoy {
 			lyramilk::data::stringstream ss;
 			lyramilk::data::array ar;
 			{
-				lyramilk::data::var jsin_adapter_param("..http.session.adapter",adapter);
-				jsin_adapter_param.userdata("..http.session.response.stream",&(std::ostream&)ss);
-
 				lyramilk::data::array jsin_param;
-				jsin_param.push_back(jsin_adapter_param);
+				jsin_param.push_back(session_response_datawrapper(adapter,ss));
 
 				response->set("Content-Type","text/html;charset=utf-8");
 
@@ -57,7 +54,11 @@ namespace lyramilk{ namespace teapoy {
 				}
 			}
 
-			lyramilk::data::var vret = p->call(request->mode.empty()?"onrequest":request->mode,ar);
+			lyramilk::data::var vret;
+			if(!p->call(request->mode.empty()?"onrequest":request->mode,ar,&vret)){
+				adapter->response->code = 503;
+				return cs_error;
+			}
 			if(vret.type() == lyramilk::data::var::t_invalid){
 				adapter->response->code = 500;
 				return cs_error;

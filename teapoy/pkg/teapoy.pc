@@ -1,8 +1,8 @@
 prefix=/usr
-libdir=/usr/lib64
-includedir=/usr/include
+libdir=${prefix}/lib64
+includedir=${prefix}/include
 
-Name: libmilk
+Name: teapoy
 Description: Web server.
 URL: http://www.lyramilk.com/
 Version: 1.0.0

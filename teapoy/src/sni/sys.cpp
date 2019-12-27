@@ -27,42 +27,51 @@ namespace lyramilk{ namespace teapoy{ namespace native
 	lyramilk::data::var teapoy_import(const lyramilk::data::array& args,const lyramilk::data::map& senv)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
-		lyramilk::script::engine* e = (lyramilk::script::engine*)senv.find(lyramilk::script::engine::s_env_engine())->second.userdata(lyramilk::script::engine::s_env_engine());
 
-		// 在文件所在目录查找包含文件
-		lyramilk::data::string filename = e->filename();
-		std::size_t pos = filename.rfind('/');
-		if(pos != filename.npos){
-			filename = filename.substr(0,pos + 1) + args[0].str();
-		}
+		lyramilk::data::map::const_iterator it_env_eng = senv.find(lyramilk::script::engine::s_env_engine());
+		if(it_env_eng != senv.end()){
+			lyramilk::data::datawrapper* urd = it_env_eng->second.userdata();
+			if(urd && urd->name() == lyramilk::script::engine_datawrapper::class_name()){
+				lyramilk::script::engine_datawrapper* urdp = (lyramilk::script::engine_datawrapper*)urd;
+				if(urdp->eng){
+					// 在文件所在目录查找包含文件
+					lyramilk::data::string filename = urdp->eng->filename();
+					std::size_t pos = filename.rfind('/');
+					if(pos != filename.npos){
+						filename = filename.substr(0,pos + 1) + args[0].str();
+					}
 
-		// 在环境变量指定的目录中查找文件。
-		struct stat st = {0};
-		if(0 !=::stat(filename.c_str(),&st)){
-			filename = env::get(e->name() + ".require").str();
-			if(!filename.empty() && filename.at(filename.size() - 1) != '/') filename.push_back('/');
-			filename += args[0].str();
-		}
-		// 写入包含信息，防止重复载入
-		lyramilk::data::var& v = e->get_userdata("require");
+					// 在环境变量指定的目录中查找文件。
+					struct stat st = {0};
+					if(0 !=::stat(filename.c_str(),&st)){
+						filename = env::get(urdp->eng->name() + ".require").str();
+						if(!filename.empty() && filename.at(filename.size() - 1) != '/') filename.push_back('/');
+						filename += args[0].str();
+					}
+					// 写入包含信息，防止重复载入
+					lyramilk::data::var& v = urdp->eng->get_userdata("require");
 
-		v.type(lyramilk::data::var::t_array);
-		lyramilk::data::array& ar = v;
+					v.type(lyramilk::data::var::t_array);
+					lyramilk::data::array& ar = v;
 
-		lyramilk::data::array::iterator it = ar.begin();
-		for(;it!=ar.end();++it){
-			lyramilk::data::string str = *it;
-			if(str == args[0].str()){
-				//log(lyramilk::log::warning,__FUNCTION__) << D("请不要重复包含文件%s",str.c_str()) << std::endl;
-				return false;
+					lyramilk::data::array::iterator it = ar.begin();
+					for(;it!=ar.end();++it){
+						lyramilk::data::string str = *it;
+						if(str == args[0].str()){
+							//log(lyramilk::log::warning,__FUNCTION__) << D("请不要重复包含文件%s",str.c_str()) << std::endl;
+							return false;
+						}
+					}
+					ar.push_back(args[0].str());
+
+					// 执行包含文件。
+					if(urdp->eng->load_module(filename)){
+						return true;
+					}
+				}
 			}
 		}
-		ar.push_back(args[0].str());
 
-		// 执行包含文件。
-		if(e->load_module(filename)){
-			return true;
-		}
 		return false;
 	}
 
@@ -96,8 +105,10 @@ namespace lyramilk{ namespace teapoy{ namespace native
 				eng->reset();
 				eng->load_file(ei.filename);
 			}
-			lyramilk::data::var v = eng->call("ontimer");
-			if(v.type() == lyramilk::data::var::t_bool && v == false)break;
+			lyramilk::data::var v;
+			if(eng->call("ontimer",&v)){
+				if(v.type() == lyramilk::data::var::t_bool && (bool)v == false)break;
+			}
 			eng->gc();
 			sleep(1);
 		};

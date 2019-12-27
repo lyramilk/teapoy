@@ -49,6 +49,7 @@ namespace lyramilk{ namespace teapoy {
 	  protected:
 		lyramilk::data::strings default_pages;
 
+	  	std::vector<pcre*> regex_assert;
 		pcre* regex_handler;
 	  	lyramilk::data::string regex_str;
 

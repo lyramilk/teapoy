@@ -5,6 +5,7 @@
 #include "mime.h"
 #include <libmilk/netaio.h>
 #include <libmilk/factory.h>
+#include <libmilk/datawrapper.h>
 
 namespace lyramilk{ namespace teapoy {
 	using lyramilk::data::stringdict;
@@ -225,6 +226,24 @@ namespace lyramilk{ namespace teapoy {
 		virtual bool lock();
 		virtual bool unlock();
 	};
+
+	class session_response_datawrapper:public lyramilk::data::datawrapper
+	{
+
+	  public:
+		httpadapter* adapter;
+		std::ostream& os;
+	  public:
+		session_response_datawrapper(httpadapter* _adapter,std::ostream& _os);
+	  	virtual ~session_response_datawrapper();
+
+		static lyramilk::data::string class_name();
+		virtual lyramilk::data::string name() const;
+		virtual lyramilk::data::datawrapper* clone() const;
+		virtual void destory();
+		virtual bool type_like(lyramilk::data::var::vt nt) const;
+	};
+
 }}
 
 #endif
