@@ -95,6 +95,7 @@ namespace lyramilk{ namespace teapoy {
 		virtual lyramilk::io::native_filedescriptor_type getfd();
 	  public:
 		virtual bool open(const char* host,unsigned short port);
+		virtual bool open(const struct sockaddr* addr,socklen_t addr_len);
 		virtual bool async_send(unsigned char *buf, int buf_size);
 
 		dnsasync();
@@ -114,19 +115,6 @@ namespace lyramilk{ namespace teapoy {
 		virtual ~dnsasynccache();
 	};
 
-	class dnsasyncreturn:public dnsasync
-	{
-	  protected:
-		lyramilk::threading::mutex_rw& lock;
-		dnscache_type& dnscache;
-	  protected:
-		virtual void ondestory();
-		virtual bool notify_in();
-	  public:
-		dnsasyncreturn(const struct sockaddr* addr,socklen_t addr_len);
-		virtual ~dnsasyncreturn();
-	};
-
 	class dnsproxy : public lyramilk::netio::udplistener
 	{
 		struct sockaddr_in upstream;
@@ -134,8 +122,7 @@ namespace lyramilk{ namespace teapoy {
 
 		lyramilk::threading::mutex_rw lock;
 		dnscache_type dnscache;
-		int cliendfd;
-		int rawcliendfd;
+		int serverfd;
 		bool attachdch;
 
 		lyramilk::data::string host;

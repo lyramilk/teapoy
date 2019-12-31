@@ -265,6 +265,21 @@ namespace lyramilk{ namespace teapoy {
 		return true;
 	}
 
+	bool dnsasync::open(const struct sockaddr* addr,socklen_t addr_len)
+	{
+		struct sockaddr_in* addr_in = (struct sockaddr_in*)addr;
+		struct sockaddr_in saddr;
+		saddr.sin_addr.s_addr = addr_in->sin_addr.s_addr;
+		saddr.sin_family = addr_in->sin_family;
+		saddr.sin_port = addr_in->sin_port;
+
+		if (connect(fd,(struct sockaddr*)&saddr,addr_len) == -1){
+			lyramilk::klog(lyramilk::log::error,"lyramilk.teapoy.dnsasync.open") << lyramilk::kdict("绑定上游dns(%s:%u)失败：%s",inet_ntoa(saddr.sin_addr),ntohs(saddr.sin_port),strerror(errno)) << std::endl;
+			return true;
+		}
+		return false;
+	}
+
 	bool dnsasync::async_send(unsigned char *buf, int buf_size)
 	{
 		return ::send(fd,buf,buf_size,0);
@@ -273,7 +288,7 @@ namespace lyramilk{ namespace teapoy {
 
 	dnsasync::dnsasync()
 	{
-		fd = ::socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+		fd = -1;
 	}
 
 	dnsasync::~dnsasync()
@@ -283,29 +298,10 @@ namespace lyramilk{ namespace teapoy {
 		}
 	}
 
-
-
-
-
 	//////////////////////////////////////////////////
-
-/*
-	bool dnsasync::notify_in()
-	{
-		char buff[65536];
-		int r = ::recv(getfd(),buff,sizeof(buff),0);
-		if(r > 0){
-			dns_packet repcache;
-			repcache.from(buff,r);
-			lyramilk::threading::mutex_sync _(lock.w());
-			dnscache[repcache.queries.name] = repcache;
-		}
-		return pool->reset(this,EPOLLIN|EPOLLONESHOT);
-	}
-*/
-
 	void dnsasynccache::ondestory()
 	{
+		lyramilk::klog(lyramilk::log::error,"lyramilk.teapoy.dnsasynccache.ondestory") << lyramilk::kdict("不应该到达这里") << std::endl;
 		delete this;
 	}
 	bool dnsasynccache::notify_in()
@@ -315,6 +311,7 @@ namespace lyramilk{ namespace teapoy {
 		if(r > 0){
 			dns_packet repcache;
 			repcache.from(buff,r);
+			lyramilk::klog(lyramilk::log::debug,"lyramilk.teapoy.dnsasynccache.onrequest") << lyramilk::kdict("响应：%s (异步透传)",repcache.queries.name.c_str()) << std::endl;
 			lyramilk::threading::mutex_sync _(lock.w());
 			dnscache[repcache.queries.name] = repcache;
 		}
@@ -323,6 +320,7 @@ namespace lyramilk{ namespace teapoy {
 
 	dnsasynccache::dnsasynccache(lyramilk::threading::mutex_rw& l,dnscache_type& c):lock(l),dnscache(c)
 	{
+		fd = ::socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	}
 
 	dnsasynccache::~dnsasynccache()
@@ -330,10 +328,19 @@ namespace lyramilk{ namespace teapoy {
 	}
 
 	//////////////////////////////////////////////////
-	class dnsasynccall:public dnsasynccache
+	union ptr2short{
+		char* p;
+		unsigned short* s;
+	};
+
+	class dnsasynccall:public dnsasync
 	{
 		lyramilk::io::native_filedescriptor_type clientfd;
 		struct sockaddr addr;
+		socklen_t addr_len;
+	  protected:
+		lyramilk::threading::mutex_rw& lock;
+		dnscache_type& dnscache;
 	  protected:
 		virtual void ondestory()
 		{
@@ -341,13 +348,24 @@ namespace lyramilk{ namespace teapoy {
 		}
 		virtual bool notify_in()
 		{
-			socklen_t addr_len = sizeof(struct sockaddr_in);
 			char buff[65536];
 			int r = ::recv(getfd(),buff,sizeof(buff),0);
 			if(r > 0){
-				r = sendto(clientfd,buff,r,0,(sockaddr*)&addr,addr_len);
+				ptr2short s;
+				s.p = buff;
+				unsigned short dns_tcp_bytes = ntohs(*s.s);
+
+				while(r < dns_tcp_bytes){
+					int w = ::recv(getfd(),buff + r,sizeof(buff) - r,0);
+					if(w > 0){
+						r += w;
+					}else{
+						return false;
+					}
+				}
+				r = sendto(clientfd,buff + 2,r - 2,0,(sockaddr*)&addr,addr_len);
 				dns_packet repcache;
-				repcache.from(buff,r);
+				repcache.from(buff + 2,r - 2);
 				lyramilk::klog(lyramilk::log::debug,"lyramilk.teapoy.dnsasynccall.onrequest") << lyramilk::kdict("响应：%s (异步透传)",repcache.queries.name.c_str()) << std::endl;
 				lyramilk::threading::mutex_sync _(lock.w());
 				dnscache[repcache.queries.name] = repcache;
@@ -356,10 +374,19 @@ namespace lyramilk{ namespace teapoy {
 		}
 
 	  public:
-		dnsasynccall(lyramilk::io::native_filedescriptor_type cfd,const sockaddr* caddr,socklen_t addr_len,lyramilk::threading::mutex_rw& l,dnscache_type& c):dnsasynccache(l,c)
+		dnsasynccall(lyramilk::io::native_filedescriptor_type cfd,const sockaddr* caddr,socklen_t addr_len,lyramilk::threading::mutex_rw& l,dnscache_type& c):lock(l),dnscache(c)
 		{
 			clientfd = cfd;
+			this->addr_len = addr_len;
 			memcpy(&addr,caddr,addr_len);
+			fd = ::socket(PF_INET, SOCK_STREAM, 0);
+		}
+
+		bool async_send(unsigned char *buf, int buf_size)
+		{
+			unsigned short k_buf_size = htons(buf_size);
+			::send(fd,&k_buf_size,sizeof(k_buf_size),0);
+			return ::send(fd,buf,buf_size,0);
 		}
 
 		virtual ~dnsasynccall()
@@ -367,13 +394,11 @@ namespace lyramilk{ namespace teapoy {
 		}
 	};
 
-
-
-
 	class dnsasynccall_nocache:public dnsasync
 	{
 		lyramilk::io::native_filedescriptor_type clientfd;
 		struct sockaddr addr;
+		socklen_t addr_len;
 	  protected:
 		virtual void ondestory()
 		{
@@ -381,13 +406,24 @@ namespace lyramilk{ namespace teapoy {
 		}
 		virtual bool notify_in()
 		{
-			socklen_t addr_len = sizeof(struct sockaddr_in);
 			char buff[65536];
 			int r = ::recv(getfd(),buff,sizeof(buff),0);
 			if(r > 0){
-				r = sendto(clientfd,buff,r,0,(sockaddr*)&addr,addr_len);
+				ptr2short s;
+				s.p = buff;
+				unsigned short dns_tcp_bytes = ntohs(*s.s);
+
+				while(r < dns_tcp_bytes){
+					int w = ::recv(getfd(),buff + r,sizeof(buff) - r,0);
+					if(w > 0){
+						r += w;
+					}else{
+						return false;
+					}
+				}
+				r = sendto(clientfd,buff + 2,r - 2,0,(sockaddr*)&addr,addr_len);
 				dns_packet repcache;
-				repcache.from(buff,r);
+				repcache.from(buff + 2,r - 2);
 				lyramilk::klog(lyramilk::log::debug,"lyramilk.teapoy.dnsasynccall_nocache.onrequest") << lyramilk::kdict("响应：%s (异步透传)",repcache.queries.name.c_str()) << std::endl;
 			}
 			return false;
@@ -397,7 +433,16 @@ namespace lyramilk{ namespace teapoy {
 		dnsasynccall_nocache(lyramilk::io::native_filedescriptor_type cfd,const sockaddr* caddr,socklen_t addr_len)
 		{
 			clientfd = cfd;
+			this->addr_len = addr_len;
 			memcpy(&addr,caddr,addr_len);
+			fd = ::socket(PF_INET, SOCK_STREAM, 0);
+		}
+
+		bool async_send(unsigned char *buf, int buf_size)
+		{
+			unsigned short k_buf_size = htons(buf_size);
+			::send(fd,&k_buf_size,sizeof(k_buf_size),0);
+			return ::send(fd,buf,buf_size,0);
 		}
 
 		virtual ~dnsasynccall_nocache()
@@ -410,14 +455,14 @@ namespace lyramilk{ namespace teapoy {
 	dnsproxy::dnsproxy()
 	{
 		dch = nullptr;
-		cliendfd = -1;
+		serverfd = -1;
 		attachdch = false;
 	}
 
 	dnsproxy::~dnsproxy()
 	{
-		if(cliendfd != -1){
-			::close(cliendfd);
+		if(serverfd != -1){
+			::close(serverfd);
 		}
 		if(dch){
 			delete dch;
@@ -434,7 +479,6 @@ namespace lyramilk{ namespace teapoy {
 				}
 			}
 		}
-
 
 		dns_packet req;
 		req.from(cache,size);
@@ -488,95 +532,54 @@ namespace lyramilk{ namespace teapoy {
 				}
 			}
 
-			/*
-			{
-				char buff[4096];
-				int r = sync_call(req.queries.name,cache,size,buff,sizeof(buff));
-				if(r > 0){
-					os.write(buff,r);
-
-					dns_packet repcache;
-					repcache.from(buff,r);
-					lyramilk::threading::mutex_sync _(lock.w());
-					dnscache[repcache.queries.name] = repcache;
-					lyramilk::klog(lyramilk::log::debug,"lyramilk.teapoy.dnsproxy.onrequest") << lyramilk::kdict("响应：%s %d条结果",req.queries.name.c_str(),repcache.answers.size()) << std::endl;
-					return true;
-				}
-			}*/
-
-
-			/*
 			dnsasynccall* p = new dnsasynccall(getfd(),addr,addr_len,lock,dnscache);
 			if(p->open(host.c_str(),port)){
 				p->async_send((unsigned char*)cache,size);
 				pool->add(p,EPOLLIN|EPOLLONESHOT);
 				return true;
-			}*/
-
-			
+			}
+			delete p;
 		}
 
-
-/**
-		dnsasynccall* p = new dnsasynccall(getfd(),addr,addr_len,lock,dnscache);
+		dnsasynccall_nocache* p = new dnsasynccall_nocache(getfd(),addr,addr_len);
 		if(p->open(host.c_str(),port)){
 			p->async_send((unsigned char*)cache,size);
 			pool->add(p,EPOLLIN|EPOLLONESHOT);
-		}
-/*/
-		char buff[4096];
-		{
-			int r = sync_call(req.queries.name,cache,size,buff,sizeof(buff));
+			return true;
+		}else{
+			delete p;
+			char buff[4096];
+			{
+				int r = sync_call(req.queries.name,cache,size,buff,sizeof(buff));
+				if(r > 0){
+					os.write(buff,r);
+					lyramilk::klog(lyramilk::log::debug,"lyramilk.teapoy.dnsproxy.onrequest") << lyramilk::kdict("响应：%s (透传)",req.queries.name.c_str()) << std::endl;
+					return true;
+				}
+			}
+			dns_packet rep;
+			rep.header.transation_id = req.header.transation_id;
+			rep.header.qr = 1;
+			rep.header.rcode = 3;
+			int r = rep.copy(buff,sizeof(buff));
 			if(r > 0){
+				lyramilk::klog(lyramilk::log::debug,"lyramilk.teapoy.dnsproxy.onrequest") << lyramilk::kdict("响应：%s 失败",req.queries.name.c_str()) << std::endl;
 				os.write(buff,r);
-				lyramilk::klog(lyramilk::log::debug,"lyramilk.teapoy.dnsproxy.onrequest") << lyramilk::kdict("响应：%s (透传)",req.queries.name.c_str()) << std::endl;
-				return true;
 			}
 		}
-		dns_packet rep;
-		rep.header.transation_id = req.header.transation_id;
-		rep.header.qr = 1;
-		rep.header.rcode = 3;
-		int r = rep.copy(buff,512);
-		if(r > 0){
-			lyramilk::klog(lyramilk::log::debug,"lyramilk.teapoy.dnsproxy.onrequest") << lyramilk::kdict("响应：%s 失败",req.queries.name.c_str()) << std::endl;
-			os.write(buff,r);
-		}
-/**/
 		return true;
 	}
 
 	
 	int dnsproxy::sync_call(const lyramilk::data::string& host,const char *buf, int buf_size,char *rdata,int rdata_size)
 	{
-
-		/*
 		dns_header* qh = (dns_header*)buf;
 		dns_header* ph = (dns_header*)rdata;
 
-		::send(cliendfd,buf,buf_size,0);
+		::send(serverfd,buf,buf_size,0);
 		while(true){
-			if(check_read(cliendfd,60)){
-				int r = ::recv(cliendfd,rdata,rdata_size,0);
-				if(r > 0){
-					if(qh->transation_id == ph->transation_id){
-						return r;
-					}
-				}
-			}else{
-				break;
-			}
-		}*/
-
-
-
-		dns_header* qh = (dns_header*)buf;
-		dns_header* ph = (dns_header*)rdata;
-
-		::send(rawcliendfd,buf,buf_size,0);
-		while(true){
-			if(check_read(rawcliendfd,60)){
-				int r = ::recv(rawcliendfd,rdata,rdata_size,0);
+			if(check_read(serverfd,60)){
+				int r = ::recv(serverfd,rdata,rdata_size,0);
 				if(r > 0){
 					if(qh->transation_id == ph->transation_id){
 						return r;
@@ -608,33 +611,11 @@ namespace lyramilk{ namespace teapoy {
 		upstream.sin_family = AF_INET;
 		upstream.sin_port = htons(port);
 
-		if(cliendfd != -1) ::close(cliendfd);
-		cliendfd = ::socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
+		if(serverfd != -1) ::close(serverfd);
+		serverfd = ::socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
 
-
-		if (connect(cliendfd,(struct sockaddr*)&upstream,sizeof(struct sockaddr_in)) == -1){
+		if (connect(serverfd,(struct sockaddr*)&upstream,sizeof(struct sockaddr_in)) == -1){
 			lyramilk::klog(lyramilk::log::error,"lyramilk.teapoy.dnsasynccache.open") << lyramilk::kdict("绑定上游dns(%s:%u)失败：%s",host.c_str(),port,strerror(errno)) << std::endl;
-		}
-
-
-		rawcliendfd = ::socket(PF_INET, SOCK_RAW, IPPROTO_UDP);
-
-		if(rawcliendfd != -1){
-			if (connect(rawcliendfd,(struct sockaddr*)&upstream,sizeof(struct sockaddr_in)) == -1){
-				lyramilk::klog(lyramilk::log::error,"lyramilk.teapoy.dnsasynccache.open") << lyramilk::kdict("绑定上游dns(%s:%u)失败：%s",host.c_str(),port,strerror(errno)) << std::endl;
-			}
-			while(true){
-				char buff[65536];
-				struct sockaddr_in addr = {};
-				socklen_t addr_len = sizeof(addr);
-				int r = recvfrom(rawcliendfd,buff,sizeof(buff),0,(sockaddr*)&addr,&addr_len);
-				if(r>0){
-					printf("r=%d,%02x\n",r,buff[0]);
-				}
-			
-			}
-		}else{
-			lyramilk::klog(lyramilk::log::warning,"lyramilk.teapoy.dnsasynccache.open") << lyramilk::kdict("绑定上游dns(%s:%u)失败：%s",host.c_str(),port,strerror(errno)) << std::endl;
 		}
 
 		if(dch) delete dch;
