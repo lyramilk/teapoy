@@ -46,7 +46,7 @@ namespace lyramilk{ namespace teapoy{
 		lyramilk::data::var active(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			if(args.size() == 0){
-				lyramilk::io::aiopoll::active();
+				lyramilk::io::aiopoll::active(8);
 				log(lyramilk::log::debug,__FUNCTION__) << D("启动了%d个线程",size()) << std::endl;
 			}else{
 				MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_int);

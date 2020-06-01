@@ -253,7 +253,10 @@ COUT << qi << "---->" << uri.substr(bof,eof-bof) << std::endl;
 		}else{
 			uri = req->entityframe->uri;
 		}
-		if(!test(uri,&real)) return false;
+		if(!test(uri,&real)){
+			lyramilk::klog(lyramilk::log::debug,"try_call") << "正则匹配" << matcher_regexstr << "失败，但" << real << "没有找到" << std::endl;
+			return false;
+		}
 		if(matcher_dest.type() != lyramilk::data::var::t_invalid){
 			struct stat st = {0};
 			if(0 !=::stat(real.c_str(),&st)){

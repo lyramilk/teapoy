@@ -10,6 +10,7 @@
 #include "env.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <pwd.h>
 #include <sys/wait.h>
@@ -136,6 +137,16 @@ namespace lyramilk{ namespace teapoy{ namespace native
 	{
 		::daemon(1,0);
 		return true;
+	}
+
+	lyramilk::data::var crand(const lyramilk::data::array& args,const lyramilk::data::map& env)
+	{
+		if(args.size() > 0){
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_int);
+			unsigned int seed = args[0];
+			srand(seed);
+		}
+		return rand();
 	}
 
 	lyramilk::data::var msleep(const lyramilk::data::array& args,const lyramilk::data::map& env)
@@ -394,6 +405,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			p->define("require",teapoy_import);++i;
 			p->define("task",task);++i;
 			p->define("daemon",daemon);++i;
+			p->define("crand",crand);++i;
 			p->define("msleep",msleep);++i;
 			p->define("su",su);++i;
 			p->define("add_require_dir",add_require_dir);++i;

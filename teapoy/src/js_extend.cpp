@@ -239,8 +239,9 @@ namespace lyramilk{ namespace teapoy{ namespace sni{
 		tinyxml2::XMLDocument *doc = &xml_doc;
 		JSString* jsstr = vp[2].toString();
 		if(jsstr){
+			size_t xmlstringlen = JS_GetStringEncodingLength(cx,jsstr);
 			char * xmlstring = JS_EncodeString(cx,jsstr);
-			if(tinyxml2::XML_SUCCESS != xml_doc.Parse(xmlstring,strlen(xmlstring))){
+			if(tinyxml2::XML_SUCCESS != xml_doc.Parse(xmlstring,xmlstringlen)){
 				JS_free(cx,xmlstring);
 				vp->setUndefined();
 				return JS_TRUE;

@@ -1,3 +1,4 @@
+#if 0
 #include "script.h"
 #include "stringutil.h"
 #include <libmilk/var.h>
@@ -311,3 +312,4 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 		lyramilk::teapoy::script2native::instance()->regist("hashmap",define);
 	}
 }}}
+#endif

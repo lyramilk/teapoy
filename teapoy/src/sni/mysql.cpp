@@ -6,6 +6,9 @@
 #include <libmilk/factory.h>
 #include <mysql/mysql.h>
 #define MAROC_MYSQL MYSQL
+#ifndef my_bool
+	#define my_bool bool
+#endif
 
 #pragma push_macro("D")
 #undef D

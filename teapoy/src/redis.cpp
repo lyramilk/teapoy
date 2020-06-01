@@ -9,6 +9,10 @@
 
 
 namespace lyramilk{ namespace teapoy{ namespace redis{
+
+	class connect_error:public std::exception
+	{};
+
 	////////////////
 	void redis_client::reconnect()
 	{
@@ -165,48 +169,54 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 				throw lyramilk::exception(D("redis(%s)错误：响应格式错误",addr.c_str()));
 			}
 		}
-		throw lyramilk::exception(D("redis(%s)错误：协议错误",addr.c_str()));
+		throw connect_error();
+		//throw lyramilk::exception(D("redis(%s)错误：协议错误",addr.c_str()));
 	}
 
 	bool redis_client::exec(const lyramilk::data::array& cmd,lyramilk::data::var& ret)
 	{
-		if(!isalive()){
-			lyramilk::klog(lyramilk::log::error,"redis_client::exec") << D("redis(%s:%d)断线重连",host.c_str(),port) << std::endl;
-			reconnect();
-		}
-
-		{
-			lyramilk::data::array::const_iterator it = cmd.begin();
-			lyramilk::netio::socket_ostream ss(this);
-			ss << "*" << cmd.size() << "\r\n";
-			for(;it!=cmd.end();++it){
-				lyramilk::data::string str = it->str();
-				ss << "$" << str.size() << "\r\n";
-				ss << str << "\r\n";
+		for(int i=0;i<2;++i){
+			if(!isalive()){
+				lyramilk::klog(lyramilk::log::error,"redis_client::exec") << D("redis(%s:%d)断线重连",host.c_str(),port) << std::endl;
+				reconnect();
 			}
-			ss.flush();
-		}
-		bool suc = false;
-		
-		try{
-			lyramilk::netio::socket_istream iss(this);
-			suc = parse(iss,ret);
-		}catch(std::exception& e){
-			close();
-			throw e;
-		}
-		if(!suc){
-			if(ret.type() == lyramilk::data::var::t_str){
-				lyramilk::data::string str = ret.str();
-				if(str.find("NOAUTH") != str.npos){
-					close();
-					throw lyramilk::exception(D("redis(%s:%d)错误：%s",host.c_str(),port,str.c_str()));
-					return false;
+			{
+				lyramilk::data::array::const_iterator it = cmd.begin();
+				lyramilk::netio::socket_ostream ss(this);
+				ss << "*" << cmd.size() << "\r\n";
+				for(;it!=cmd.end();++it){
+					lyramilk::data::string str = it->str();
+					ss << "$" << str.size() << "\r\n";
+					ss << str << "\r\n";
+				}
+				ss.flush();
+			}
+			bool suc = false;
+			
+			try{
+				lyramilk::netio::socket_istream iss(this);
+				suc = parse(iss,ret);
+			}catch(std::exception& e){
+				close();
+				throw e;
+			}catch(connect_error& e){
+				close();
+				continue;
+			}
+			if(!suc){
+				if(ret.type() == lyramilk::data::var::t_str){
+					lyramilk::data::string str = ret.str();
+					if(str.find("NOAUTH") != str.npos){
+						close();
+						throw lyramilk::exception(D("redis(%s:%d)错误：%s",host.c_str(),port,str.c_str()));
+						return false;
+					}
 				}
 			}
+			if(listener)listener(addr,cmd,suc,ret);
+			return suc;
 		}
-		if(listener)listener(addr,cmd,suc,ret);
-		return suc;
+		throw lyramilk::exception(D("redis(%s)错误：网络错误",addr.c_str()));
 	}
 
 	struct thread_redis_client_task_args

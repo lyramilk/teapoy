@@ -1,3 +1,6 @@
+#include <mysql/mysql.h>
+#define MAROC_MYSQL MYSQL
+#include "dbconnpool.h"
 #include <libmilk/log.h>
 #include <libmilk/dict.h>
 #include <libmilk/factory.h>
@@ -6,12 +9,13 @@
 #include <errno.h>
 #include <string.h>
 
-#include <mysql/mysql.h>
-#define MAROC_MYSQL MYSQL
+
+#ifndef my_bool
+	#define my_bool bool
+#endif
 
 #pragma push_macro("D")
 #undef D
-#include "dbconnpool.h"
 #pragma pop_macro("D")
 
 namespace lyramilk{ namespace teapoy {
@@ -33,6 +37,7 @@ namespace lyramilk{ namespace teapoy {
 		lyramilk::data::var v = cfg;
 		opts = v["opt"];
 		cnf = v.path("/cnf/file").str();
+		args = v.path("/cnf");
 		group = v.path("/cnf/group");
 	}
 
@@ -80,11 +85,26 @@ namespace lyramilk{ namespace teapoy {
 			}
 		}
 
-		if(nullptr == mysql_real_connect(p->_db_ptr,nullptr,nullptr,nullptr,nullptr,0,nullptr,0)){
-			log(lyramilk::log::warning,__FUNCTION__) << D("建立连接失败：%s",mysql_error(p->_db_ptr)) << std::endl;
+
+
+		std::string host = args["host"].str();
+		std::string user = args["user"].str();
+		std::string passwd = args["password"].str();
+		std::string db = args["db"].str();
+		unsigned int port = args["port"].conv(3306);
+
+		if(nullptr == mysql_real_connect(p->_db_ptr,
+			host.empty()?nullptr:host.c_str(),
+			user.empty()?nullptr:user.c_str(),
+			passwd.empty()?nullptr:passwd.c_str(),
+			db.empty()?nullptr:db.c_str(),
+			port,
+			nullptr,0)){
+			log(lyramilk::log::warning,__FUNCTION__) << D("建立连接失败：host=%s:%d,user=%s,password=%s,db=%s,error=%s",host.c_str(),port,user.c_str(),passwd.c_str(),db.c_str(),mysql_error(p->_db_ptr)) << std::endl;
 			delete p;
 			return nullptr;
 		}
+		log(lyramilk::log::debug,__FUNCTION__) << D("建立连接成功：host=%s:%d,user=%s,password=%s,db=%s",host.c_str(),port,user.c_str(),passwd.c_str(),db.c_str()) << std::endl;
 		return p;
 	}
 
@@ -437,7 +457,7 @@ namespace lyramilk{ namespace teapoy {
 			lyramilk::data::string leveldb_path = cfg["cache"].conv(emptystr);
 
 			lyramilk::cave::leveldb_minimal_adapter* mstore = new lyramilk::cave::leveldb_minimal_adapter;
-			mstore->open(leveldb_path,1000);
+			mstore->open_leveldb(leveldb_path,1000);
 			
 			lyramilk::data::string replid = "";
 			lyramilk::data::uint64 offset = 0;

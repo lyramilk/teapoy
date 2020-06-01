@@ -2,7 +2,7 @@
 #define _lyramilk_teapoy_dbconnpool_h_
 
 #include "config.h"
-#include "redis.h"
+
 #include <libmilk/factory.h>
 #include <libmilk/atom.h>
 #include <libmilk/datawrapper.h>
@@ -18,6 +18,7 @@
 #ifndef MAROC_MYSQL
 	#define MAROC_MYSQL void
 #endif
+#include "redis.h"
 
 namespace lyramilk{ namespace teapoy {
 	struct mysql_client
@@ -32,6 +33,7 @@ namespace lyramilk{ namespace teapoy {
 		lyramilk::data::array opts;
 		lyramilk::data::string cnf;
 		lyramilk::data::var group;
+		lyramilk::data::map args;
 	  public:
 		mysql_clients(const lyramilk::data::var& cfg);
 		virtual ~mysql_clients();
