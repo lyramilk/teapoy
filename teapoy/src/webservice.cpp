@@ -3,6 +3,7 @@
 #include "stringutil.h"
 #include <libmilk/codes.h>
 #include <libmilk/log.h>
+#include <memory.h>
 
 #ifdef OPENSSL_FOUND
 	#include <openssl/ssl.h>
@@ -544,6 +545,10 @@ namespace lyramilk{ namespace teapoy {
 			ssl_peer_certificate_info = ssl_get_peer_certificate_info();
 		}
 #endif
+
+		
+		setkeepalive(20,3);
+
 		return true;
 	}
 

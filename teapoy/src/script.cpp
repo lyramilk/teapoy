@@ -4,7 +4,7 @@
 
 namespace lyramilk{ namespace teapoy
 {
-	int script_interface_master::apply(lyramilk::data::string libname,lyramilk::script::engine* p)
+	int script_interface_master::apply(const lyramilk::data::string& libname,lyramilk::script::engine* p)
 	{
 		int i = 0;
 		std::map<lyramilk::data::string,std::vector<define_func> >::iterator it = c.find(libname);
@@ -30,12 +30,12 @@ namespace lyramilk{ namespace teapoy
 		return i;
 	}
 
-	void script_interface_master::regist(lyramilk::data::string libname,define_func func)
+	void script_interface_master::regist(const lyramilk::data::string& libname,define_func func)
 	{
 		c[libname].push_back(func);
 	}
 
-	void script_interface_master::unregist(lyramilk::data::string libname)
+	void script_interface_master::unregist(const lyramilk::data::string& libname)
 	{
 		c.erase(libname);
 	}
@@ -46,21 +46,38 @@ namespace lyramilk{ namespace teapoy
 		return &_mm;
 	}
 
+	// engine_pool
 	engine_pool* engine_pool::instance()
 	{
 		static engine_pool _mm;
 		return &_mm;
 	}
 
+	lyramilk::script::engine* engine_pool::create_script_instance(const lyramilk::data::string& engname)
+	{
+		lyramilk::script::engine* eng_tmp = lyramilk::script::engine::createinstance(engname);
+		if(eng_tmp){
+			lyramilk::teapoy::script_interface_master::instance()->apply(eng_tmp);
+			return eng_tmp;
+		}
+		return nullptr;
+	}
+
+	void engine_pool::destory_script_instance(const lyramilk::data::string& engname,lyramilk::script::engine* eng)
+	{
+		if(eng){
+			lyramilk::script::engine::destoryinstance(engname,eng);
+		}
+	}
 
 	// invoker_map
-	void invoker_map::define(lyramilk::data::string name,lyramilk::data::string ptr)
+	void invoker_map::define(const lyramilk::data::string& name,const lyramilk::data::string& ptr)
 	{
 		lyramilk::threading::mutex_sync _(l.w());
 		m[name] = ptr;
 	}
 
-	void invoker_map::undef(lyramilk::data::string name)
+	void invoker_map::undef(const lyramilk::data::string& name)
 	{
 		lyramilk::threading::mutex_sync _(l.w());
 		m.erase(name);
@@ -77,7 +94,7 @@ namespace lyramilk{ namespace teapoy
 		return ar;
 	}
 
-	lyramilk::data::string invoker_map::get(lyramilk::data::string name)
+	lyramilk::data::string invoker_map::get(const lyramilk::data::string& name)
 	{
 		lyramilk::threading::mutex_sync _(l.r());
 		lyramilk::data::stringdict::iterator it = m.find(name);

@@ -92,5 +92,7 @@ namespace lyramilk{ namespace teapoy {
 		m["wav"] = "audio/wav";
 		m["ico"] = "image/x-icon";
 		m["pac"] = "application/x-ns-proxy-autoconfig";
+		m["zip"] = "application/zip";
+		m["gz"] = "application/gzip";
 	}
 }}

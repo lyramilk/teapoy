@@ -3,14 +3,13 @@
 #include "js_extend.h"
 #include <jsapi.h>
 #include <jsfriendapi.h>
-#ifdef TINYXML2_FOUND
+#ifdef Z_HAVE_TINYXML2
 	#include <tinyxml2.h>
 #endif
 #include <math.h>
 
 #include <sys/stat.h>
 #include <fstream>
-
 #include <libmilk/codes.h>
 #include <libmilk/log.h>
 #include <libmilk/dict.h>
@@ -20,7 +19,7 @@ namespace lyramilk{ namespace teapoy{ namespace sni{
 			JS_PropertyStub, JS_PropertyStub, JS_PropertyStub, JS_StrictPropertyStub,
             JS_EnumerateStub, JS_ResolveStub, JS_ConvertStub};
 
-#ifdef TINYXML2_FOUND
+#ifdef Z_HAVE_TINYXML2
 	static JSBool js_xml_stringify(JSContext *cx, unsigned argc, js::Value *vp);
 	static JSBool js_xml_parse(JSContext *cx, unsigned argc, js::Value *vp);
 
@@ -206,6 +205,11 @@ namespace lyramilk{ namespace teapoy{ namespace sni{
 		tinyxml2::XMLDocument *doc = &xml_doc;
 
 		JSObject *sub_jo = vp[2].toObjectOrNull();
+		if(sub_jo == NULL){
+			vp->setUndefined();
+			return JS_TRUE;
+		}
+
 		jsval sub_label;
 		JS_GetProperty(cx,sub_jo,"xml.tag",&sub_label);
 		if(sub_label.isString()){
@@ -235,8 +239,9 @@ namespace lyramilk{ namespace teapoy{ namespace sni{
 		tinyxml2::XMLDocument *doc = &xml_doc;
 		JSString* jsstr = vp[2].toString();
 		if(jsstr){
+			size_t xmlstringlen = JS_GetStringEncodingLength(cx,jsstr);
 			char * xmlstring = JS_EncodeString(cx,jsstr);
-			if(tinyxml2::XML_SUCCESS != xml_doc.Parse(xmlstring,strlen(xmlstring))){
+			if(tinyxml2::XML_SUCCESS != xml_doc.Parse(xmlstring,xmlstringlen)){
 				JS_free(cx,xmlstring);
 				vp->setUndefined();
 				return JS_TRUE;
@@ -279,7 +284,7 @@ namespace lyramilk{ namespace teapoy{ namespace sni{
 		JS_SetRuntimeThread(rt);
 		JSContext* selectedcx = cx_template;
 		JSObject* global = JS_GetGlobalObject(selectedcx);
-#ifdef TINYXML2_FOUND
+#ifdef Z_HAVE_TINYXML2
 		JSObject* jo = JS_DefineObject(selectedcx,global,"XML",&normalClass,NULL,0);
 		JS_DefineFunctions(selectedcx,jo,js_xml_static_funs);
 #endif
@@ -328,7 +333,7 @@ namespace lyramilk{ namespace teapoy{ namespace sni{
 		str.reserve(len*3);
 		for(;cstr < streof;){
 			jschar jwc = *cstr++;
-			unsigned wchar_t wc = jwc;
+			wchar_t wc = jwc;
 			if(jwc >= 0xd800 && jwc <= 0xdfff && cstr<streof){
 				jschar jwc2 = *cstr++;
 				wc = (jwc2&0x03ff) + (((jwc&0x03ff) + 0x40) << 10);
@@ -353,7 +358,7 @@ namespace lyramilk{ namespace teapoy{ namespace sni{
 				str.push_back((unsigned char)((wc>>12)&0x3f) | 0x80);
 				str.push_back((unsigned char)((wc>>6)&0x3f) | 0x80);
 				str.push_back((unsigned char)((wc>>0)&0x3f) | 0x80);
-			}else if(wc < 0x80000000){
+			}else if(wc < 0x80000000L){
 				str.push_back((unsigned char)((wc>>30)&0x1) | 0xfc);
 				str.push_back((unsigned char)((wc>>24)&0x3f) | 0xf0);
 				str.push_back((unsigned char)((wc>>18)&0x3f) | 0x80);
@@ -765,9 +770,16 @@ namespace lyramilk{ namespace teapoy{ namespace sni{
 					}
 
 					if(skip < line.size() && line.at(skip) == '='){
-						ofs << "response.write(" << line.substr(skip + 1,pos - skip - 1) << ");	//#" << lineno << LINEEOF;
+						if(line.size() <= pos + 2){
+							//结尾是 <%=abc%> 形式
+							ofs << "response.write(" << line.substr(skip + 1,pos - skip - 1) << " + '\\n');	//#" << lineno << LINEEOF;
+						}else{
+							ofs << "response.write(" << line.substr(skip + 1,pos - skip - 1) << ");	//#" << lineno << LINEEOF;
+						}
 						rlines.push_back(lineno);
 						skip = pos + 2;
+
+
 						s = s_onrequest_html;
 						continue;
 					}

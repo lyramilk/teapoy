@@ -22,13 +22,13 @@ namespace lyramilk{ namespace teapoy {
 		virtual ~url_selector_js()
 		{}
 
-		virtual url_check_status call(httprequest* request,httpresponse* response,httpadapter* adapter,const lyramilk::data::string& real)
+		virtual dispatcher_check_status call(httprequest* request,httpresponse* response,httpadapter* adapter,const lyramilk::data::string& real)
 		{
 			url_selector_loger _("teapoy.web.js",adapter);
 			return vcall(request,response,adapter,real);
 		}
 
-		url_check_status vcall(httprequest* request,httpresponse* response,httpadapter* adapter,const lyramilk::data::string& real)
+		dispatcher_check_status vcall(httprequest* request,httpresponse* response,httpadapter* adapter,const lyramilk::data::string& real)
 		{
 			lyramilk::script::engines::ptr p = pool->get();
 			if(!p->load_file(real)){
@@ -55,7 +55,7 @@ namespace lyramilk{ namespace teapoy {
 			}
 
 			lyramilk::data::var vret;
-			if(p->call(request->mode.empty()?"onrequest":request->mode,ar,&vret)){
+			if(!p->call(request->mode.empty()?"onrequest":request->mode,ar,&vret)){
 				adapter->response->code = 503;
 				return cs_error;
 			}

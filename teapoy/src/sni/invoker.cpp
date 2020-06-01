@@ -53,7 +53,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		{
 			lyramilk::script::engine::functional_map fn;
 			fn["exec"] = lyramilk::script::engine::functional<teapoy_functional,&teapoy_functional::exec>;
-			p->define("..invoker.instance",fn,teapoy_functional::ctr,teapoy_functional::dtr);
+			p->define("TeapoyInvokerInstance",fn,teapoy_functional::ctr,teapoy_functional::dtr);
 			return 1;
 		}
 	};
@@ -87,6 +87,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 
 			functional_multi* fun = functional_type_master::instance()->create(type,nullptr);
 			if(fun == nullptr) return false;
+			fun->type = type;
 
 			lyramilk::data::string key = args[0];
 
@@ -96,15 +97,25 @@ namespace lyramilk{ namespace teapoy{ namespace native
 				fun->init(info);
 			}
 
-			functional_master::instance()->define(key,fun);
-			return true;
+			if(functional_master::instance()->get(key) == nullptr){
+				functional_master::instance()->define(key,fun);
+				return true;
+			}
+			return false;
 		}
 
 		lyramilk::data::var remove(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			lyramilk::data::string key = args[0];
-			TODO();
+
+			
+			lyramilk::teapoy::functional_multi* f = functional_master::instance()->get(key);
+			if(f != nullptr){
+				functional_type_master::instance()->destory(f->type,nullptr);
+			}
+			functional_master::instance()->undef(key);
+			return true;
 		}
 
 		lyramilk::data::var get(const lyramilk::data::array& args,const lyramilk::data::map& env)
@@ -116,11 +127,12 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			lyramilk::data::string invoker_instance;
 			if(f){
 				invoker_instance = invoker_map::instance()->get(f->name());
+			}else{
+				return lyramilk::data::var::nil;
 			}
 			if(invoker_instance.empty()){
-				invoker_instance = "..invoker.instance";
+				invoker_instance = "TeapoyInvokerInstance";
 			}
-
 			lyramilk::data::map::const_iterator it_env_eng = env.find(lyramilk::script::engine::s_env_engine());
 			if(it_env_eng != env.end()){
 				lyramilk::data::datawrapper* urd = it_env_eng->second.userdata();
@@ -140,7 +152,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		{
 			lyramilk::script::engine::functional_map fn;
 			fn["add"] = lyramilk::script::engine::functional<teapoy_functional_invoker,&teapoy_functional_invoker::add>;
-			//fn["remove"] = lyramilk::script::engine::functional<teapoy_functional_invoker,&teapoy_functional_invoker::remove>;
+			fn["remove"] = lyramilk::script::engine::functional<teapoy_functional_invoker,&teapoy_functional_invoker::remove>;
 			fn["get"] = lyramilk::script::engine::functional<teapoy_functional_invoker,&teapoy_functional_invoker::get>;
 			p->define("invoker",fn,teapoy_functional_invoker::ctr,teapoy_functional_invoker::dtr);
 			return 1;

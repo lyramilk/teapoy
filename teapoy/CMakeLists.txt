@@ -1,6 +1,6 @@
 ﻿#定义工程名及版本
-project(teapoy)
-set(version 2.0.10)
+project(teapoy2)
+set(version 2.0.11)
 set(soversion 2.0)
 
 
@@ -214,8 +214,6 @@ elseif(Z_HAVE_LIBMONGO)
 else()
 	list(REMOVE_ITEM src_cpps src/sni/mongo.cpp)
 endif()
-
-
 
 if(UNIX)
 	set(LIBRARIES -lpthread)

@@ -12,6 +12,7 @@
 
 #include <sys/stat.h>
 #include <errno.h>
+#include <string.h>
 #include <fstream>
 
 #include "teapoy_gzip.h"

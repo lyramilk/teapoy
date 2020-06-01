@@ -54,7 +54,7 @@ namespace lyramilk{ namespace teapoy {
 	{
 	}
 
-	bool url_regex_selector::init(lyramilk::data::map m)
+	bool url_regex_selector::init(lyramilk::data::map& m)
 	{
 		lyramilk::data::string emptystr;
 		lyramilk::data::map emptymap;
@@ -119,15 +119,19 @@ namespace lyramilk{ namespace teapoy {
 	{
 		this->default_pages = default_pages;
 		assert(regex_handler == nullptr);
+		int  erroffset = 0;
+		const char *error = "";
 		if(regex_handler == nullptr){
-			int  erroffset = 0;
-			const char *error = "";
 			regex_handler = pcre_compile(regex_str.c_str(),0,&error,&erroffset,nullptr);
 		}
 		if(regex_handler == nullptr){
 			lyramilk::klog(lyramilk::log::warning,"teapoy.url_regex_selector.init") << D("编译正则表达式%s失败",regex_str.c_str()) << std::endl;
 			return false;
 		}
+
+		error = "";
+		//regex_handler_study = pcre_study(regex_handler,PCRE_EXTRA_STUDY_DATA|PCRE_EXTRA_MATCH_LIMIT|PCRE_EXTRA_MATCH_LIMIT_RECURSION|PCRE_EXTRA_CALLOUT_DATA|PCRE_EXTRA_TABLES,&err);
+		regex_handler_study = pcre_study(regex_handler,0,&error);
 
 		this->regex_str = regex_str;
 		url_to_path_rule.clear();
@@ -140,48 +144,107 @@ namespace lyramilk{ namespace teapoy {
 					std::size_t d = path_pattern.find('}',i+1);
 					if(d != path_pattern.npos){
 						lyramilk::data::string su = path_pattern.substr(i+2,d - i - 2);
-						int qi = atoi(su.c_str());
-						url_to_path_rule.push_back(ret);
-						url_to_path_rule.push_back(qi);
-						ret.clear();
+						bool isgroupindex = true;
+						for(lyramilk::data::string::iterator numberit = su.begin();numberit!=su.end();++numberit){
+							if(!isdigit(*numberit)){
+								isgroupindex = false;
+							}
+						}
+
+						if(isgroupindex){
+							{
+								url_regex_part q;
+								q.type = url_regex_part::t_static;
+								q.str = ret;
+								url_to_path_rule.push_back(q);
+							}
+							{
+								url_regex_part q;
+								q.type = url_regex_part::t_index;
+								q.index = atoi(su.c_str());
+								url_to_path_rule.push_back(q);
+							}
+						}else{
+							{
+								url_regex_part q;
+								q.type = url_regex_part::t_static;
+								q.str = ret;
+								url_to_path_rule.push_back(q);
+							}
+							/**
+							{
+								url_regex_part q;
+								q.type = url_regex_part::t_group;
+								q.str = su;
+								url_to_path_rule.push_back(q);
+							}
+							/*/
+							{
+								int idx = pcre_get_stringnumber(regex_handler,su.c_str());
+								url_regex_part q;
+								q.type = url_regex_part::t_index;
+								q.index = idx;
+								url_to_path_rule.push_back(q);
+							}
+							/**/
+						}
 						i = d;
+						ret.clear();
 						continue;
 					}
 				}
 			}
 			ret.push_back(c);
 		}
-		url_to_path_rule.push_back(ret);
-		this->path_pattern = path_pattern;
 
+		{
+			url_regex_part q;
+			q.type = url_regex_part::t_static;
+			q.str = ret;
+			url_to_path_rule.push_back(q);
+		}
+
+		this->path_pattern = path_pattern;
 		return true;
 	}
 
-	url_check_status url_regex_selector::test(httprequest* request,lyramilk::data::string *real)
+	dispatcher_check_status url_regex_selector::test(httprequest* request,lyramilk::data::string *real)
 	{
 		if(!regex_handler) return cs_pass;
 
 		lyramilk::data::string url = request->url();
 
+		const static int ov_size = 2048;
+
 		for(std::vector<pcre*>::const_iterator it = regex_assert.begin();it!=regex_assert.end();++it){
-			int ov[256] = {0};
-			int rc = pcre_exec((const pcre*)*it,nullptr,url.c_str(),url.size(),0,0,ov,256);
+			int ov[ov_size] = {0};
+			int rc = pcre_exec((const pcre*)*it,nullptr,url.c_str(),url.size(),0,0,ov,ov_size);
 			if(rc < 1) return cs_pass;
 		}
 
-		int ov[256] = {0};
-		int rc = pcre_exec(regex_handler,nullptr,url.c_str(),url.size(),0,0,ov,256);
+		int ov[ov_size] = {0};
+		int rc = pcre_exec(regex_handler,regex_handler_study,url.c_str(),url.size(),0,0,ov,ov_size);
 		if(rc > 0){
 			real->clear();
-			for(lyramilk::data::array::const_iterator it = url_to_path_rule.begin();it!=url_to_path_rule.end();++it){
-				if(it->type() == lyramilk::data::var::t_str){
-					real->append(it->str());
-				}else if(it->type_like(lyramilk::data::var::t_int)){
-					int qi = *it;
+			for(url_parts_type::const_iterator it = url_to_path_rule.begin();it!=url_to_path_rule.end();++it){
+				if(it->type == url_regex_part::t_static){
+					real->append(it->str);
+				}else if(it->type == url_regex_part::t_index){
+					int qi = it->index;
 					int bof = ov[(qi<<1)];
 					int eof = ov[(qi<<1)|1];
 					if(eof - bof > 0 && bof < (int)url.size()){
 						real->append(url.substr(bof,eof-bof));
+					}
+				}else if(it->type == url_regex_part::t_group){
+					const char* substr = nullptr;
+					int r = pcre_get_named_substring(regex_handler,url.c_str(),ov,rc,it->str.c_str(),&substr);
+					if(r > 0 || substr != nullptr){
+						std::cout.write(substr,r) << std::endl;
+						real->append(substr);
+						pcre_free_substring(substr);
+						TODO();
+
 					}
 				}
 			}
@@ -194,14 +257,15 @@ namespace lyramilk{ namespace teapoy {
 		return cs_pass;
 	}
 
-	url_check_status url_regex_selector::hittest(httprequest* request,httpresponse* response,httpadapter* adapter)
+	dispatcher_check_status url_regex_selector::hittest(httprequest* request,httpresponse* response,httpadapter* adapter)
 	{
 		lyramilk::data::string realfile;
 
-		url_check_status cs = test(request,&realfile);
+		dispatcher_check_status cs = test(request,&realfile);
 		if(cs != cs_ok){
 			return cs;
 		}
+
 		if(!path_pattern.empty()){
 			struct stat st = {0};
 			if(0 !=::stat(realfile.c_str(),&st)){
@@ -240,7 +304,7 @@ namespace lyramilk{ namespace teapoy {
 	}
 
 
-	url_check_status url_regex_selector::check_auth(httprequest* request,httpresponse* response,httpadapter* adapter,const lyramilk::data::string& real)
+	dispatcher_check_status url_regex_selector::check_auth(httprequest* request,httpresponse* response,httpadapter* adapter,const lyramilk::data::string& real)
 	{
 		if(authtype.empty()) return cs_pass; 
 		{
@@ -313,7 +377,7 @@ namespace lyramilk{ namespace teapoy {
 	{
 	}
 
-	url_check_status url_dispatcher::call(httprequest* request,httpresponse* response,httpadapter* adapter)
+	dispatcher_check_status url_dispatcher::call(httprequest* request,httpresponse* response,httpadapter* adapter)
 	{
 		url_selector_loger _("teapoy.web.dispatcher",adapter);
 
@@ -321,7 +385,7 @@ namespace lyramilk{ namespace teapoy {
 		std::list<lyramilk::ptr<url_selector> >::iterator it = selectors.begin();
 		for(;it!=selectors.end();++it){
 			lyramilk::ptr<url_selector>& ptr = *it;
-			url_check_status cs = ptr->hittest(request,response,adapter);
+			dispatcher_check_status cs = ptr->hittest(request,response,adapter);
 			if(cs != cs_pass){
 				_.cancel();
 				return cs;

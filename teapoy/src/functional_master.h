@@ -36,6 +36,11 @@ namespace lyramilk{ namespace teapoy {
 	class functional_multi
 	{
 	  public:
+		lyramilk::data::string type;
+
+		functional_multi();
+	  	virtual ~functional_multi();
+
 		virtual bool init(const lyramilk::data::map& m) = 0;
 		virtual functional::ptr get_instance() = 0;
 		virtual lyramilk::data::string name() = 0;

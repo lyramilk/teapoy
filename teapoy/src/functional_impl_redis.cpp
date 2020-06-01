@@ -38,6 +38,23 @@ namespace lyramilk{ namespace teapoy {
 		lyramilk::data::string cmd = ar[0];
 		lyramilk::data::var result;
 		if(c->exec(ar,result)){
+
+			if(cmd == "hgetall" && result.type() == lyramilk::data::var::t_array){
+				lyramilk::data::array& a = result;
+				lyramilk::data::map m;
+				for(lyramilk::data::array::iterator it = a.begin();it!=a.end();++it){
+					lyramilk::data::string f = *it;
+					++it;
+					lyramilk::data::string v = *it;
+					m[f] = v;
+				}
+				return m;
+			}
+
+
+
+
+
 			return result;
 		}
 		return lyramilk::data::var::nil;

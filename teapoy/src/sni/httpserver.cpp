@@ -107,14 +107,14 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			}
 
 			const lyramilk::data::string& host = siteinfo["host"];
-			const lyramilk::data::array& ar = siteinfo["url_map"];
-			const lyramilk::data::map& errpages = siteinfo["error_page"];
+			lyramilk::data::array& ar = siteinfo["url_map"];
+			lyramilk::data::map& errpages = siteinfo["error_page"];
 
 			{
-				lyramilk::data::array::const_iterator it = ar.begin();
+				lyramilk::data::array::iterator it = ar.begin();
 				for(;it!=ar.end();++it){
 					if(it->type() != lyramilk::data::var::t_map) continue;
-					const lyramilk::data::map& m = *it;
+					lyramilk::data::map& m = *it;
 
 					lyramilk::data::map::const_iterator type_it = m.find("type");
 					if(type_it == m.end()) continue;
@@ -161,7 +161,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			return true;
 		}
 
-		lyramilk::data::var set_urlhook(const lyramilk::data::array& args,const lyramilk::data::map& env)
+		lyramilk::data::var set_url_encrypt(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 			//worker.set_urlhook(args[0].str());
@@ -205,7 +205,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			fn["set_website"] = lyramilk::script::engine::functional<httpserver,&httpserver::set_website>;
 			fn["set_session_manager"] = lyramilk::script::engine::functional<httpserver,&httpserver::set_session_manager>;
 			fn["set_ssl"] = lyramilk::script::engine::functional<httpserver,&httpserver::set_ssl>;
-			//fn["set_urlhook"] = lyramilk::script::engine::functional<httpserver,&httpserver::set_urlhook>;
+			fn["set_url_encrypt"] = lyramilk::script::engine::functional<httpserver,&httpserver::set_url_encrypt>;
 			fn["set_ssl_verify_locations"] = lyramilk::script::engine::functional<httpserver,&httpserver::set_ssl_verify_locations>;
 			fn["set_ssl_client_verify"] = lyramilk::script::engine::functional<httpserver,&httpserver::set_ssl_client_verify>;
 			p->define("HttpServer",fn,httpserver::ctr,httpserver::dtr);

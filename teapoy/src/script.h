@@ -14,10 +14,10 @@ namespace lyramilk{ namespace teapoy
 		typedef int (*define_func)(lyramilk::script::engine* p);
 
 		int apply(lyramilk::script::engine* p);
-		int apply(lyramilk::data::string libname,lyramilk::script::engine* p);
+		int apply(const lyramilk::data::string& libname,lyramilk::script::engine* p);
 
-		void regist(lyramilk::data::string libname,define_func func);
-		void unregist(lyramilk::data::string libname);
+		void regist(const lyramilk::data::string& libname,define_func func);
+		void unregist(const lyramilk::data::string& libname);
 
 		static script_interface_master* instance();
 	  protected:
@@ -28,6 +28,9 @@ namespace lyramilk{ namespace teapoy
 	{
 	  public:
 		static engine_pool* instance();
+
+	  	virtual lyramilk::script::engine* create_script_instance(const lyramilk::data::string& libname);
+	  	virtual void destory_script_instance(const lyramilk::data::string& libname,lyramilk::script::engine* eng);
 	};
 
 	class invoker_map
@@ -35,10 +38,10 @@ namespace lyramilk{ namespace teapoy
 		lyramilk::data::stringdict m;
 		mutable lyramilk::threading::mutex_rw l;
 	  public:
-		virtual void define(lyramilk::data::string name,lyramilk::data::string ptr);
-		virtual void undef(lyramilk::data::string name);
+		virtual void define(const lyramilk::data::string& name,const lyramilk::data::string& ptr);
+		virtual void undef(const lyramilk::data::string& name);
 		virtual lyramilk::data::array keys() const;
-		virtual lyramilk::data::string get(lyramilk::data::string name);
+		virtual lyramilk::data::string get(const lyramilk::data::string& name);
 
 		static invoker_map* instance();
 	};

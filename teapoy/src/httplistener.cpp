@@ -6,6 +6,7 @@
 #include <libmilk/log.h>
 #include <libmilk/dict.h>
 #include <libmilk/stringutil.h>
+#include <memory.h>
 
 namespace lyramilk{ namespace teapoy {
 
@@ -118,7 +119,7 @@ namespace lyramilk{ namespace teapoy {
 		it->second.dtr(ptr);
 	}
 
-	lyramilk::io::aiopoll* httplistener::get_aio_pool()
+	lyramilk::io::aiopoll_safe* httplistener::get_aio_pool()
 	{
 		return pool;
 	}
@@ -146,7 +147,7 @@ namespace lyramilk{ namespace teapoy {
 		return true;
 	}
 
-	url_check_status httplistener::call(lyramilk::data::string hostname,httprequest* request,httpresponse* response,httpadapter* adapter)
+	dispatcher_check_status httplistener::call(lyramilk::data::string hostname,httprequest* request,httpresponse* response,httpadapter* adapter)
 	{
 		lyramilk::data::string lhostname = lyramilk::data::lower_case(hostname);
 		if(lhostname.compare(0,4,"www.") == 0){

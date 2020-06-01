@@ -33,54 +33,44 @@ namespace lyramilk{ namespace teapoy{ namespace sni{
 		JS_FS_END
 	};
 
-
-
-
-
-
-		bool j2s(JSContext* cx,JS::Value jv,lyramilk::data::string* retv)
-		{
-			if(jv.isString()){
-				JSString* jstr = jv.toString();
-				if(jstr == nullptr){
-					*retv = "";
-					return false;
-				}
-				std::size_t len = JS_GetStringEncodingLength(cx,jstr);
-
-				retv->resize(len);
-				JS_EncodeStringToBuffer(cx,jstr,(char*)retv->data(),len);
-				return true;
-			}else if(jv.isSymbol()){
-				JS::RootedSymbol sym(cx,jv.toSymbol());
-
-				JSString* jstr = JS::GetSymbolDescription(sym);
-				if(jstr == nullptr){
-					*retv = "";
-					return false;
-				}
-				std::size_t len = JS_GetStringEncodingLength(cx,jstr);
-
-				retv->resize(len);
-				JS_EncodeStringToBuffer(cx,jstr,(char*)retv->data(),len);
-				return true;
+	bool j2s(JSContext* cx,JS::Value jv,lyramilk::data::string* retv)
+	{
+		if(jv.isString()){
+			JSString* jstr = jv.toString();
+			if(jstr == nullptr){
+				*retv = "";
+				return false;
 			}
-			retv->clear();
-			return false;
+			std::size_t len = JS_GetStringEncodingLength(cx,jstr);
+
+			retv->resize(len);
+			JS_EncodeStringToBuffer(cx,jstr,(char*)retv->data(),len);
+			return true;
+		}else if(jv.isSymbol()){
+			JS::RootedSymbol sym(cx,jv.toSymbol());
+
+			JSString* jstr = JS::GetSymbolDescription(sym);
+			if(jstr == nullptr){
+				*retv = "";
+				return false;
+			}
+			std::size_t len = JS_GetStringEncodingLength(cx,jstr);
+
+			retv->resize(len);
+			JS_EncodeStringToBuffer(cx,jstr,(char*)retv->data(),len);
+			return true;
 		}
+		retv->clear();
+		return false;
+	}
 
 
 
-		void j2v(JSContext* cx,JS::HandleValue jv,lyramilk::data::var* retv)
-		{
-			JS::RootedValue value(cx,jv);
-			
-		}
-
-
-
-
-
+	void j2v(JSContext* cx,JS::HandleValue jv,lyramilk::data::var* retv)
+	{
+		JS::RootedValue value(cx,jv);
+		
+	}
 
 	static void js2xml(JSContext* cx,JSObject *jo,tinyxml2::XMLDocument* doc,tinyxml2::XMLElement* x)
 	{

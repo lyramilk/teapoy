@@ -10,6 +10,7 @@
 #include "env.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <pwd.h>
 #include <sys/wait.h>
@@ -79,45 +80,127 @@ namespace lyramilk{ namespace teapoy{ namespace native
 	{
 		lyramilk::data::string filename;
 		lyramilk::data::string type;
+		lyramilk::data::array args;
+		unsigned long long msec;
 	};
 
-	void* thread_task(void* _p)
+	static void* thread_task(void* _p)
 	{
 		engineitem* p = (engineitem*)_p;
 		engineitem ei = *p;
 		delete p;
 
-		lyramilk::data::inotify_file iff(ei.filename);
+		struct stat st0;
+		while(0 !=::stat(ei.filename.c_str(),&st0)){
+			sleep(10);
+		}
 
-		lyramilk::script::engine* eng = lyramilk::script::engine::createinstance(ei.type);
+
+		lyramilk::script::engines* pool = engine_pool::instance()->get("js");
+
+		lyramilk::script::engines::ptr eng = pool->get();
 		if(!eng){
 			log(lyramilk::log::error,"task") << D("获取启动脚本失败") << std::endl;
 			return nullptr;
 		}
-		lyramilk::teapoy::script_interface_master::instance()->apply(eng);
+
 		while(!eng->load_file(ei.filename)){
 			sleep(10);
 		}
+
 		while(true){
-			lyramilk::data::inotify_file::status st = iff.check();
-			if(st != lyramilk::data::inotify_file::s_keep){
+			struct stat st1;
+			while(0 !=::stat(ei.filename.c_str(),&st1)){
+				sleep(10);
+			}
+
+			if(st1.st_mtime != st0.st_mtime){
+				st0.st_mtime = st1.st_mtime;
 				log(lyramilk::log::warning,"task") << D("重新加载%s",ei.filename.c_str()) << std::endl;
 				eng->reset();
 				eng->load_file(ei.filename);
 			}
 			lyramilk::data::var v;
-			if(eng->call("ontimer",&v)){
+			if(eng->call("ontimer",ei.args,&v)){
 				if(v.type() == lyramilk::data::var::t_bool && (bool)v == false)break;
 			}
 			eng->gc();
-			sleep(1);
+			usleep(ei.msec * 1000);
 		};
-		lyramilk::script::engine::destoryinstance(ei.type,eng);
 
 		pthread_exit(0);
 		return nullptr;
-	}  
+	}
+
+	static void* thread_once_task(void* _p)
+	{
+		engineitem* p = (engineitem*)_p;
+		engineitem ei = *p;
+		delete p;
+
+		struct stat st0;
+		while(0 !=::stat(ei.filename.c_str(),&st0)){
+			sleep(10);
+		}
+
+
+		lyramilk::script::engine* eng = engine_pool::instance()->create_script_instance("js");
+
+		if(!eng){
+			log(lyramilk::log::error,"once_task") << D("获取启动脚本失败") << std::endl;
+			return nullptr;
+		}
+
+		while(!eng->load_file(ei.filename)){
+			sleep(10);
+		}
+
+		do{
+			struct stat st1;
+			while(0 !=::stat(ei.filename.c_str(),&st1)){
+				sleep(10);
+			}
+
+			if(st1.st_mtime != st0.st_mtime){
+				st0.st_mtime = st1.st_mtime;
+				log(lyramilk::log::warning,"once_task") << D("重新加载%s",ei.filename.c_str()) << std::endl;
+				eng->reset();
+				eng->load_file(ei.filename);
+			}
+			lyramilk::data::var v;
+			if(eng->call("onthread",ei.args,&v)){
+				if(v.type() == lyramilk::data::var::t_bool && (bool)v == false)break;
+			}
+			eng->gc();
+		}while(false);
+		engine_pool::instance()->destory_script_instance("js",eng);
+		pthread_exit(0);
+		return nullptr;
+	}
+
+
 	lyramilk::data::var task(const lyramilk::data::array& args,const lyramilk::data::map& env)
+	{
+		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
+		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_int);
+		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,2,lyramilk::data::var::t_str);
+		pthread_t id_1;
+		engineitem* p = new engineitem;
+		p->type = args[0].str();
+		p->msec = args[1];
+		p->filename = args[2].str();
+
+		if(args.size() > 3){
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,3,lyramilk::data::var::t_array);
+			p->args = args[3];
+		}
+
+		int ret = pthread_create(&id_1,NULL,thread_task,p);
+		pthread_detach(id_1);
+		return 0 == ret;
+	}
+
+	lyramilk::data::var task_once(const lyramilk::data::array& args,const lyramilk::data::map& env)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_str);
@@ -125,7 +208,13 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		engineitem* p = new engineitem;
 		p->type = args[0].str();
 		p->filename = args[1].str();
-		int ret = pthread_create(&id_1,NULL,thread_task,p);
+
+		if(args.size() > 2){
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,2,lyramilk::data::var::t_array);
+			p->args = args[2];
+		}
+
+		int ret = pthread_create(&id_1,NULL,thread_once_task,p);
 		pthread_detach(id_1);
 		return 0 == ret;
 	}
@@ -134,6 +223,16 @@ namespace lyramilk{ namespace teapoy{ namespace native
 	{
 		::daemon(1,0);
 		return true;
+	}
+
+	lyramilk::data::var crand(const lyramilk::data::array& args,const lyramilk::data::map& env)
+	{
+		if(args.size() > 0){
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_int);
+			unsigned int seed = args[0];
+			srand(seed);
+		}
+		return rand();
 	}
 
 	lyramilk::data::var msleep(const lyramilk::data::array& args,const lyramilk::data::map& env)
@@ -355,13 +454,22 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		return md5(HA1 + ":" + HD + ":" + HA2);
 	}
 
+	lyramilk::data::var bin2str(const lyramilk::data::array& args,const lyramilk::data::map& env)
+	{
+		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_bin);
+		return args[0].str();
+	}
+
+
 	static int define(lyramilk::script::engine* p)
 	{
 		int i = 0;
 		{
 			p->define("require",teapoy_import);++i;
 			p->define("task",task);++i;
+			p->define("create_thread",task_once);++i;
 			p->define("daemon",daemon);++i;
+			p->define("crand",crand);++i;
 			p->define("msleep",msleep);++i;
 			p->define("su",su);++i;
 			p->define("add_require_dir",add_require_dir);++i;
@@ -376,6 +484,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			p->define("md5_16",md5_16);++i;
 			p->define("md5_32",md5_32);++i;
 			p->define("md5",md5_32);++i;
+			p->define("bin2str",bin2str);++i;
 			p->define("http_digest_authentication",http_digest_authentication);++i;
 		}
 		return i;

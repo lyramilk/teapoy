@@ -38,13 +38,13 @@ namespace lyramilk{ namespace teapoy {
 		virtual httpadapter* create_http_session_byprotocol(lyramilk::data::string proto,std::ostream& oss);
 		virtual void destory_http_session_byprotocol(lyramilk::data::string proto,httpadapter* ptr);
 
-		virtual lyramilk::io::aiopoll* get_aio_pool();
+		virtual lyramilk::io::aiopoll_safe* get_aio_pool();
 
 
 		virtual bool add_dispatcher_selector(lyramilk::data::string hostname,lyramilk::ptr<url_selector> selector);
 		virtual bool remove_dispatcher(lyramilk::data::string hostname);
 
-		virtual url_check_status call(lyramilk::data::string hostname,httprequest* request,httpresponse* response,httpadapter* adapter);
+		virtual dispatcher_check_status call(lyramilk::data::string hostname,httprequest* request,httpresponse* response,httpadapter* adapter);
 	};
 }}
 

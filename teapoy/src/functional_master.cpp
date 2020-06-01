@@ -58,4 +58,15 @@ namespace lyramilk{ namespace teapoy {
 		return false;
 	}
 
+
+	// functional_multi
+
+	functional_multi::functional_multi()
+	{
+	}
+
+	functional_multi::~functional_multi()
+	{
+	}
+
 }}

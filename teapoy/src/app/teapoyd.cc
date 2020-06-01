@@ -229,7 +229,6 @@ class teapoy_loader:public lyramilk::script::sclass
 		}
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 		logfile = args[0].str();
-
 		lyramilk::log::logf* lf = new teapoy_log_logfile(logfile);
 
 		if(lf && lf->ok()){
@@ -385,13 +384,15 @@ int main(int argc,char* argv[])
 	lyramilk::log::logss log(lyramilk::klog,"teapoy.loader");
 
 	if(ondaemon){
-		lyramilk::log::logf* lf = new teapoy_log_logfile(logfile);
-		if(lf && lf->ok()){
-			lyramilk::klog.rebase(lf);
-			log(lyramilk::log::debug,__FUNCTION__) << D("切换日志成功") << std::endl;
-		}else{
-			if(lf) delete lf;
-			log(lyramilk::log::error,__FUNCTION__) << D("切换日志失败:%s",logfile.c_str()) << std::endl;
+		if(!logfile.empty()){
+			lyramilk::log::logf* lf = new teapoy_log_logfile(logfile);
+			if(lf && lf->ok()){
+				lyramilk::klog.rebase(lf);
+				log(lyramilk::log::debug,__FUNCTION__) << D("切换日志成功") << std::endl;
+			}else{
+				if(lf) delete lf;
+				log(lyramilk::log::error,__FUNCTION__) << D("切换日志失败:%s",logfile.c_str()) << std::endl;
+			}
 		}
 	}else{
 		log(lyramilk::log::debug,__FUNCTION__) << D("控制台模式，自动忽略日志文件。") << std::endl;

@@ -2,6 +2,9 @@
 #include <libmilk/log.h>
 #include <libmilk/dict.h>
 #include <libmilk/exception.h>
+#ifndef my_bool
+	#define my_bool bool
+#endif
 
 namespace lyramilk{ namespace teapoy {
 

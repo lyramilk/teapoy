@@ -90,8 +90,6 @@ namespace lyramilk{ namespace teapoy {
 		virtual bool notify_hup();
 		virtual bool notify_err();
 		virtual bool notify_pri();
-		virtual bool notify_attach(lyramilk::io::aiopoll* container);
-		virtual bool notify_detach(lyramilk::io::aiopoll* container);
 		virtual lyramilk::io::native_filedescriptor_type getfd();
 	  public:
 		virtual bool open(const char* host,unsigned short port);

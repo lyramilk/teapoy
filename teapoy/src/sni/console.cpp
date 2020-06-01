@@ -9,10 +9,18 @@ namespace lyramilk{ namespace teapoy
 {
 	static lyramilk::log::logss log(lyramilk::klog,"teapoy.console");
 
-	lyramilk::data::var test(const lyramilk::data::array& args,const lyramilk::data::map& env)
+	inline lyramilk::script::engine* get_script_engine_by_envmap(const lyramilk::data::map& env)
 	{
-		if(args.size() > 0) return args[0];
-		return "test";
+	
+		lyramilk::data::map::const_iterator it_env_eng = env.find(lyramilk::script::engine::s_env_engine());
+		if(it_env_eng != env.end()){
+			lyramilk::data::datawrapper* urd = it_env_eng->second.userdata();
+			if(urd && urd->name() == lyramilk::script::engine_datawrapper::class_name()){
+				lyramilk::script::engine_datawrapper* urdp = (lyramilk::script::engine_datawrapper*)urd;
+				return urdp->eng;
+			}
+		}
+		return nullptr;
 	}
 
 	class console:public lyramilk::script::sclass
@@ -123,203 +131,99 @@ namespace lyramilk{ namespace teapoy
 		}
 	};
 
-	lyramilk::data::var echo(const lyramilk::data::array& args,const lyramilk::data::map& env)
+	class logger:public lyramilk::script::sclass
 	{
+	  public:
+		static lyramilk::script::sclass* ctr(const lyramilk::data::array& args)
+		{
+			return new logger();
+		}
+		static void dtr(lyramilk::script::sclass* p)
+		{
+			delete (logger*)p;
+		}
+
+		logger()
+		{
+		}
+
+		virtual ~logger()
+		{}
+
+		lyramilk::data::var printdebug(const lyramilk::data::array& args,const lyramilk::data::map& env)
+		{
+			lyramilk::script::engine* e = get_script_engine_by_envmap(env);
+			lyramilk::data::string mod = "logger@" + e->filename();
+
 			lyramilk::data::string str;
 			str.reserve(4096);
 			for(lyramilk::data::array::const_iterator it = args.begin();it!=args.end();++it){
 				str += it->str();
 			}
-			str.push_back('\n');
-
-			long long sz = str.size();
-			long long cur = 0;
-			while(cur < sz){
-				int wd = fwrite(str.c_str() + cur,1,sz - cur,stdout);
-				if(wd > 0 && (wd + cur) <= sz){
-					cur += wd;
-				}else{
-				}
-			}
-			return true;
-	}
-
-
-
-	class file:public lyramilk::script::sclass
-	{
-		lyramilk::log::logss log;
-		FILE* fp;
-		lyramilk::data::string filename;
-	  public:
-		static lyramilk::script::sclass* ctr(const lyramilk::data::array& args)
-		{
-			if(args.size() == 0) return new file();
-			if(args.size() == 1){
-				file* fp = new file();
-				if(!fp) return nullptr;
-				fp->open(args[0].str().c_str());
-				return fp;
-			}else if(args.size() == 2){
-				file* fp = new file();
-				if(!fp) return nullptr;
-				fp->open(args[0].str().c_str(),args[1].str().c_str());
-				return fp;
-			}
-			return nullptr;
-		}
-		static void dtr(lyramilk::script::sclass* p)
-		{
-			delete (file*)p;
-		}
-
-		file():log(lyramilk::klog,"teapoy.native.file")
-		{
-			fp = nullptr;
-		}
-
-		virtual ~file()
-		{
-			if(fp) fclose(fp);
-		}
-
-		bool open(const char* filename)
-		{
-			this->filename = filename;
-			if(fp) fclose(fp);
-			fp = fopen(filename,"r");
-			return fp != nullptr;
-		}
-
-
-		bool open(const char* filename,const char* mode)
-		{
-			this->filename = filename;
-			if(fp) fclose(fp);
-			fp = fopen(filename,mode);
-			return fp != nullptr;
-		}
-
-		lyramilk::data::var open(const lyramilk::data::array& args,const lyramilk::data::map& env)
-		{
-			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
-			if(args.size() == 1){
-				return open(args[0].str().c_str());
-			}
-			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_str);
-			return open(args[0].str().c_str(),args[1].str().c_str());
-		}
-
-		lyramilk::data::var isdir(const lyramilk::data::array& args,const lyramilk::data::map& env)
-		{
-			struct stat st = {0};
-			if(stat(filename.c_str(),&st) == -1){
-				return false;
-			}
-			return (st.st_mode & S_IFDIR) != 0;
-		}
-
-		lyramilk::data::var close(const lyramilk::data::array& args,const lyramilk::data::map& env)
-		{
-			::fclose(fp);
+			lyramilk::klog(lyramilk::log::debug,mod) << str << std::endl;
 			return true;
 		}
 
-		lyramilk::data::var good(const lyramilk::data::array& args,const lyramilk::data::map& env)
+		lyramilk::data::var printtrace(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
-			return fp != nullptr;
-		}
+			lyramilk::script::engine* e = get_script_engine_by_envmap(env);
+			lyramilk::data::string mod = "logger@" + e->filename();
 
-		lyramilk::data::var read(const lyramilk::data::array& args,const lyramilk::data::map& env)
-		{
-			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_uint);
-			if(!fp) throw lyramilk::exception(D("文件未打开"));
-
-			lyramilk::data::uint32 buffsize = args[0];
-			lyramilk::data::chunk cb(buffsize,0);
-
-			lyramilk::data::uint32 r = fread((char*)cb.c_str(),1,buffsize,fp);
-			if(r < buffsize){
-				cb.erase(cb.begin() + r,cb.end());
+			lyramilk::data::string str;
+			str.reserve(4096);
+			for(lyramilk::data::array::const_iterator it = args.begin();it!=args.end();++it){
+				str += it->str();
 			}
-			return cb;
+			lyramilk::klog(lyramilk::log::trace,mod) << str << std::endl;
+			return true;
 		}
 
-		lyramilk::data::var reads(const lyramilk::data::array& args,const lyramilk::data::map& env)
+		lyramilk::data::var printerror(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
-			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_uint);
-			if(!fp) throw lyramilk::exception(D("文件未打开"));
+			lyramilk::script::engine* e = get_script_engine_by_envmap(env);
+			lyramilk::data::string mod = "logger@" + e->filename();
 
-			lyramilk::data::uint32 buffsize = args[0];
-			lyramilk::data::string cb(buffsize,0);
-
-			lyramilk::data::uint32 r = fread((char*)cb.c_str(),1,buffsize,fp);
-			if(r < buffsize){
-				cb.erase(cb.begin() + r,cb.end());
+			lyramilk::data::string str;
+			str.reserve(4096);
+			for(lyramilk::data::array::const_iterator it = args.begin();it!=args.end();++it){
+				str += it->str();
 			}
-			return cb;
+			lyramilk::klog(lyramilk::log::error,mod) << str << std::endl;
+			return true;
 		}
 
-		lyramilk::data::var readline(const lyramilk::data::array& args,const lyramilk::data::map& env)
+		lyramilk::data::var printwarning(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
-			if(!fp) throw lyramilk::exception(D("文件未打开"));
-			lyramilk::data::string ret;
-			char* p = nullptr;
-			char buff[4096] = {0};
-			do{
-				p = fgets(buff,sizeof(buff),fp);
-				if(p){
-					ret.append(p);
-				}else if(ret.empty()){
-					return lyramilk::data::var::nil;
-				}
-			}while(p && (!ret.empty()) && ret[ret.size() - 1] != '\n');
-			return ret;
+			lyramilk::script::engine* e = get_script_engine_by_envmap(env);
+			lyramilk::data::string mod = "logger@" + e->filename();
+
+			lyramilk::data::string str;
+			str.reserve(4096);
+			for(lyramilk::data::array::const_iterator it = args.begin();it!=args.end();++it){
+				str += it->str();
+			}
+			lyramilk::klog(lyramilk::log::warning,mod) << str << std::endl;
+			return true;
 		}
 
-		lyramilk::data::var write(const lyramilk::data::array& args,const lyramilk::data::map& env)
-		{
-			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_bin);
-			if(!fp) throw lyramilk::exception(D("文件未打开"));
-			lyramilk::data::chunk cb = args[0];
-			return fwrite(cb.c_str(),1,cb.size(),fp);
-		}
-
-		lyramilk::data::var writes(const lyramilk::data::array& args,const lyramilk::data::map& env)
-		{
-			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
-			if(!fp) throw lyramilk::exception(D("文件未打开"));
-			lyramilk::data::string cb = args[0];
-			return fwrite(cb.c_str(),1,cb.size(),fp);
-		}
-	  public:
 		static int define(lyramilk::script::engine* p)
 		{
-			{
-				lyramilk::script::engine::functional_map fn;
-				fn["open"] = lyramilk::script::engine::functional<file,&file::open>;
-				fn["isdir"] = lyramilk::script::engine::functional<file,&file::isdir>;
-				fn["close"] = lyramilk::script::engine::functional<file,&file::close>;
-				fn["ok"] = lyramilk::script::engine::functional<file,&file::good>;
-				fn["read"] = lyramilk::script::engine::functional<file,&file::read>;
-				fn["reads"] = lyramilk::script::engine::functional<file,&file::reads>;
-				fn["readline"] = lyramilk::script::engine::functional<file,&file::readline>;
-				fn["write"] = lyramilk::script::engine::functional<file,&file::write>;
-				fn["writes"] = lyramilk::script::engine::functional<file,&file::writes>;
-				p->define("File",fn,file::ctr,file::dtr);
-			}
+			lyramilk::script::engine::functional_map fn;
+			fn["t"] = lyramilk::script::engine::functional<logger,&logger::printtrace>;
+			fn["d"] = lyramilk::script::engine::functional<logger,&logger::printdebug>;
+			fn["e"] = lyramilk::script::engine::functional<logger,&logger::printerror>;
+			fn["w"] = lyramilk::script::engine::functional<logger,&logger::printwarning>;
+			p->define("logger",fn,logger::ctr,logger::dtr);
 			return 1;
 		}
 	};
-
 
 	static int define(lyramilk::script::engine* p)
 	{
 		int i = 0;
 		{
-			p->define("print",echo);++i;
 			i += console::define(p);
-			i += file::define(p);
+			i += logger::define(p);
 		}
 		return i;
 	}

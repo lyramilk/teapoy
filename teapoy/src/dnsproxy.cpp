@@ -224,18 +224,6 @@ namespace lyramilk{ namespace teapoy {
 		return true;
 	}
 
-	bool dnsasync::notify_attach(lyramilk::io::aiopoll* container)
-	{
-		pool = container;
-		return true;
-	}
-
-	bool dnsasync::notify_detach(lyramilk::io::aiopoll* container)
-	{
-		pool = nullptr;
-		return true;
-	}
-
 	lyramilk::io::native_filedescriptor_type dnsasync::getfd()
 	{
 		return fd;
@@ -312,8 +300,11 @@ namespace lyramilk{ namespace teapoy {
 			dns_packet repcache;
 			repcache.from(buff,r);
 			lyramilk::klog(lyramilk::log::debug,"lyramilk.teapoy.dnsasynccache.onrequest") << lyramilk::kdict("响应：%s (异步透传)",repcache.queries.name.c_str()) << std::endl;
-			lyramilk::threading::mutex_sync _(lock.w());
-			dnscache[repcache.queries.name] = repcache;
+
+			if(repcache.answers.size() > 0){
+				lyramilk::threading::mutex_sync _(lock.w());
+				dnscache[repcache.queries.name] = repcache;
+			}
 		}
 		return true;
 	}
@@ -367,8 +358,11 @@ namespace lyramilk{ namespace teapoy {
 				dns_packet repcache;
 				repcache.from(buff + 2,r - 2);
 				lyramilk::klog(lyramilk::log::debug,"lyramilk.teapoy.dnsasynccall.onrequest") << lyramilk::kdict("响应：%s (异步透传)",repcache.queries.name.c_str()) << std::endl;
-				lyramilk::threading::mutex_sync _(lock.w());
-				dnscache[repcache.queries.name] = repcache;
+
+				if(repcache.answers.size() > 0){
+					lyramilk::threading::mutex_sync _(lock.w());
+					dnscache[repcache.queries.name] = repcache;
+				}
 			}
 			return false;
 		}
@@ -486,7 +480,7 @@ namespace lyramilk{ namespace teapoy {
 			{
 				lyramilk::threading::mutex_sync _(lock.r());
 				dnscache_type::iterator it = dnscache.find(req.queries.name);
-				if(it != dnscache.end()){
+				if(it != dnscache.end() && it->second.answers.size() > 0){
 					it->second.header.transation_id = req.header.transation_id;
 					it->second.header.rcode = 0;
 					it->second.header.qr = 1;

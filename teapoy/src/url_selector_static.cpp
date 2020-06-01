@@ -30,7 +30,7 @@ namespace lyramilk{ namespace teapoy {
 		virtual ~url_selector_static()
 		{}
 
-		virtual url_check_status call(httprequest* request,httpresponse* response,httpadapter* adapter,const lyramilk::data::string& real)
+		virtual dispatcher_check_status call(httprequest* request,httpresponse* response,httpadapter* adapter,const lyramilk::data::string& real)
 		{
 			url_selector_loger _("teapoy.web.static",adapter);
 			vcall(request,response,adapter,path_simplify(real));

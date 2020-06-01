@@ -43,13 +43,7 @@ namespace lyramilk{ namespace teapoy {
 				char filename_template[] = "/tmp/teapoy-XXXXXX";
 				fd = mkstemp(filename_template);
 				if(fd == -1){
-					if(errno == ENOENT){
-						memcpy(filename_template,"/teapoy-XXXXXX",sizeof(filename_template));
-						fd = mkstemp(filename_template);
-						if(fd == -1){
-							return 0;
-						}
-					}
+					return 0;
 				}
 
 				::write(fd,static_cache,int(p-static_cache));
