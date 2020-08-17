@@ -5,6 +5,7 @@
 #include <libmilk/dict.h>
 #include <libmilk/factory.h>
 #include <mysql/mysql.h>
+#include <stdlib.h>
 #define MAROC_MYSQL MYSQL
 #ifndef my_bool
 	#define my_bool bool
@@ -104,6 +105,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 					fname = field->name;
 				}
 				keys[fname] = i;
+
 				keys2.push_back(fname);
 			}
 			this->_db_ptr = _db_ptr;
@@ -139,10 +141,20 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			return keys2[u];
 		}
 
+
+		bool isnumber(const lyramilk::data::string& s){
+			for(int i=0;i<s.size();++i){
+				char c = s[i];
+				if(c < '0' || c > '9') return false;
+			}
+			return true;
+		}
+
+
 		lyramilk::data::var value(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
-			lyramilk::data::var v = args[0];
+			lyramilk::data::string field = args[0].str();
 
 			if(values.empty()){
 				MYSQL_ROW row = mysql_fetch_row(res);
@@ -159,14 +171,14 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 				}
 			}
 
-			if(v.type_like(lyramilk::data::var::t_int)){
-				unsigned int index = v;
+			if(isnumber(field)){
+				unsigned int index = atoi(field.c_str());
 				if(index < values.size()){
 					return values[index];
 				}
 				return lyramilk::data::var::nil;
 			}else{
-				std::map<lyramilk::data::string,unsigned int>::iterator it = keys.find(v.str());
+				std::map<lyramilk::data::string,unsigned int>::iterator it = keys.find(field);
 				if(it == keys.end()) return lyramilk::data::var::nil;
 				unsigned int index = it->second;
 				if(index < values.size()){

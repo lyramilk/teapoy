@@ -41,7 +41,7 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 		if(client::open(this->host,this->port)){
 			lyramilk::data::stringstream ss;
 			lyramilk::netio::netaddress naddr = dest();
-			ss << naddr.ip_str() << ":" << naddr.port;
+			ss << naddr.ip_str() << ":" << naddr.port();
 			addr = ss.str();
 			return true;
 		}
@@ -196,12 +196,12 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 			try{
 				lyramilk::netio::socket_istream iss(this);
 				suc = parse(iss,ret);
-			}catch(std::exception& e){
-				close();
-				throw e;
 			}catch(connect_error& e){
 				close();
 				continue;
+			}catch(std::exception& e){
+				close();
+				throw e;
 			}
 			if(!suc){
 				if(ret.type() == lyramilk::data::var::t_str){

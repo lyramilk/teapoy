@@ -91,7 +91,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 
 		lyramilk::script::engine* e = get_script_engine_by_envmap(env);
 		lyramilk::data::array ar;
-		ar.push_back(dbpool_pointer_datawrapper(&p));
+		ar.push_back(dbpool_pointer_datawrapper(p));
 		return e->createobject("Logfile",ar);
 	}
 

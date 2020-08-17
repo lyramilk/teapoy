@@ -297,6 +297,30 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			return vret;
 		}
 
+
+		lyramilk::data::var hgetall(const lyramilk::data::array& args,const lyramilk::data::map& env)
+		{
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
+			lyramilk::data::array cmd;
+			cmd.reserve(3);
+			cmd.push_back("hgetall");
+			cmd.push_back(args[0]);
+
+
+			lyramilk::data::var vret;
+			if(!c->exec(cmd,vret)) return lyramilk::data::var::nil;
+
+			if(vret.type() != lyramilk::data::var::t_array) return lyramilk::data::var::nil;
+			lyramilk::data::array& ar = vret;
+
+			lyramilk::data::map m;
+			for(unsigned long i=0;i<ar.size();i+=2){
+				m[ar[i].str()] = ar[i+1].str();
+			}
+
+			return m;
+		}
+
 		lyramilk::data::var kv(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
@@ -512,6 +536,7 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 			fn["kvgetb"] = lyramilk::script::engine::functional<redis,&redis::kvgetb>;
 			fn["kvsetb"] = lyramilk::script::engine::functional<redis,&redis::kvsetb>;
 			fn["kvsetexb"] = lyramilk::script::engine::functional<redis,&redis::kvsetexb>;
+			fn["hgetall"] = lyramilk::script::engine::functional<redis,&redis::hgetall>;
 			fn["kv"] = lyramilk::script::engine::functional<redis,&redis::kv>;
 			fn["hashmap"] = lyramilk::script::engine::functional<redis,&redis::hashmap>;
 			fn["zset"] = lyramilk::script::engine::functional<redis,&redis::zset>;
@@ -971,7 +996,8 @@ namespace lyramilk{ namespace teapoy{ namespace native {
 							lyramilk::data::array ar;
 							ar.push_back(str);
 							lyramilk::data::var v;
-							e->call(args[1],ar,&v);
+							//e->call(args[1],ar,&v);
+							e->call("zrank",ar,&v);
 							lyramilk::data::var::vt t = v.type();
 							if(t != lyramilk::data::var::t_user && t != lyramilk::data::var::t_invalid){
 								ret.push_back(v);
