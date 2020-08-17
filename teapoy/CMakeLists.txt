@@ -1,6 +1,6 @@
 ﻿#定义工程名及版本
 project(teapoy2)
-set(version 2.0.11)
+set(version 2.0.12)
 set(soversion 2.0)
 
 
@@ -104,6 +104,7 @@ if(LEVELDB_FOUND)
 	list(APPEND CONFIG_MACROS LEVELDB_FOUND)
 else()
 	list(REMOVE_ITEM src_cpps src/sni/leveldb.cpp)
+	list(REMOVE_ITEM src_cpps src/sni/TeapoyDBServer.cpp)
 endif()
 
 if(LIBCURL_FOUND)

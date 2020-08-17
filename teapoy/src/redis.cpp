@@ -37,7 +37,7 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 		if(client::open(this->host,this->port)){
 			lyramilk::data::stringstream ss;
 			lyramilk::netio::netaddress naddr = dest();
-			ss << naddr.ip_str() << ":" << naddr.port;
+			ss << naddr.ip_str() << ":" << naddr.port();
 			addr = ss.str();
 			return true;
 		}

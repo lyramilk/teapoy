@@ -74,6 +74,14 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			return http->open(args[0]);
 		}
 
+		lyramilk::data::var open_unixsocket(const lyramilk::data::array& args,const lyramilk::data::map& env)
+		{
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_int);
+
+			if(!http) return false;
+			return http->open_unixsocket(args[0]);
+		}
+
 		lyramilk::data::var set_website(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_map);
@@ -202,6 +210,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		{
 			lyramilk::script::engine::functional_map fn;
 			fn["open"] = lyramilk::script::engine::functional<httpserver,&httpserver::open>;
+			fn["open_unixsocket"] = lyramilk::script::engine::functional<httpserver,&httpserver::open_unixsocket>;
 			fn["set_website"] = lyramilk::script::engine::functional<httpserver,&httpserver::set_website>;
 			fn["set_session_manager"] = lyramilk::script::engine::functional<httpserver,&httpserver::set_session_manager>;
 			fn["set_ssl"] = lyramilk::script::engine::functional<httpserver,&httpserver::set_ssl>;

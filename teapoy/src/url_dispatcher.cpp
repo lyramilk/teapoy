@@ -36,7 +36,7 @@ namespace lyramilk{ namespace teapoy {
 		if(code == 0) code = 404;
 
 		lyramilk::data::string method = adapter->request->get(":method");
-		lyramilk::klog(lyramilk::log::trace,prefix) << D("%u %s:%u %s %s %s 耗时%.3f(毫秒)",code,addr.ip_str().c_str(),addr.port,method.c_str(),adapter->request->url().c_str(),adapter->request->get("User-Agent").c_str(),double(td.diff()) / 1000000) << std::endl;
+		lyramilk::klog(lyramilk::log::trace,prefix) << D("%u %s:%u %s %s %s 耗时%.3f(毫秒)",code,addr.ip_str().c_str(),addr.port(),method.c_str(),adapter->request->url().c_str(),adapter->request->get("User-Agent").c_str(),double(td.diff()) / 1000000) << std::endl;
 	}
 
 	void url_selector_loger::cancel()

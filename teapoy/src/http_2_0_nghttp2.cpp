@@ -78,7 +78,7 @@ namespace lyramilk{ namespace teapoy {
 				p->response->code = 404;
 				lyramilk::data::string method = p->request->get(":method");
 				lyramilk::netio::netaddress addr = p->channel->dest();
-				lyramilk::klog(lyramilk::log::debug,"teapoy.web.http_2_0.onrequest") << D("%u %s:%u %s %s %s",p->response->code,addr.ip_str().c_str(),addr.port,method.c_str(),p->request->url().c_str(),p->request->get("User-Agent").c_str()) << std::endl;
+				lyramilk::klog(lyramilk::log::debug,"teapoy.web.http_2_0.onrequest") << D("%u %s:%u %s %s %s",p->response->code,addr.ip_str().c_str(),addr.port(),method.c_str(),p->request->url().c_str(),p->request->get("User-Agent").c_str()) << std::endl;
 			}
 
 			p->request_finish();

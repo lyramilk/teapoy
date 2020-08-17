@@ -105,7 +105,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		lyramilk::data::var open(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
-			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_int);
+			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_int);
 			if(!tcpsrv) return false;
 			return tcpsrv->open(args[0]);
 		}
@@ -140,7 +140,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 
 		static __attribute__ ((constructor)) void __init()
 		{
-			lyramilk::teapoy::script_interface_master::instance()->regist("udp",define);
+			lyramilk::teapoy::script_interface_master::instance()->regist("tcp",define);
 		}
 	};
 
