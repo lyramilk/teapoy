@@ -13,6 +13,7 @@ namespace lyramilk{ namespace teapoy {
 
 		lyramilk::data::string leveldbpath = m["leveldbpath"].str();
 		system(("mkdir -p " + leveldbpath).c_str());
+		lyramilk::data::string masterid = m["masterid"].str();
 		lyramilk::data::string ssdbhost = m["host"].str();
 		unsigned short ssdbport = m["port"];
 		lyramilk::data::string ssdbpwd = m["password"].str();
@@ -20,8 +21,8 @@ namespace lyramilk{ namespace teapoy {
 		if(rsdb.open_leveldb(leveldbpath,cache_MB,true)){
 			lyramilk::data::string replid = "";
 			lyramilk::data::uint64 offset = 0;
-			if(rsdb.get_sync_info(&replid,&offset)){
-				slave.slaveof(ssdbhost,ssdbport,ssdbpwd,replid,offset,&rsdb);
+			if(rsdb.get_sync_info(masterid,&replid,&offset)){
+				slave.slaveof(ssdbhost,ssdbport,ssdbpwd,masterid,replid,offset,&rsdb);
 				return true;
 			}
 		}
