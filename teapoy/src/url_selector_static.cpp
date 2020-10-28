@@ -226,7 +226,7 @@ namespace lyramilk{ namespace teapoy {
 				if(is_range){
 					ifs.seekg(range_it->first,std::ifstream::beg);
 				}
-				char buff[16384];
+				char buff[2048];
 				for(;ifs && datacount > 0;){
 					ifs.read(buff,std::min(sizeof(buff),(std::size_t)datacount));
 					lyramilk::data::int64 gcount = ifs.gcount();

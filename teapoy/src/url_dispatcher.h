@@ -69,6 +69,7 @@ namespace lyramilk{ namespace teapoy {
 	  protected:
 		lyramilk::data::string authtype;
 		lyramilk::data::string authscript;
+		lyramilk::data::string allowmethod;
 		lyramilk::data::var extra;
 	  protected:
 		virtual dispatcher_check_status hittest(httprequest* request,httpresponse* response,httpadapter* adapter);
@@ -82,7 +83,7 @@ namespace lyramilk{ namespace teapoy {
 		virtual bool init_auth(const lyramilk::data::string& enginetype,const lyramilk::data::string& authscript);
 		virtual bool init(lyramilk::data::map& extra);
 
-		virtual dispatcher_check_status test(httprequest* request,lyramilk::data::string *real);
+		virtual bool url_to_localtion(const lyramilk::data::string& url,lyramilk::data::string *real);
 
 		virtual dispatcher_check_status check_auth(httprequest* request,httpresponse* response,httpadapter* adapter,const lyramilk::data::string& real);
 		virtual dispatcher_check_status call(httprequest* request,httpresponse* response,httpadapter* adapter,const lyramilk::data::string& real) = 0;

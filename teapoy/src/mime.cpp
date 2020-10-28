@@ -90,6 +90,7 @@ namespace lyramilk{ namespace teapoy {
 				}
 
 				header[":method"] = fields[0];
+				/*header[":url"] = path;	//url
 				lyramilk::data::string path = fields[1];
 				{
 					static lyramilk::data::coding* code_url = lyramilk::data::codes::instance()->getcoder("url");
@@ -103,8 +104,8 @@ namespace lyramilk{ namespace teapoy {
 							path = code_url->decode(path1) + "?" + path2;
 						}
 					}
-				}
-				header[":path"] = path;	//url
+				}*/
+				header[":path"] = fields[1];	//url
 				header[":version"] = fields[2];
 				pps = mp_head;
 			}else{

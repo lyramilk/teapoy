@@ -136,10 +136,11 @@ namespace lyramilk{ namespace teapoy {
 		operator httpsession*();
 	};
 
+	const char* get_error_code_desc(int code);
+
 	class httpadapter
 	{
 	  public:
-		static const char* get_error_code_desc(int code);
 	  public:
 		std::map<lyramilk::data::string,httpcookie> cookies;
 		httplistener* service;

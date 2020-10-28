@@ -60,7 +60,7 @@ namespace lyramilk{ namespace teapoy {
 		lyramilk::data::map emptymap;
 		lyramilk::data::array emptyarray;
 
-		lyramilk::data::string method = m["method"].conv(emptystr);
+		allowmethod = m["method"].conv(emptystr);
 		lyramilk::data::string type = m["type"].conv(emptystr);
 		lyramilk::data::string pattern = m["pattern"].conv(emptystr);
 		lyramilk::data::string module = m["module"].conv(emptystr);
@@ -208,18 +208,16 @@ namespace lyramilk{ namespace teapoy {
 		return true;
 	}
 
-	dispatcher_check_status url_regex_selector::test(httprequest* request,lyramilk::data::string *real)
+	bool url_regex_selector::url_to_localtion(const lyramilk::data::string& url,lyramilk::data::string *real)
 	{
-		if(!regex_handler) return cs_pass;
-
-		lyramilk::data::string url = request->url();
+		if(!regex_handler) return false;
 
 		const static int ov_size = 2048;
 
 		for(std::vector<pcre*>::const_iterator it = regex_assert.begin();it!=regex_assert.end();++it){
 			int ov[ov_size] = {0};
 			int rc = pcre_exec((const pcre*)*it,nullptr,url.c_str(),url.size(),0,0,ov,ov_size);
-			if(rc < 1) return cs_pass;
+			if(rc < 1) return false;
 		}
 
 		int ov[ov_size] = {0};
@@ -252,18 +250,24 @@ namespace lyramilk{ namespace teapoy {
 			if(pos_args!=real->npos){
 				*real = real->substr(0,pos_args);
 			}
-			return cs_ok;
+			return true;
 		}
-		return cs_pass;
+		return false;
 	}
 
 	dispatcher_check_status url_regex_selector::hittest(httprequest* request,httpresponse* response,httpadapter* adapter)
 	{
-		lyramilk::data::string realfile;
+		dispatcher_check_status cs = cs_pass;
 
-		dispatcher_check_status cs = test(request,&realfile);
-		if(cs != cs_ok){
-			return cs;
+		if(!allowmethod.empty() && allowmethod.find("*") == allowmethod.npos){
+			if(allowmethod.find(request->get(":method")) == allowmethod.npos){
+				return cs_pass;
+			}		
+		}
+
+		lyramilk::data::string realfile;
+		if(!url_to_localtion(request->url(),&realfile)){
+			return cs_pass;
 		}
 
 		if(!path_pattern.empty()){

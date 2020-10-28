@@ -20,8 +20,10 @@ namespace lyramilk{ namespace teapoy {
 	{
 		static std::map<int,const char*> ret;
 		if(ret.empty()){
+			//	Informational 1xx
 			ret[100] = "100 Continue";
 			ret[101] = "101 Switching Protocols";
+			//	Successful 2xx
 			ret[200] = "200 OK";
 			ret[201] = "201 Created";
 			ret[202] = "202 Accepted";
@@ -29,12 +31,17 @@ namespace lyramilk{ namespace teapoy {
 			ret[204] = "204 No Content";
 			ret[205] = "205 Reset Content";
 			ret[206] = "206 Partial Content";
+			ret[207] = "207 Multi-Status";
+			//	Redirection 3xx
 			ret[300] = "300 Multiple Choices";
 			ret[301] = "301 Moved Permanently";
-			ret[302] = "302 Moved Temporarily";
+			ret[302] = "302 Found";
 			ret[303] = "303 See Other";
 			ret[304] = "304 Not Modified";
 			ret[305] = "305 Use Proxy";
+			ret[306] = "306 Switch Proxy";	// 不再使用
+			ret[307] = "307 Temporary Redirect";
+			//	Client Error 4xx
 			ret[400] = "400 Bad Request";
 			ret[401] = "401 Authorization Required";
 			ret[402] = "402 Payment Required";
@@ -51,6 +58,17 @@ namespace lyramilk{ namespace teapoy {
 			ret[413] = "413 Request Entity Too Large";
 			ret[414] = "414 Request-URI Too Large";
 			ret[415] = "415 Unsupported Media Type";
+			ret[416] = "416 Requested Range Not Satisfiable";
+			ret[417] = "417 Expectation Failed";
+			ret[421] = "421 too many connections";
+			ret[422] = "422 Unprocessable Entity";
+			ret[423] = "423 Locked";
+			ret[424] = "424 Failed Dependency";
+			ret[425] = "425 Unordered Collection";
+			ret[426] = "426 Upgrade Required";
+			ret[449] = "449 Retry With";
+			ret[451] = "451 Unavailable For Legal Reasons";
+			//	Server Error 5xx
 			ret[500] = "500 Internal Server Error";
 			ret[501] = "501 Method Not Implemented";
 			ret[502] = "502 Bad Gateway";
@@ -75,7 +93,7 @@ namespace lyramilk{ namespace teapoy {
 		return ret;
 	}
 
-	const char* httpadapter::get_error_code_desc(int code)
+	const char* get_error_code_desc(int code)
 	{
 		static std::map<int,const char*> code_map = __init_code_map();
 		std::map<int,const char*>::iterator it = code_map.find(code);
@@ -85,7 +103,6 @@ namespace lyramilk{ namespace teapoy {
 
 	void httpadapter::init()
 	{
-		__init_code_map();
 	}
 
 	/// httprequest
@@ -207,7 +224,20 @@ namespace lyramilk{ namespace teapoy {
 	lyramilk::data::string httprequest::url()
 	{
 		if(fast_url.empty()){
-			fast_url = header[":path"];
+			lyramilk::data::string path = header[":path"];
+			static lyramilk::data::coding* code_url = lyramilk::data::codes::instance()->getcoder("url");
+			std::size_t pos_path_qmask = path.find('?');
+			if(pos_path_qmask == path.npos){
+				path = code_url->decode(path);
+			}else{
+				if(code_url){
+					lyramilk::data::string path1 = path.substr(0,pos_path_qmask);
+					lyramilk::data::string path2 = path.substr(pos_path_qmask + 1);
+					path = code_url->decode(path1) + "?" + path2;
+				}
+			}
+
+			fast_url = path;
 		}
 		return fast_url;
 	}
@@ -219,7 +249,11 @@ namespace lyramilk{ namespace teapoy {
 
 	lyramilk::data::string httprequest::uri()
 	{
-		return scheme() + "://" + header["host"] + url();
+		if(header[":path"].find("://") == std::string::npos){
+			return scheme() + "://" + header["host"] + header[":path"];
+		}else{
+			return header[":path"];
+		}
 	}
 
 	/// httpresponse
