@@ -59,15 +59,13 @@ namespace lyramilk{ namespace teapoy {
 				//response->set("Allow","GET,POST,HEADER,PROPFIND,PROPPATCH,MKCOL,COPY,MOVE,LOCK,UNLOCK");
 				response->set("Allow",this->allowmethod);
 				return cs_ok;
-			}
-
-
-			if("PROPFIND" == method){
+			}else if("PROPFIND" == method){
 				struct stat st = {0};
 				if(0 !=::stat(real.c_str(),&st) && errno == ENOENT){
 					response->code = 404;
 					return cs_ok;
 				}
+				static lyramilk::data::coding* coder = lyramilk::data::codes::instance()->getcoder("url");
 
 				response->code = 207;
 				response->set("Content-Type","application/xml");
@@ -75,10 +73,9 @@ namespace lyramilk{ namespace teapoy {
 				lyramilk::webdav::filelist flist;
 
 				{
-					lyramilk::ptr<lyramilk::webdav::file> f = new lyramilk::webdav::fileemulator(url,real,"..");
+					lyramilk::ptr<lyramilk::webdav::file> f = new lyramilk::webdav::fileemulator(coder->encode(url),real,"..");
 					flist.append(f);
 				}
-				static lyramilk::data::coding* coder = lyramilk::data::codes::instance()->getcoder("url");
 
 				DIR* d = opendir(real.c_str());
 				if(d){
@@ -98,6 +95,11 @@ namespace lyramilk{ namespace teapoy {
 
 				lyramilk::data::string xmlstr = flist.to_xml();
 				adapter->send_data(xmlstr.c_str(),xmlstr.size());
+				return cs_ok;
+			}else if("PROPPATCH" == method){
+				lyramilk::ptr<lyramilk::webdav::file> f = new lyramilk::webdav::fileemulator(url,real,"");
+				lyramilk::data::string xmlstr((const char*)request->get_body_ptr(),request->get_body_size());
+				response->code = f->prop_patch(xmlstr);
 				return cs_ok;
 			}else if("MKCOL" == method){
 				int r = mkdir(real.c_str(),0755);

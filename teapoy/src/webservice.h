@@ -23,6 +23,7 @@ namespace lyramilk{ namespace teapoy {
 		lyramilk::data::string value;
 		lyramilk::data::string domain;
 		lyramilk::data::string path;
+		lyramilk::data::string samesite;
 		time_t max_age;
 		time_t expires;
 		bool secure;

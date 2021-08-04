@@ -51,6 +51,8 @@ namespace lyramilk{ namespace teapoy {
 				return false;
 			}
 		}
+
+#if 1
 		if(!cfggroup.empty()){
 			int ret = mysql_options(_db_ptr,MYSQL_READ_DEFAULT_GROUP, cfggroup.c_str());
 			if(ret == 0){
@@ -60,7 +62,17 @@ namespace lyramilk{ namespace teapoy {
 				return false;
 			}
 		}
-
+#else
+		if(!cfggroup.empty()){
+			int ret = mysql_optionsv(_db_ptr,MYSQL_READ_DEFAULT_GROUP, cfggroup.c_str());
+			if(ret == 0){
+				lyramilk::klog(lyramilk::log::debug  ,"teapoy.functional_impl_mysql_instance") << D("设置 mysql 配置组[%s]成功",cfggroup.c_str()) << std::endl;
+			}else{
+				lyramilk::klog(lyramilk::log::warning,"teapoy.functional_impl_mysql_instance") << D("设置 mysql 配置组[%s]失败：%s",cfggroup.c_str(),mysql_error(_db_ptr)) << std::endl;
+				return false;
+			}
+		}
+#endif
 
 
 		if(nullptr != mysql_real_connect(_db_ptr,(host.empty()?nullptr:host.c_str()),
@@ -112,7 +124,7 @@ namespace lyramilk{ namespace teapoy {
 
 		lyramilk::data::array::const_iterator it = ar.begin();
 		if(it != ar.end()) ++it;
-		for(int i=0;it != ar.end();++it,++i){
+		for(int i=0;it != ar.end() && i < bind.size();++it,++i){
 			lyramilk::data::string sv = it->str();
 			bind[i].buffer_type = MYSQL_TYPE_STRING;
 			bind[i].buffer_length = (unsigned long)sv.length();

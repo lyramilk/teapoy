@@ -9,7 +9,7 @@
 #define MAROC_MYSQL MYSQL
 #include <cassert>
 #ifndef my_bool
-	#define my_bool bool
+	#define my_bool char
 #endif
 
 namespace lyramilk{ namespace teapoy{ namespace native{
@@ -50,7 +50,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 
 			lyramilk::data::array::const_iterator it = args.begin();
 			if(it != args.end()) ++it;
-			for(int i=0;it != args.end();++it,++i){
+			for(int i=0;it != args.end() && i < param_bind.size();++it,++i){
 				lyramilk::data::string sv = it->str();
 				param_bind[i].buffer_type = MYSQL_TYPE_STRING;
 				param_bind[i].buffer_length = (unsigned long)sv.length();
@@ -84,6 +84,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 
 		std::vector<std::vector<char> > result_buff;
 		std::vector<MYSQL_BIND> result_bind;
+		std::vector<my_bool> result_is_null;
 		std::vector<unsigned long > result_length;
 
 		lyramilk::data::strings keys2;
@@ -123,7 +124,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 
 				lyramilk::data::array::const_iterator it = args.begin();
 				if(it != args.end()) ++it;
-				for(int i=0;it != args.end();++it,++i){
+				for(int i=0;it != args.end() && i < param_bind.size();++it,++i){
 					lyramilk::data::string sv = it->str();
 					param_bind[i].buffer_type = MYSQL_TYPE_STRING;
 					param_bind[i].buffer_length = (unsigned long)sv.length();
@@ -147,6 +148,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 
 				int result_fieid_count = mysql_stmt_field_count(p);
 				result_bind.resize(result_fieid_count);
+				result_is_null.resize(result_fieid_count);
 				result_buff.resize(result_fieid_count);
 				keys2.reserve(result_fieid_count);
 				result_length.resize(result_fieid_count);
@@ -191,6 +193,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 					result_bind[i].length = &result_length[i];
 
 					result_bind[i].buffer = result_buff[i].data();
+					result_bind[i].is_null = &result_is_null[i];
 				}
 
 				mysqlret = mysql_stmt_bind_result(p,result_bind.data());
@@ -341,6 +344,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			lyramilk::data::map& m = *v;
 
 			for(std::size_t i = 0;i<holder->keys2.size();i++){
+				if(*holder->result_bind[i].is_null) continue;
 				m[holder->keys2[i]] = lyramilk::data::string(holder->result_buff[i].data(),holder->result_length[i]);
 			}
 			return true;
@@ -353,16 +357,6 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 		lyramilk::data::var init(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			mysql_stmt_data_seek(holder->p,0);
-			return true;
-		}
-
-
-		lyramilk::data::var ok(const lyramilk::data::array& args,const lyramilk::data::map& env)
-		{
-			int mysqlret = mysql_stmt_fetch(holder->p);
-			if(mysqlret != 0){
-				return false;
-			}
 			return true;
 		}
 
@@ -383,6 +377,15 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 		}
 
 		lyramilk::data::var next(const lyramilk::data::array& args,const lyramilk::data::map& env)
+		{
+			int mysqlret = mysql_stmt_fetch(holder->p);
+			if(mysqlret != 0){
+				return false;
+			}
+			return true;
+		}
+
+		lyramilk::data::var ok(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			int mysqlret = mysql_stmt_fetch(holder->p);
 			if(mysqlret != 0){
@@ -430,8 +433,8 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			lyramilk::script::engine::functional_map fn;
 			fn["key"] = lyramilk::script::engine::functional<smysql_iterator,&smysql_iterator::key>;
 			fn["value"] = lyramilk::script::engine::functional<smysql_iterator,&smysql_iterator::value>;
-			fn["ok"] = lyramilk::script::engine::functional<smysql_iterator,&smysql_iterator::ok>;
 			fn["next"] = lyramilk::script::engine::functional<smysql_iterator,&smysql_iterator::next>;
+			fn["ok"] = lyramilk::script::engine::functional<smysql_iterator,&smysql_iterator::ok>;
 			fn["init"] = lyramilk::script::engine::functional<smysql_iterator,&smysql_iterator::init>;
 			fn["size"] = lyramilk::script::engine::functional<smysql_iterator,&smysql_iterator::size>;
 			fn["columncount"] = lyramilk::script::engine::functional<smysql_iterator,&smysql_iterator::columncount>;

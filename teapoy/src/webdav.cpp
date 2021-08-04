@@ -5,6 +5,8 @@
 #include <libmilk/xml.h>
 
 #include <errno.h>
+#include <string.h>
+#include <utime.h>
 
 
 namespace lyramilk{ namespace webdav{
@@ -21,12 +23,61 @@ namespace lyramilk{ namespace webdav{
 	lyramilk::data::string file::etag()
 	{
 		char buff_etag[100];
-		long long unsigned filemtime = length();
-		long long unsigned filesize = lastmodified();
+		long long unsigned filemtime = lastmodified();
+		long long unsigned filesize = length();
 		sprintf(buff_etag,"%llx-%llx",filemtime,filesize);
 		return buff_etag;
 	}
 
+	int file::prop_patch(const lyramilk::data::string& xmlstr)
+	{
+		lyramilk::data::map x;
+		lyramilk::data::xml::parse(xmlstr,&x);
+
+
+		lyramilk::data::map o;
+		lyramilk::data::xml::format_ns(x,&o);
+
+
+		if(o["xml.tag"] == "propertyupdate" && o["xml.body"].type() == lyramilk::data::var::t_array){
+			lyramilk::data::array& ar = o["xml.body"];
+
+			lyramilk::data::array::iterator it = ar.begin();
+			for(;it!=ar.end();++it){
+				if(it->type() != lyramilk::data::var::t_map) continue;
+				lyramilk::data::map& m = *it;
+				if(m["xml.tag"] == "set" && m["xml.body"].type() == lyramilk::data::var::t_array){
+					lyramilk::data::array& ar = m["xml.body"];
+					lyramilk::data::array::iterator it = ar.begin();
+					for(;it!=ar.end();++it){
+						if(it->type() != lyramilk::data::var::t_map) continue;
+						lyramilk::data::map& m = *it;
+						if(m["xml.tag"] == "prop" && m["xml.body"].type() == lyramilk::data::var::t_array){
+							lyramilk::data::array& ar = m["xml.body"];
+							lyramilk::data::array::iterator it = ar.begin();
+							for(;it!=ar.end();++it){
+								lyramilk::data::map& m = *it;
+								if(m["xml.tag"] == "getlastmodified" && m["xml.body"].type() == lyramilk::data::var::t_array){
+									lyramilk::data::array& ar = m["xml.body"];
+									if(ar.size() == 1 && ar[0].type_like(lyramilk::data::var::t_str)){
+										lyramilk::data::string v = ar[0].str();
+										struct tm tm;
+										strptime(v.c_str(),"%a, %d %b %Y %H:%M:%S %Z", &tm);
+										time_t modtime = timegm(&tm);
+										int code = lastmodified(modtime);
+										if(code != 200) return code;
+									}
+
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
+		return 200;
+	}
 
 	//	filelist
 	void filelist::append(lyramilk::ptr<lyramilk::webdav::file>& f)
@@ -163,9 +214,9 @@ namespace lyramilk{ namespace webdav{
 
 					time_t modtime = p->lastmodified();
 					tm t;
-					localtime_r(&modtime,&t);
+					gmtime_r(&modtime,&t);
 					char gmttimebuff[256];
-					strftime(gmttimebuff, sizeof(gmttimebuff), "%a, %d %b %Y %H:%M:%S", &t);
+					strftime(gmttimebuff, sizeof(gmttimebuff), "%a, %d %b %Y %H:%M:%S %Z", &t);
 					tmp["xml.body"] = gmttimebuff;
 					propbody.push_back(tmp);
 				}
@@ -283,10 +334,28 @@ namespace lyramilk{ namespace webdav{
 		return st.st_size;
 	}
 
+	int fileemulator::lastmodified(lyramilk::data::uint64 g)
+	{
+		if(code() != 200) return code();
+		struct utimbuf tbuf;
+		tbuf.actime = st.st_atime;
+		tbuf.modtime = g;
+
+		int r = utime(real.c_str(), &tbuf);
+		if(r == 0) return 200;
+		if(errno == ENOENT){
+			return 404;
+		}else if(errno == EACCES){
+			return 403;
+		}else{
+			return 500;
+		}
+	}
+
 	lyramilk::data::uint64 fileemulator::lastmodified()
 	{
 		if(code() != 200) return 0;
-		return st.st_size;
+		return st.st_mtime;
 	}
 
 	lyramilk::data::string fileemulator::displayname()

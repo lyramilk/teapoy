@@ -68,10 +68,17 @@ namespace lyramilk{ namespace teapoy{ namespace native
 
 		lyramilk::data::var open(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
-			MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_int);
-
-			if(!http) return false;
-			return http->open(args[0]);
+			if(args.size() == 1){
+				MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_int);
+				if(!http) return false;
+				return http->open(args[0]);
+			}else if(args.size() == 2){
+				MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
+				MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_int);
+				if(!http) return false;
+				return http->open(args[0].str(),args[1]);
+			}
+			return false;
 		}
 
 		lyramilk::data::var open_unixsocket(const lyramilk::data::array& args,const lyramilk::data::map& env)

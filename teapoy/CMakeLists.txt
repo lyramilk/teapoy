@@ -1,6 +1,6 @@
 ﻿#定义工程名及版本
 project(teapoy2)
-set(version 2.0.14)
+set(version 2.0.15)
 set(soversion 2.0)
 
 
@@ -26,8 +26,8 @@ include(UsePkgConfig)
 enable_testing()
 
 #定制编译选项
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -Wall")
-set(CMAKE_LD_FLAGS "${CMAKE_LD_FLAGS} -g -Wall")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -Wall -fPIC")
+set(CMAKE_LD_FLAGS "${CMAKE_LD_FLAGS} -g -Wall -fPIC -Bsymbolic")
 
 if(release)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O4 -Wall -DNDEBUG ")
@@ -55,6 +55,7 @@ if(UNIX)
 	aux_source_directory(src/sni src_cpps)
 	include_directories(src/sni)
 endif()
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/include)
 
 list(APPEND LIBS_DEPENDS -ldl)
 
@@ -255,7 +256,7 @@ foreach(v ${CONFIG_MACROS})
 endforeach()
 
 #修改配置文件
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/src/config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/src/config.h)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/src/config.h.in ${CMAKE_CURRENT_BINARY_DIR}/include/config.h)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/pkg/teapoy.spec.in ${CMAKE_CURRENT_SOURCE_DIR}/pkg/teapoy.spec)
 
 
@@ -263,6 +264,9 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/pkg/teapoy.spec.in ${CMAKE_CURRENT_SO
 add_library(${PROJECT_NAME} SHARED ${src_cpps} ${src_hs})
 set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME "${PROJECT_NAME}")
 set_target_properties(${PROJECT_NAME} PROPERTIES VERSION ${version} SOVERSION ${soversion})
+
+#拷贝文件
+file(COPY ${src_hs} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/include/)
 
 #对libmilk的依赖
 if(NOT ${LIBMILK_CFLAGS})

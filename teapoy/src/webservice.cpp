@@ -485,6 +485,13 @@ namespace lyramilk{ namespace teapoy {
 			if(!it->second.path.empty()){
 				os << ";path=" << it->second.path;
 			}
+
+			if(!it->second.samesite.empty()){
+				os << ";SameSite=" << it->second.samesite;
+			}else{
+				os << ";SameSite=Lax";
+			}
+
 			if(it->second.secure){
 				os << ";Secure";
 			}
@@ -524,6 +531,7 @@ namespace lyramilk{ namespace teapoy {
 					c.value = newsid;
 					c.path = "/";
 					c.httponly = true;
+					c.samesite = "Strict";
 					set_cookie_obj(c);
 				}
 			}

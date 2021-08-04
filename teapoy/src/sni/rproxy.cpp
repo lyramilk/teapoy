@@ -24,6 +24,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 	class rproxy_aioserver;
 
 
+	// 服务端业务会话
 	class rproxyserver_aiosession:public lyramilk::netio::aioproxysession
 	{
 	  public:
@@ -42,7 +43,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 
 	};
 
-
+	// 服务端业务端口
 	class rproxy_aioserver:public lyramilk::netio::aioserver<rproxyserver_aiosession>
 	{
 		std::set<lyramilk::netio::socket*> masters;
@@ -132,10 +133,10 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		return true;
 	}
 
+	//	管理端会话
 	class rproxyserver_aiosession_master:public lyramilk::netio::aioproxysession
 	{
 		bool is_upstream_master;
-		lyramilk::data::string cache;
 	  public:
 		rproxy_aioserver* pubserver;
 
@@ -156,23 +157,27 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		{
 
 			if((unsigned int)size >= sizeof(RPROXY_MAGIC) && memcmp(cache,RPROXY_MAGIC,sizeof(RPROXY_MAGIC)) == 0){
+				// 管理会话
 				is_upstream_master = true;
 				*bytesused = sizeof(RPROXY_MAGIC);
 				pubserver->add_master(this);
 				return true;
 			}
 
+			//业务会话
 			if(size >= 8){
 				*bytesused = 8;
 				unsigned long long lptr = *(unsigned long long*)cache;
 				rproxyserver_aiosession* client_session = reinterpret_cast<rproxyserver_aiosession*>(lptr);
 				if(pubserver->remove_session(client_session)){
-
 					pool->detach(client_session);
 
 					combine(client_session);
 					client_session->start_proxy();
 					//pool->add_to_thread(get_thread_idx(),client_session,-1);
+				}else{
+					//COUT << "remove失败" << std::endl;
+					log(lyramilk::log::error,"onrequest") << lyramilk::kdict("remove失败") << std::endl;
 				}
 			}else if(size >= 4){
 				*bytesused = 4;
@@ -184,6 +189,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 
 	};
 
+	// 管理端服务
 	class rproxy_aioserver_master:public lyramilk::netio::aioserver<rproxyserver_aiosession_master>
 	{
 		rproxy_aioserver* pubserver;
@@ -207,7 +213,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 
 
 
-
+	// 服务端转发会话
 	class rproxy_aioclient:public lyramilk::netio::aioproxysession_speedy
 	{
 		lyramilk::data::string server_host;
@@ -420,12 +426,13 @@ namespace lyramilk{ namespace teapoy{ namespace native
 				char cache[8];
 				int size = ins->read(cache,sizeof(cache));
 				if(size!=8){
-					log(lyramilk::log::error,"debug") << lyramilk::kdict("close:size=%d,err=%s",size,strerror(errno)) << std::endl;
+					log(lyramilk::log::error,"error") << lyramilk::kdict("连接失败1:size=%d,err=%s",size,strerror(errno)) << std::endl;
 					ins->close();
 					break;
 				}
 				rproxy_aioclient* c = rproxy_aioclient::__tbuilder<rproxy_aioclient>();
 				if(!c->open(ins->server_host.c_str(),ins->server_port)){
+					log(lyramilk::log::error,"error") << lyramilk::kdict("链接失败2:size=%d,err=%s",size,strerror(errno)) << std::endl;
 					delete c;
 					continue;
 				}
@@ -437,6 +444,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 
 				rproxy_aioclient* uc = rproxy_aioclient::__tbuilder<rproxy_aioclient>();
 				if(!uc->open(ins->upstream_host.c_str(),ins->upstream_port)){
+					log(lyramilk::log::error,"error") << lyramilk::kdict("链接失败3:size=%d,err=%s",size,strerror(errno)) << std::endl;
 					delete uc;
 					delete c;
 					continue;
@@ -447,7 +455,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 
 				c->endpoint = uc;
 				uc->endpoint = c;
-				ins->pool->add(uc,0);
+				ins->pool->add(uc,-1);
 				ins->pool->add_to_thread(uc->get_thread_idx(),c,-1);
 			}
 		}

@@ -460,6 +460,18 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		return args[0].str();
 	}
 
+	lyramilk::data::var srand(const lyramilk::data::array& args,const lyramilk::data::map& env)
+	{
+		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_int);
+		int seed = args[0];
+		::srand(seed);
+		return true;
+	}
+
+	lyramilk::data::var rand(const lyramilk::data::array& args,const lyramilk::data::map& env)
+	{
+		return ::rand();
+	}
 
 	static int define(lyramilk::script::engine* p)
 	{
@@ -485,6 +497,8 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			p->define("md5_32",md5_32);++i;
 			p->define("md5",md5_32);++i;
 			p->define("bin2str",bin2str);++i;
+			p->define("srand",srand);++i;
+			p->define("rand",rand);++i;
 			p->define("http_digest_authentication",http_digest_authentication);++i;
 		}
 		return i;

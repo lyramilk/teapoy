@@ -11,7 +11,7 @@ namespace lyramilk{ namespace webdav{
 		virtual void href(const lyramilk::data::string& g) = 0;
 		virtual void author(const lyramilk::data::string& g) = 0;
 		virtual void length(lyramilk::data::uint64 g) = 0;
-		virtual void lastmodified(lyramilk::data::uint64 g) = 0;
+		virtual void displayname(const lyramilk::data::string& g) = 0;
 */
 
 	class file:public lyramilk::obj
@@ -25,6 +25,7 @@ namespace lyramilk{ namespace webdav{
 		virtual lyramilk::data::string href() = 0;
 		virtual lyramilk::data::string owner() = 0;
 		virtual lyramilk::data::uint64 length() = 0;
+		virtual int lastmodified(lyramilk::data::uint64 g) = 0;
 		virtual lyramilk::data::uint64 lastmodified() = 0;
 		virtual lyramilk::data::string displayname() = 0;
 		virtual lyramilk::data::string etag();
@@ -32,6 +33,7 @@ namespace lyramilk{ namespace webdav{
 		virtual bool lockstatus() = 0;
 		virtual bool trylock() = 0;
 		virtual bool unlock() = 0;
+		virtual int prop_patch(const lyramilk::data::string& xmlstr);
 	};
 
 
@@ -69,6 +71,7 @@ namespace lyramilk{ namespace webdav{
 		virtual lyramilk::data::string href();
 		virtual lyramilk::data::string owner();
 		virtual lyramilk::data::uint64 length();
+		virtual int lastmodified(lyramilk::data::uint64 g);
 		virtual lyramilk::data::uint64 lastmodified();
 		virtual lyramilk::data::string displayname();
 
