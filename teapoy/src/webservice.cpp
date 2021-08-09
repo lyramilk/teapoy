@@ -548,9 +548,12 @@ namespace lyramilk{ namespace teapoy {
 
 		default_response_header["Server"] = "teapoy/" TEAPOY_VERSION;
 		default_response_header["Teapoy"] = TEAPOY_VERSION;
+		/*
 		default_response_header["Access-Control-Allow-Origin"] = "*";
 		default_response_header["Access-Control-Allow-Methods"] = "*";
-		//default_response_header["Access-Control-Allow-Headers"] = "*";
+		default_response_header["Access-Control-Allow-Headers"] = "*";
+		default_response_header["Access-Control-Allow-Credentials"] = "true";
+		*/
 	}
 
 	aiohttpchannel::~aiohttpchannel()
@@ -596,10 +599,6 @@ namespace lyramilk{ namespace teapoy {
 
 	bool aiohttpchannel::onrequest(const char* cache,int size,std::ostream& os)
 	{
-#ifdef _DEBUG
-		printf("\t收到\x1b[36m%d\x1b[0m字节\n%.*s\n",size,size,cache);
-		lyramilk::klog(lyramilk::log::trace,"aiohttpchannel").write(cache,size) << std::endl;
-#endif
 		if(adapter){
 			return adapter->onrequest(cache,size,os);
 		}

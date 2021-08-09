@@ -109,12 +109,20 @@ namespace lyramilk{ namespace teapoy {
 				}
 			}
 		}
+		{
+			std::multimap<lyramilk::data::string,lyramilk::data::string>::const_iterator it = response->header_ex.begin();
+			for(;it!=response->header_ex.end();++it){
+				if(!it->second.empty()){
+					os << it->first << ": " << it->second << "\r\n";
+				}
+			}
+		}
+
 		os << "\r\n";
-		this->os << os.str();
+		send_raw_data(os.str().c_str(),os.str().size());
 
 		if(page){
-			this->os << page->body;
-			this->os.flush();
+			send_raw_data(page->body.c_str(),page->body.size());
 			return ss_nobody;
 		}
 
@@ -122,7 +130,6 @@ namespace lyramilk{ namespace teapoy {
 			return ss_nobody;
 		}
 
-		this->os.flush();
 		return ss_need_body;
 	}
 

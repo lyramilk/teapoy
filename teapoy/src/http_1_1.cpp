@@ -127,11 +127,10 @@ namespace lyramilk{ namespace teapoy {
 		}
 
 		os << "\r\n";
-		this->os << os.str();
+		send_raw_data(os.str().c_str(),os.str().size());
 
 		if(page){
-			this->os << page->body;
-			this->os.flush();
+			send_raw_data(page->body.c_str(),page->body.size());
 			return ss_nobody;
 		}
 
@@ -139,7 +138,6 @@ namespace lyramilk{ namespace teapoy {
 			return ss_nobody;
 		}
 
-		this->os.flush();
 		return ss_need_body;
 	}
 
