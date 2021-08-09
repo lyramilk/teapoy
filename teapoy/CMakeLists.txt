@@ -1,6 +1,6 @@
 ﻿#定义工程名及版本
 project(teapoy2)
-set(version 2.0.15)
+set(version 2.0.16)
 set(soversion 2.0)
 
 

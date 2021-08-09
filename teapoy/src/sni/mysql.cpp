@@ -344,8 +344,11 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			lyramilk::data::map& m = *v;
 
 			for(std::size_t i = 0;i<holder->keys2.size();i++){
-				if(*holder->result_bind[i].is_null) continue;
-				m[holder->keys2[i]] = lyramilk::data::string(holder->result_buff[i].data(),holder->result_length[i]);
+				if(*holder->result_bind[i].is_null){
+					m[holder->keys2[i]].clear();
+				}else{
+					m[holder->keys2[i]] = lyramilk::data::string(holder->result_buff[i].data(),holder->result_length[i]);
+				}
 			}
 			return true;
 		}
@@ -377,15 +380,6 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 		}
 
 		lyramilk::data::var next(const lyramilk::data::array& args,const lyramilk::data::map& env)
-		{
-			int mysqlret = mysql_stmt_fetch(holder->p);
-			if(mysqlret != 0){
-				return false;
-			}
-			return true;
-		}
-
-		lyramilk::data::var ok(const lyramilk::data::array& args,const lyramilk::data::map& env)
 		{
 			int mysqlret = mysql_stmt_fetch(holder->p);
 			if(mysqlret != 0){
@@ -434,7 +428,6 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			fn["key"] = lyramilk::script::engine::functional<smysql_iterator,&smysql_iterator::key>;
 			fn["value"] = lyramilk::script::engine::functional<smysql_iterator,&smysql_iterator::value>;
 			fn["next"] = lyramilk::script::engine::functional<smysql_iterator,&smysql_iterator::next>;
-			fn["ok"] = lyramilk::script::engine::functional<smysql_iterator,&smysql_iterator::ok>;
 			fn["init"] = lyramilk::script::engine::functional<smysql_iterator,&smysql_iterator::init>;
 			fn["size"] = lyramilk::script::engine::functional<smysql_iterator,&smysql_iterator::size>;
 			fn["columncount"] = lyramilk::script::engine::functional<smysql_iterator,&smysql_iterator::columncount>;
