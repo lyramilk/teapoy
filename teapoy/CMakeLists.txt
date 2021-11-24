@@ -1,6 +1,6 @@
 ﻿#定义工程名及版本
 project(teapoy)
-set(version 1.0.50)
+set(version 1.0.51)
 set(soversion 1.0)
 
 
@@ -55,6 +55,7 @@ if(UNIX)
 	aux_source_directory(src/sni src_cpps)
 	include_directories(src/sni)
 endif()
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/include)
 
 list(APPEND LIBS_DEPENDS -ldl)
 
@@ -63,13 +64,20 @@ if(UNIX)
 	pkg_check_modules(LIBMILK libmilk REQUIRED)
 	pkg_check_modules(LEVELDB leveldb)
 	pkg_check_modules(LIBCURL libcurl)
-	pkg_check_modules(PCRE libpcre REQUIRED)
+	pkg_check_modules(PCRE libpcre)
+	if(NOT PCRE_FOUND)
+		pkg_check_modules(PCRE2 libpcre2-posix REQUIRED)
+	endif()
 	pkg_check_modules(ZLIB zlib)
 	pkg_check_modules(NGHTTP2 libnghttp2)
 	pkg_check_modules(CAVEDB cavedb)
 	pkg_check_modules(JS17 mozjs-17.0 REQUIRED)
 
-	check_include_file_cxx(mysql/mysql.h Z_HAVE_MYSQLDEVEL)
+	pkg_check_modules(MYSQL mysqlclient)
+	if(NOT MYSQL_FOUND)
+		pkg_check_modules(MYSQL mariadb REQUIRED)
+	endif()
+
 	check_include_file_cxx(jpeglib.h Z_HAVE_LIBJPEG)
 	check_include_file_cxx(mongo/version.h Z_HAVE_MONGODB)
 	check_include_file_cxx(mongo/client/connpool.h Z_HAVE_LIBMONGO)
@@ -119,11 +127,12 @@ else()
 	list(REMOVE_ITEM src_cpps src/sni/xml.cpp)
 endif()
 
-if(Z_HAVE_MYSQLDEVEL)
+if(MYSQL_FOUND)
 	list(APPEND BUILD_DEPENDS mysql-devel)
 	list(APPEND RUN_DEPENDS mysql-libs)
-	list(APPEND LIBS_DEPENDS -L/usr/lib64/mysql -lmysqlclient)
-	list(APPEND CONFIG_MACROS Z_HAVE_MYSQLDEVEL)
+	list(APPEND LIBS_DEPENDS ${MYSQL_LDFLAGS})
+	list(APPEND INCS_DEPENDS ${MYSQL_CFLAGS})
+	list(APPEND CONFIG_MACROS MYSQL_FOUND)
 else()
 	list(REMOVE_ITEM src_cpps src/sni/mysql.cpp)
 endif()
@@ -134,6 +143,12 @@ if(PCRE_FOUND)
 	list(APPEND LIBS_DEPENDS ${PCRE_LDFLAGS})
 	list(APPEND INCS_DEPENDS ${PCRE_CFLAGS})
 	list(APPEND CONFIG_MACROS PCRE_FOUND)
+elseif(PCRE2_FOUND)
+	list(APPEND BUILD_DEPENDS libpcre2-dev)
+	list(APPEND RUN_DEPENDS libpcre2-posix)
+	list(APPEND LIBS_DEPENDS ${PCRE2_LDFLAGS})
+	list(APPEND INCS_DEPENDS ${PCRE2_CFLAGS})
+	list(APPEND CONFIG_MACROS PCRE2_FOUND)
 endif()
 
 if(ZLIB_FOUND)
@@ -213,7 +228,7 @@ foreach(v ${CONFIG_MACROS})
 endforeach()
 
 #修改配置文件
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/src/config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/src/config.h)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/src/config.h.in ${CMAKE_CURRENT_BINARY_DIR}/include/config.h)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/pkg/teapoy.spec.in ${CMAKE_CURRENT_SOURCE_DIR}/pkg/teapoy.spec)
 
 
@@ -222,8 +237,11 @@ add_library(${PROJECT_NAME} SHARED ${src_cpps} ${src_hs})
 set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME "${PROJECT_NAME}")
 set_target_properties(${PROJECT_NAME} PROPERTIES VERSION ${version} SOVERSION ${soversion})
 
+#拷贝文件
+file(COPY ${src_hs} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/include/)
+
 #对libmilk的依赖
-if(NOT ${LIBMILK_CFLAGS})
+if(NOT LIBMILK_FOUND)
 	add_custom_target(milk COMMAND make -C /usr/local/src/libmilk/build)
 	add_dependencies(${PROJECT_NAME} milk)
 endif()

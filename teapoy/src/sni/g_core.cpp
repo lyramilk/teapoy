@@ -324,6 +324,26 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		return c1.get_key().str32();
 	}
 
+	lyramilk::data::var srand(const lyramilk::data::array& args,const lyramilk::data::map& env)
+	{
+		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_int);
+		int seed = args[0];
+		::srand(seed);
+		return true;
+	}
+
+	lyramilk::data::var rand(const lyramilk::data::array& args,const lyramilk::data::map& env)
+	{
+		return ::rand();
+	}
+
+	lyramilk::data::var sleep(const lyramilk::data::array& args,const lyramilk::data::map& env)
+	{
+		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_int);
+		int seconds = args[0];
+		return ::sleep(seconds);
+	}
+
 	lyramilk::data::var http_digest_authentication(const lyramilk::data::array& args,const lyramilk::data::map& env)
 	{
 		MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
@@ -422,6 +442,9 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			p->define("sha1",sha1);++i;
 			p->define("md5_16",md5_16);++i;
 			p->define("md5_32",md5_32);++i;
+			p->define("srand",srand);++i;
+			p->define("rand",rand);++i;
+			p->define("sleep",sleep);++i;
 			p->define("http_digest_authentication",http_digest_authentication);++i;
 		}
 		return i;

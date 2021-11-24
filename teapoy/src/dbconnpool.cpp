@@ -461,11 +461,11 @@ namespace lyramilk{ namespace teapoy {
 			
 			lyramilk::data::string replid = "";
 			lyramilk::data::uint64 offset = 0;
-			mstore->get_sync_info(&replid,&offset);
+			mstore->get_sync_info("",&replid,&offset);
 
 			lyramilk::cave::slave_ssdb* datasource = new lyramilk::cave::slave_ssdb;
 			slaves[id] = datasource;
-			datasource->slaveof(ssdb_host,ssdb_port,ssdb_password,replid,offset,mstore);
+			datasource->slaveof(ssdb_host,ssdb_port,ssdb_password,"",replid,offset,mstore);
 			define(id,mstore);
 		}
 	}
