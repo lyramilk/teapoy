@@ -99,27 +99,28 @@ namespace lyramilk{ namespace teapoy{ namespace native
 
 			if(args.size() > 2){
 				MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,2,lyramilk::data::var::t_array);
-				const lyramilk::data::array& ar = args[1];
+				const lyramilk::data::array& ar = args[2];
 				for(lyramilk::data::array::const_iterator it = ar.begin();it!=ar.end();++it){
 					envitems.push_back(it->str());
 				}
 			}
 
-			std::vector<char*> argv;
-			std::vector<char*> envp;
 
-			for(std::vector<std::string>::iterator it = argsitems.begin();it!=argsitems.end();++it){
-				argv.push_back((char*)it->c_str());
-			}
-			argv.push_back(nullptr);
-
-			for(std::vector<std::string>::iterator it = envitems.begin();it!=envitems.end();++it){
-				envp.push_back((char*)it->c_str());
-			}
-			envp.push_back(nullptr);
 
 			pid = fork();
 			if(pid == 0){
+				std::vector<char*> argv;
+				for(std::vector<std::string>::iterator it = argsitems.begin();it!=argsitems.end();++it){
+					argv.push_back((char*)it->c_str());
+				}
+				argv.push_back(nullptr);
+
+				std::vector<char*> envp;
+				for(std::vector<std::string>::iterator it = envitems.begin();it!=envitems.end();++it){
+					envp.push_back((char*)it->c_str());
+				}
+				envp.push_back(nullptr);
+
 				//子进程
 				::close(fd_in[1]);
 				::close(fd_out[0]);

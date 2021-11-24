@@ -172,8 +172,9 @@ namespace lyramilk{ namespace teapoy{ namespace native
 				if(pubserver->remove_session(client_session)){
 					pool->detach(client_session);
 
-					combine(client_session);
-					client_session->start_proxy();
+					async_redirect_connect(client_session);
+					//combine(client_session);
+					//client_session->start_proxy();
 					//pool->add_to_thread(get_thread_idx(),client_session,-1);
 				}else{
 					//COUT << "remove失败" << std::endl;
@@ -214,7 +215,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 
 
 	// 服务端转发会话
-	class rproxy_aioclient:public lyramilk::netio::aioproxysession_speedy
+	class rproxy_aioclient:public lyramilk::netio::aioproxysession_connector
 	{
 		lyramilk::data::string server_host;
 		unsigned short server_port;
@@ -413,7 +414,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 
 			while(true){
 				if(!ins->check_read(10000)){
-					log(lyramilk::log::error,"debug") << lyramilk::kdict("check_read:通过") << std::endl;
+					//log(lyramilk::log::error,"debug") << lyramilk::kdict("check_read:通过") << std::endl;
 					if(ins->write("PING",4) != 4){
 						ins->close();
 						break;
@@ -421,7 +422,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 					}
 					continue;
 				}
-				log(lyramilk::log::error,"debug") << lyramilk::kdict("check_read:通过") << std::endl;
+				//log(lyramilk::log::error,"debug") << lyramilk::kdict("check_read:通过") << std::endl;
 
 				char cache[8];
 				int size = ins->read(cache,sizeof(cache));
