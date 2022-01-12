@@ -115,6 +115,8 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		}
 	};
 
+
+	//	rproxyserver_aiosession
 	bool rproxyserver_aiosession::oninit(lyramilk::data::ostream& os)
 	{
 		thread_idx = pool->get_thread_idx();
@@ -129,7 +131,8 @@ namespace lyramilk{ namespace teapoy{ namespace native
 
 	bool rproxyserver_aiosession::onrequest(const char* cache, int size,int* bytesused, lyramilk::data::ostream& os)
 	{
-		*bytesused = 0;
+		*bytesused = size;
+		//*bytesused = 0;
 		return true;
 	}
 
@@ -155,7 +158,6 @@ namespace lyramilk{ namespace teapoy{ namespace native
 
 		virtual bool onrequest(const char* cache, int size,int* bytesused, lyramilk::data::ostream& os)
 		{
-
 			if((unsigned int)size >= sizeof(RPROXY_MAGIC) && memcmp(cache,RPROXY_MAGIC,sizeof(RPROXY_MAGIC)) == 0){
 				// 管理会话
 				is_upstream_master = true;
@@ -172,12 +174,8 @@ namespace lyramilk{ namespace teapoy{ namespace native
 				if(pubserver->remove_session(client_session)){
 					pool->detach(client_session);
 
-					async_redirect_connect(client_session);
-					//combine(client_session);
-					//client_session->start_proxy();
-					//pool->add_to_thread(get_thread_idx(),client_session,-1);
+					async_redirect_to(client_session);
 				}else{
-					//COUT << "remove失败" << std::endl;
 					log(lyramilk::log::error,"onrequest") << lyramilk::kdict("remove失败") << std::endl;
 				}
 			}else if(size >= 4){
@@ -257,7 +255,6 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			addr.sin_family = AF_INET;
 			addr.sin_port = htons(port);
 
-
 			if(0 == ::connect(tmpsock,(const sockaddr*)&addr,sizeof(addr))){
 				this->fd(tmpsock);
 				return true;
@@ -297,10 +294,12 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		{
 			if(args.size() == 1){
 				MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_int);
+				log(lyramilk::log::trace,"open_master") << lyramilk::kdict("打开管理端(0.0.0.0:%u)",(int)args[0]) << std::endl;
 				return upmaster.open(args[0]) && upmaster.attach("0.0.0.0",args[0],&ins);
 			}else if(args.size() == 2){
 				MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 				MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_int);
+				log(lyramilk::log::trace,"open_master") << lyramilk::kdict("打开管理端(%s:%u)",args[0].str().c_str(),(int)args[1]) << std::endl;
 				return upmaster.open(args[0].str(),args[1]) && upmaster.attach(args[0].str(),args[1],&ins);
 			}
 
@@ -311,10 +310,12 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		{
 			if(args.size() == 1){
 				MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_int);
+				log(lyramilk::log::trace,"open") << lyramilk::kdict("打开服务端(0.0.0.0:%u)",(int)args[0]) << std::endl;
 				return ins.open(args[0]);
 			}else if(args.size() == 2){
 				MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,0,lyramilk::data::var::t_str);
 				MILK_CHECK_SCRIPT_ARGS_LOG(log,lyramilk::log::warning,__FUNCTION__,args,1,lyramilk::data::var::t_int);
+				log(lyramilk::log::trace,"open") << lyramilk::kdict("打开服务端(%s:%u)",args[0].str().c_str(),(int)args[1]) << std::endl;
 				return ins.open(args[0].str(),args[1]);
 			}
 
@@ -328,21 +329,8 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		}
 	};
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 	class rproxy_aiocmdclient:public lyramilk::netio::client
+	//class rproxy_aiocmdclient:public lyramilk::netio::aioproxysession_speedy_async
 	{
 	  public:
 		lyramilk::io::aiopoll_safe* pool;
@@ -362,9 +350,11 @@ namespace lyramilk{ namespace teapoy{ namespace native
 		virtual bool reopen()
 		{
 			if(fd() >= 0){
+				close();
 				log(lyramilk::log::error,"init") << lyramilk::kdict("打开套接字(%s:%u)失败：%s",server_host.c_str(),server_port,"套接字己经打开。") << std::endl;
-				return false;
+				//return false;
 			}
+
 			hostent* h = gethostbyname(server_host.c_str());
 			if(h == nullptr){
 				log(lyramilk::log::error,"init") << lyramilk::kdict("打开套接字(%s:%u)失败：%s",server_host.c_str(),server_port,strerror(errno)) << std::endl;
@@ -397,75 +387,90 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			::close(tmpsock);
 			return false;
 		}
-	};
-
-	static void* thread_task(void* _p)
-	{
-		rproxy_aiocmdclient* ins = (rproxy_aiocmdclient*)_p;
 
 
-		while(true){
-			if(!ins->reopen()){
+
+
+
+		static void* thread_task(void* _p)
+		{
+			rproxy_aiocmdclient* ins = (rproxy_aiocmdclient*)_p;
+
+
+			while(!ins->reopen()){
 				sleep(2);
-				continue;
 			}
 
-			ins->write(RPROXY_MAGIC,sizeof(RPROXY_MAGIC));
+			lyramilk::netio::netaddress nad = ins->dest();
 
 			while(true){
-				if(!ins->check_read(10000)){
-					//log(lyramilk::log::error,"debug") << lyramilk::kdict("check_read:通过") << std::endl;
-					if(ins->write("PING",4) != 4){
+				while(!ins->reopen()){
+					sleep(2);
+				}
+
+				ins->write(RPROXY_MAGIC,sizeof(RPROXY_MAGIC));
+
+				while(true){
+					if(!ins->check_read(10000)){
+						if(ins->write("PING",4) != 4){
+							ins->close();
+							log(lyramilk::log::error,"rproxy_aiocmdclient.thread_task") << lyramilk::kdict("check_read:连接失败 %s:%u",nad.host().c_str(),nad.port()) << std::endl;
+							break;
+						}
+						continue;
+					}
+
+					char cache[8];
+					int size = ins->read(cache,sizeof(cache));
+					if(size!=8){
+						log(lyramilk::log::error,"rproxy_aiocmdclient.thread_task") << lyramilk::kdict("连接失败1:size=%d,err=%s",size,strerror(errno)) << std::endl;
 						ins->close();
 						break;
-
 					}
-					continue;
-				}
-				//log(lyramilk::log::error,"debug") << lyramilk::kdict("check_read:通过") << std::endl;
+					rproxy_aioclient* c = rproxy_aioclient::__tbuilder<rproxy_aioclient>();
 
-				char cache[8];
-				int size = ins->read(cache,sizeof(cache));
-				if(size!=8){
-					log(lyramilk::log::error,"error") << lyramilk::kdict("连接失败1:size=%d,err=%s",size,strerror(errno)) << std::endl;
-					ins->close();
-					break;
-				}
-				rproxy_aioclient* c = rproxy_aioclient::__tbuilder<rproxy_aioclient>();
-				if(!c->open(ins->server_host.c_str(),ins->server_port)){
-					log(lyramilk::log::error,"error") << lyramilk::kdict("链接失败2:size=%d,err=%s",size,strerror(errno)) << std::endl;
-					delete c;
-					continue;
-				}
-				c->setnodelay(true);
-				c->setkeepalive(20,3);
-				c->setnoblock(true);
+					//lyramilk::netio::aioproxysession_speedy_async* c = rproxy_aioclient::__tbuilder<lyramilk::netio::aioproxysession_speedy_async>();
 
-				c->write(cache,size);
+					if(!c->open(ins->server_host.c_str(),ins->server_port)){
+						log(lyramilk::log::error,"rproxy_aiocmdclient.thread_task") << lyramilk::kdict("连接失败2:size=%d,err=%s",size,strerror(errno)) << std::endl;
+						delete c;
+						continue;
+					}
+					c->setnodelay(true);
+					c->setkeepalive(20,3);
+					c->setnoblock(true);
 
-				rproxy_aioclient* uc = rproxy_aioclient::__tbuilder<rproxy_aioclient>();
-				if(!uc->open(ins->upstream_host.c_str(),ins->upstream_port)){
-					log(lyramilk::log::error,"error") << lyramilk::kdict("链接失败3:size=%d,err=%s",size,strerror(errno)) << std::endl;
-					delete uc;
-					delete c;
-					continue;
+					c->write(cache,size);
+
+					rproxy_aioclient* uc = rproxy_aioclient::__tbuilder<rproxy_aioclient>();
+					//lyramilk::netio::aioproxysession_speedy_async* uc = rproxy_aioclient::__tbuilder<lyramilk::netio::aioproxysession_speedy_async>();
+					if(!uc->open(ins->upstream_host.c_str(),ins->upstream_port)){
+						log(lyramilk::log::error,"rproxy_aiocmdclient.thread_task") << lyramilk::kdict("连接失败3:size=%d,err=%s",size,strerror(errno)) << std::endl;
+						delete uc;
+						delete c;
+						continue;
+					}
+					uc->setnodelay(true);
+					uc->setkeepalive(20,3);
+					uc->setnoblock(true);
+
+					c->endpoint = uc;
+					uc->endpoint = c;
+
+					log(lyramilk::log::debug,"rproxy_aiocmdclient.thread_task") << lyramilk::kdict("连接成功:%s:%u --> %s:%u",ins->server_host.c_str(),ins->server_port,ins->upstream_host.c_str(),ins->upstream_port) << std::endl;
+					ins->pool->add(uc,-1);
+					ins->pool->add_to_thread(uc->get_thread_idx(),c,-1);
 				}
-				uc->setnodelay(true);
-				uc->setkeepalive(20,3);
-				uc->setnoblock(true);
-
-				c->endpoint = uc;
-				uc->endpoint = c;
-				ins->pool->add(uc,-1);
-				ins->pool->add_to_thread(uc->get_thread_idx(),c,-1);
 			}
+
+			pthread_exit(0);
+			return nullptr;
 		}
 
 
 
-		pthread_exit(0);
-		return nullptr;
-	}
+
+	};
 
 	// rproxyclient
 	class rproxyclient:public epoll_selector
@@ -506,7 +511,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			if(ins->init(args[0].str(),args[1],args[2].str(),args[3])){
 				inited = true;
 				pthread_t id_1;
-				pthread_create(&id_1,NULL,thread_task,ins);
+				pthread_create(&id_1,NULL,rproxy_aiocmdclient::thread_task,ins);
 				pthread_detach(id_1);
 				return true;
 			}

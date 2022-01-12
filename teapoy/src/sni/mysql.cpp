@@ -193,7 +193,12 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 					result_bind[i].length = &result_length[i];
 
 					result_bind[i].buffer = result_buff[i].data();
-					result_bind[i].is_null = &result_is_null[i];
+
+#ifdef MARIADB_BASE_VERSION
+					result_bind[i].is_null = (my_bool*)&result_is_null[i];
+#else
+					result_bind[i].is_null = (bool*)&result_is_null[i];
+#endif
 				}
 
 				mysqlret = mysql_stmt_bind_result(p,result_bind.data());
