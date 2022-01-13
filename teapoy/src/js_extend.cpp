@@ -399,7 +399,7 @@ namespace lyramilk{ namespace teapoy{ namespace sni{
 				if(JS_GetProperty(cx,jo,"stack",&__prop)){
 
 					std::vector<int>* prlines = (std::vector<int>*)JS_GetContextPrivate(cx);
-					int lineno = report->lineno;
+					unsigned long lineno = report->lineno;
 					if(prlines && lineno < prlines->size() + 1){
 						lineno = prlines->at(lineno - 1);
 					}

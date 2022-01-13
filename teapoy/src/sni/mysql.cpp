@@ -143,7 +143,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 
 
 		bool isnumber(const lyramilk::data::string& s){
-			for(int i=0;i<s.size();++i){
+			for(unsigned long i=0;i<s.size();++i){
 				char c = s[i];
 				if(c < '0' || c > '9') return false;
 			}
