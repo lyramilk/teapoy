@@ -15,7 +15,7 @@ namespace lyramilk{ namespace teapoy {
 	ssize_t http_2_0::send_callback(nghttp2_session *session, const uint8_t *data,size_t length, int flags, void *user_data)
 	{
 		http_2_0* p = (http_2_0*)user_data;
-
+/*
 		size_t cur = 0;
 		while(cur < length){
 			int r = SSL_write((SSL*)p->channel->get_ssl_obj(),data + cur,length - cur);
@@ -28,6 +28,19 @@ namespace lyramilk{ namespace teapoy {
 			}
 		}
 		return cur;
+*/
+		int r = SSL_write((SSL*)p->channel->get_ssl_obj(),data,length);
+		if(r == -1){
+			int err = SSL_get_error((SSL*)p->channel->get_ssl_obj(), r);
+			if (err == SSL_ERROR_WANT_WRITE || err == SSL_ERROR_WANT_READ) {
+				return NGHTTP2_ERR_WOULDBLOCK;
+			}else{
+				return NGHTTP2_ERR_CALLBACK_FAILURE;
+			}
+		}else if(r == 0){
+			return NGHTTP2_ERR_EOF;
+		}
+		return r;
 	}
 
 	ssize_t http_2_0::recv_callback(nghttp2_session *session, uint8_t *buf,size_t length, int flags, void *user_data)
