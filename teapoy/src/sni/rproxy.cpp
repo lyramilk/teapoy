@@ -414,7 +414,7 @@ namespace lyramilk{ namespace teapoy{ namespace native
 					if(!ins->check_read(10000)){
 						if(ins->write("PING",4) != 4){
 							ins->close();
-							log(lyramilk::log::error,"rproxy_aiocmdclient.thread_task") << lyramilk::kdict("check_read:连接失败 %s:%u",nad.host().c_str(),nad.port()) << std::endl;
+							log(lyramilk::log::error,"rproxy_aiocmdclient.thread_task") << lyramilk::kdict("check_read:连接失败 %s:%u %s",nad.host().c_str(),nad.port(),strerror(errno)) << std::endl;
 							break;
 						}
 						continue;
@@ -466,10 +466,6 @@ namespace lyramilk{ namespace teapoy{ namespace native
 			pthread_exit(0);
 			return nullptr;
 		}
-
-
-
-
 	};
 
 	// rproxyclient
