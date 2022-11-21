@@ -48,7 +48,9 @@ namespace lyramilk{ namespace teapoy {
 			if(pos != plistener->webprotostr.npos){
 				*out = plistener->webprotostr.c_str() + pos + 1;
 				*outlen = plistener->webprotostr[pos];
+#ifdef _DEBUG
 				std::cout.write((const char*)*out,*outlen) << std::endl;
+#endif
 				return SSL_TLSEXT_ERR_OK;
 			}
 		}

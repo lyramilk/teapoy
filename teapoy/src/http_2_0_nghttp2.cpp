@@ -354,7 +354,7 @@ namespace lyramilk{ namespace teapoy {
 
 	bool http_2_0::allow_chunk()
 	{
-		return false;
+		return true;
 	}
 
 	bool http_2_0::allow_cached()

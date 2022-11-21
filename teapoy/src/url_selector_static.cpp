@@ -22,7 +22,7 @@ namespace lyramilk{ namespace teapoy {
 		url_selector_static()
 		{
 			nocache = false;
-			nogzip = true;
+			nogzip = false;
 			threshold = 1;
 			compress_type = "gzip";
 		}

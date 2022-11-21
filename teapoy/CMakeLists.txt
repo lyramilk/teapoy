@@ -1,6 +1,6 @@
 ﻿#定义工程名及版本
 project(teapoy2)
-set(version 2.0.21)
+set(version 2.0.22)
 set(soversion 2.0)
 
 
@@ -70,6 +70,7 @@ if(UNIX)
 	pkg_check_modules(ZLIB zlib)
 	pkg_check_modules(NGHTTP2 libnghttp2)
 	pkg_check_modules(JS38 mozjs-38)
+	pkg_check_modules(LIBCMARK libcmark)
 	if(NOT JS38_FOUND)
 		pkg_check_modules(JS17 mozjs-17.0 REQUIRED)
 	endif()
