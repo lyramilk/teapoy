@@ -71,12 +71,13 @@ namespace lyramilk{ namespace teapoy {
 
 			const char* sep = memfind(p,base_size,"\r\n\r\n",4);
 			if(sep == nullptr) return ms_continue;
+			sep += 2;
 
 			lyramilk::data::string httpheader;
 			if(pps == mp_http_s0){
 				const char* cacheheader = p;
 				std::size_t header_size = sep - p;
-				body_offset = header_size + 4;
+				body_offset = header_size + 2;
 
 				const char* cap_eof = memfind(cacheheader,header_size,"\r\n",2);
 				if(!cap_eof) return ms_error;
@@ -107,11 +108,12 @@ namespace lyramilk{ namespace teapoy {
 				}*/
 				header[":path"] = fields[1];	//url
 				header[":version"] = fields[2];
+				header["Host"] = "localhost";
 				pps = mp_head;
 			}else{
 				const char* cacheheader = p;
 				std::size_t header_size = sep - p;
-				body_offset = header_size + 4;
+				body_offset = header_size + 2;
 				httpheader.assign(cacheheader,sep - cacheheader);
 			}
 

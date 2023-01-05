@@ -7,7 +7,7 @@ namespace lyramilk{ namespace teapoy {
 	{
 		lyramilk::data::map::const_iterator it = cm.find("filefmt");
 		if(it == cm.end()) return false;
-		return lf.init(it->second.str(),false);
+		return lf.init(it->second.str(),false,true);
 	}
 
 	lyramilk::data::var functional_impl_logfile_instance::exec(const lyramilk::data::array& ar)
