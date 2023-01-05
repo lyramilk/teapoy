@@ -1,6 +1,8 @@
-﻿#定义工程名及版本
+﻿# cmake -D release=1 -D CMAKE_INSTALL_PREFIX=~/.local ..
+
+#定义工程名及版本
 project(teapoy2)
-set(version 2.0.22)
+set(version 2.0.23)
 set(soversion 2.0)
 
 
@@ -40,9 +42,7 @@ else()
 endif()
 
 #定义安装目录
-if(NOT install_dir)
-	set(install_dir ${CMAKE_CURRENT_SOURCE_DIR}/output)
-endif()
+set(CMAKE_INSTALL_PREFIX $ENV{HOME}/.local)
 
 #搜索源代码
 aux_source_directory(src src_cpps)
@@ -70,13 +70,13 @@ if(UNIX)
 	pkg_check_modules(ZLIB zlib)
 	pkg_check_modules(NGHTTP2 libnghttp2)
 	pkg_check_modules(JS38 mozjs-38)
-	pkg_check_modules(LIBCMARK libcmark)
+	#pkg_check_modules(LIBCMARK libcmark)
 	if(NOT JS38_FOUND)
 		pkg_check_modules(JS17 mozjs-17.0 REQUIRED)
 	endif()
 	pkg_check_modules(TINYXML2 tinyxml2)
 
-	check_include_file_cxx(mysql/mysql.h Z_HAVE_MYSQL)
+	pkg_check_modules(MYSQL mysqlclient)
 	check_include_file_cxx(jpeglib.h Z_HAVE_LIBJPEG)
 	check_include_file_cxx(mongo/version.h Z_HAVE_MONGODB)
 	check_include_file_cxx(mongo/client/connpool.h Z_HAVE_LIBMONGO)
@@ -159,11 +159,11 @@ else()
 	list(REMOVE_ITEM src_cpps src/sni/xml.cpp)
 endif()
 
-if(Z_HAVE_MYSQL)
-	list(APPEND BUILD_DEPENDS mysql-devel)
-	list(APPEND RUN_DEPENDS mysql-libs)
-	list(APPEND LIBS_DEPENDS -L/usr/lib64/mysql -lmysqlclient)
-	list(APPEND CONFIG_MACROS Z_HAVE_MYSQL)
+if(MYSQL_FOUND)
+	list(APPEND BUILD_DEPENDS libmysqlclient-dev)
+	list(APPEND RUN_DEPENDS libmysqlclient)
+	list(APPEND LIBS_DEPENDS ${MYSQL_LDFLAGS})
+	list(APPEND CONFIG_MACROS MYSQL_FOUND)
 else()
 	list(REMOVE_ITEM src_cpps src/sni/mysql.cpp)
 endif()
@@ -289,7 +289,7 @@ foreach(var ${src_app})
 	add_executable(${var2} ${var})
 	target_link_libraries(${var2} ${PROJECT_NAME})
 	#target_link_libraries(${var2} -L/usr/lib64/mysql -lmysqlclient)
-	install(TARGETS ${PROJECT_NAME} DESTINATION ${install_dir})
+	#install(TARGETS ${PROJECT_NAME} DESTINATION ${install_dir})
 	#定义翻译目标
 	#if(Z_HAVE_GETTEXT)
 	#	add_custom_target(${var2}_pot xgettext -d ${PROJECT_NAME} -s -j -o ${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}.pot ${var})
@@ -297,10 +297,11 @@ foreach(var ${src_app})
 endforeach()
 
 #定义安装目标
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/pkg/${PROJECT_NAME}.pc DESTINATION ${install_dir})
-install(FILES ${src_hs} DESTINATION ${install_dir})
-install(TARGETS ${PROJECT_NAME} DESTINATION ${install_dir})
-install(TARGETS teapoyd DESTINATION ${install_dir})
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/pkg/${PROJECT_NAME}.pc DESTINATION lib64/pkgconfig)
+install(FILES ${src_hs} DESTINATION include/teapoy)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/include/config.h DESTINATION include/teapoy)
+install(TARGETS ${PROJECT_NAME} DESTINATION lib64)
+install(TARGETS teapoyd DESTINATION bin)
 
 #单元测试，是否开启内存泄露测试
 if(MEMLEAKTEST)
