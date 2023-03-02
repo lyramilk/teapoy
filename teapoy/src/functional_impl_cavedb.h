@@ -4,15 +4,15 @@
 #include "functional_master.h"
 #include <libmilk/thread.h>
 #include <libmilk/log.h>
-#include <cavedb/slave_ssdb.h>
-#include <cavedb/store/leveldb_minimal_adapter.h>
+#include <cavedb/leveldb_store.h>
+#include <cavedb/cavedb_receiver.h>
 
 
 namespace lyramilk{ namespace teapoy {
 	class functional_impl_cavedb_instance:public functional
 	{
-		lyramilk::cave::leveldb_minimal_adapter rsdb;
-		lyramilk::cave::slave_ssdb slave;
+		lyramilk::cave::leveldb_store store;
+		lyramilk::cave::cavedb_receiver receiver;
 	  public:
 		virtual bool init(const lyramilk::data::map& m);
 		virtual lyramilk::data::var exec(const lyramilk::data::array& ar);
