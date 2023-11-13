@@ -1,0 +1,9 @@
+[submodule "teapoy/3rd_party/libmilk"]
+	path = teapoy/3rd_party/libmilk
+	url = https://github.com/lyramilk/libmilk
+[submodule "teapoy/3rd_party/cavedb"]
+	path = teapoy/3rd_party/cavedb
+	url = https://github.com/lyramilk/cavedb
+[submodule "teapoy/3rd_party/leveldb"]
+	path = teapoy/3rd_party/leveldb
+	url = https://github.com/google/leveldb
