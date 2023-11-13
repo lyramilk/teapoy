@@ -10,7 +10,9 @@
 #include "httplistener.h"
 #include "http_1_0.h"
 #include "http_1_1.h"
-#include "http_2_0_nghttp2.h"
+#ifdef NGHTTP2_FOUND
+	#include "http_2_0_nghttp2.h"
+#endif
 #include "sessionmgr.h"
 #include "sni_selector.h"
 #include "mimetype.h"

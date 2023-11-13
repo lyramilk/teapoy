@@ -1,3 +1,4 @@
+#include <teapoy/config.h>
 #include <libmilk/json.h>
 #include <libmilk/scriptengine.h>
 #include <libmilk/log.h>
@@ -13,13 +14,11 @@
 #include <algorithm>
 
 #include <errno.h>
-#include <curl/curl.h>
 #include <pwd.h>
 
-#include "config.h"
-#include "script.h"
-#include "webservice.h"
-#include "js_extend.h"
+#include <teapoy/script.h>
+#include <teapoy/webservice.h>
+#include <teapoy/js_extend.h>
 
 class teapoy_log_base;
 

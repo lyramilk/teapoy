@@ -5,12 +5,7 @@
 #include <libmilk/log.h>
 #include <libmilk/dict.h>
 #include <libmilk/factory.h>
-#include <mysql/mysql.h>
-#define MAROC_MYSQL MYSQL
 #include <cassert>
-#ifndef my_bool
-	#define my_bool bool
-#endif
 
 namespace lyramilk{ namespace teapoy{ namespace native{
 	static lyramilk::log::logss log(lyramilk::klog,"teapoy.native.cavedb");
