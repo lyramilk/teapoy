@@ -4,25 +4,6 @@
 namespace lyramilk{ namespace teapoy {
 	#define FUNCTIONAL_TYPE	"cavedb"
 
-/*
-
-				lyramilk::cave::cavedb_receiver* p = new lyramilk::cave::cavedb_receiver;
-				p->chd.isreadonly = false;
-
-				lyramilk::data::string host = m["host"].str();
-				lyramilk::data::int32 port = m["port"].conv(-1);
-				lyramilk::data::string masterauth = m["masterauth"].str();
-				lyramilk::data::string masterid = m["masterid"].str();
-
-				lyramilk::data::string replid = "";
-				lyramilk::data::uint64 offset = 0;
-				cmdr.get_sync_info(masterid,&replid,&offset);
-
-
-				p->init(host,port,masterauth,masterid,replid,offset,&cmdr);
-				p->active(1);
-
-				*/
 	bool functional_impl_cavedb_instance::init(const lyramilk::data::map& cm)
 	{
 		lyramilk::data::map m = cm;

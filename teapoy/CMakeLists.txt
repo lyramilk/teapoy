@@ -20,7 +20,6 @@ unset(headers)
 aux_source_directory(src codes)
 aux_source_directory(src/sni codes)
 file(GLOB headers RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} include/teapoy/*.h)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR} include/teapoy)
 
 
 #搜索子模块
@@ -167,18 +166,21 @@ endif()
 
 #定义目标*
 libmilk_cmake_def(${PROJECT_NAME} ${PROJECT_NAME}-shared teapoy codes headers ${PROJECT_NAME}-alone)
+target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} include/teapoy)
+
 if(${PROJECT_NAME}-shared)
-	#target_link_libraries(${PROJECT_NAME} PUBLIC milk)
-	#target_link_libraries(${PROJECT_NAME} PRIVATE cavedb)
-	#target_link_libraries(${PROJECT_NAME} PRIVATE leveldb)
+	target_link_libraries(${PROJECT_NAME} PUBLIC milk)
+	target_link_libraries(${PROJECT_NAME} PUBLIC cavedb)
+	target_link_libraries(${PROJECT_NAME} PRIVATE leveldb)
 else()	
-	#target_link_libraries(${PROJECT_NAME}_static PUBLIC -Wl,--whole-archive milk_static -Wl,--no-whole-archive)
-	#target_link_libraries(${PROJECT_NAME}_static PRIVATE -Wl,--whole-archive cavedb_static -Wl,--no-whole-archive)
-	#target_link_libraries(${PROJECT_NAME}_static PRIVATE leveldb)
+	target_link_libraries(${PROJECT_NAME} PUBLIC milk)
+	target_link_libraries(${PROJECT_NAME} PUBLIC cavedb)
+	target_link_libraries(${PROJECT_NAME} PRIVATE leveldb)
 endif()
 
 #定义主程序
 add_executable(teapoyd src/app/teapoyd.cc)
 install(TARGETS teapoyd DESTINATION bin)
 
-target_link_libraries(teapoyd ${PROJECT_NAME} cavedb milk ${LIBS_DEPENDS} -ltinyxml2)
+target_link_libraries(teapoyd PUBLIC -Wl,--whole-archive milk cavedb ${PROJECT_NAME} -Wl,--no-whole-archive ${LIBS_DEPENDS})
+#target_link_libraries(teapoyd ${PROJECT_NAME} ${LIBS_DEPENDS} -ltinyxml2)
