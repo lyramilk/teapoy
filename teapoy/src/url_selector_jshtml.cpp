@@ -65,8 +65,8 @@ namespace lyramilk{ namespace teapoy {
 			}
 			if(vret.type_like(lyramilk::data::var::t_bool)){
 				bool r = vret;
-				if(r){
-					request->set("Connection","close");
+				if(!r){
+					response->set("Connection","close");
 				}
 			}
 

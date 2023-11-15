@@ -7,6 +7,7 @@
 #include <libmilk/dict.h>
 #include <openssl/ssl.h>
 #include <libmilk/debug.h>
+#include <libmilk/stringutil.h>
 
 #include <errno.h>
 
@@ -162,7 +163,7 @@ namespace lyramilk{ namespace teapoy {
 	int http_2_0::on_stream_close_callback(nghttp2_session *session, int32_t stream_id,uint32_t error_code,void *user_data)
 	{
 		http_2_0* p = (http_2_0*)user_data;
-		lyramilk::data::string sconnect = p->response->get("Connection");
+		lyramilk::data::string sconnect = lyramilk::data::lower_case(p->response->get("Connection"));
 		if(sconnect == "close"){
 			p->closeconnect = true;
 		}else{

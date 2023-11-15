@@ -5,6 +5,7 @@
 #include "fcache.h"
 #include <libmilk/log.h>
 #include <libmilk/dict.h>
+#include <libmilk/stringutil.h>
 
 
 namespace lyramilk{ namespace teapoy {
@@ -66,7 +67,7 @@ namespace lyramilk{ namespace teapoy {
 
 		request_finish();
 
-		lyramilk::data::string sconnect = response->get("Connection");
+		lyramilk::data::string sconnect = lyramilk::data::lower_case(response->get("Connection"));
 	
 		if(sconnect == "keep-alive"){
 			reset();
