@@ -34,12 +34,12 @@ namespace lyramilk{ namespace teapoy {
 
 		static url_selector* ctr(void*)
 		{
-			static url_selector_health st;
-			return &st;
+			return new url_selector_health;
 		}
 
 		static void dtr(url_selector* p)
 		{
+			delete (url_selector*)p;
 		}
 	};
 
