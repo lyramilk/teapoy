@@ -190,6 +190,7 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 			suc = parse(iss,ret);
 		}catch(std::exception& e){
 			close();
+			lyramilk::klog(lyramilk::log::error,"redis_client::exec") << D("redis(%s:%d)解析失败",host.c_str(),port) << std::endl;
 			throw e;
 		}
 		if(!suc){
@@ -197,6 +198,7 @@ namespace lyramilk{ namespace teapoy{ namespace redis{
 				lyramilk::data::string str = ret.str();
 				if(str.find("NOAUTH") != str.npos){
 					close();
+					lyramilk::klog(lyramilk::log::error,"redis_client::exec") << D("redis(%s:%d)错误：%s",host.c_str(),port,str.c_str()) << std::endl;
 					throw lyramilk::exception(D("redis(%s:%d)错误：%s",host.c_str(),port,str.c_str()));
 					return false;
 				}
