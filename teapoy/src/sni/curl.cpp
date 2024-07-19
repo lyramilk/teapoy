@@ -242,6 +242,7 @@ namespace lyramilk{ namespace teapoy{ namespace native{
 			curl_easy_setopt(c, CURLOPT_URL,newurl.c_str());
 			curl_easy_setopt(c, CURLOPT_WRITEFUNCTION, curl_writestream_callback);
 			curl_easy_setopt(c, CURLOPT_WRITEDATA, (std::ostream*)&ss);
+			curl_easy_setopt(c, CURLOPT_ACCEPT_ENCODING, "");
 			
 			struct curl_slist* headers = NULL;
 			if(args.size() > 3){
